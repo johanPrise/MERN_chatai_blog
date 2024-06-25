@@ -1,0 +1,32 @@
+/* Add the following styles in your Tailwind CSS configuration or CSS file */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .button-class {
+    @apply relative inline-block m-3 p-3 text-center text-lg leading-5 tracking-wide text-[#0e253c] bg-transparent cursor-pointer transition ease-out duration-500 border-2 border-[#5bc15a] rounded-lg;
+  }
+
+  .button-class:hover {
+    @apply text-white;
+    box-shadow: inset 0 -100px 0 0 #5bc15a;
+  }
+
+  .button-class:active {
+    @apply transform scale-90;
+  }
+
+    .button-class_2 {
+    @apply relative inline-block m-3 p-3 text-center text-lg leading-5 tracking-wide text-[#0e253c] bg-transparent cursor-pointer transition ease-out duration-500 border-2 border-[#b91c1c] rounded-lg;
+  }
+
+  .button-class_2:hover {
+    @apply text-white;
+    box-shadow: inset 0 -100px 0 0 #b91c1c;
+  }
+
+  .button-class_2:active {
+    @apply transform scale-90;
+  }
+}

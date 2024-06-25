@@ -1,0 +1,21 @@
+.post {
+    transition: all 0.3s ease-out;
+    padding: 1em;
+    border-radius: 1em;
+    margin-left: 4em;
+    margin-left: 14px;
+    .post_category {
+        font-family: Inter, sans-serif;
+        font-weight: semi-bold;
+        text-transform: uppercase;
+        color: #6c8b4c;
+    }
+    post_description {
+        color: #6d6e76;
+    }
+
+    &:hover {
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.4);
+        border: 3px solid #7db129;
+    }
+}

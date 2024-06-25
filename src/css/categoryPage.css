@@ -1,0 +1,24 @@
+.category-header {
+    display: grid;
+    justify-content: center;
+    padding: 3em;
+    background-color: #F4F0F8;
+    text-align: center;
+}
+.category-description {
+    color: #6d6e76;
+    width: 30em;
+}
+.h4 {
+    line-height: 2em;
+    font-family: Inter, sans-serif;
+    font-weight: semi-bold;
+    text-transform: uppercase;
+}
+
+.categories image{
+    padding:0em;
+}
+h2{
+    margin:0em
+}

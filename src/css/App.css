@@ -1,0 +1,153 @@
+#root {
+    max-width: 1600px;
+    margin: 0 auto;
+    display: grid;
+}
+a{
+    cursor:pointer;
+    color: #4B4B4B,
+
+}
+.blog-header {
+    background-color: #f4f0f8;
+    padding: 5em;
+    border-radius: 1em;
+    img {
+        border-radius: 1em;
+    }
+}
+.post_title {
+    font-family: Sen;
+    color: #232536;
+}
+.post_description {
+    color: #6d6e76;
+}
+
+.post_img{
+    img{
+    background: white;
+    padding: 1px;
+    border-radius: 1em;
+    
+    }
+
+}
+.posts-container h1{
+ margin: 0em;
+}
+
+
+
+.Categories-container {
+    padding: 4em;
+    padding-top: 0em;
+    h2 {
+        font-size: xx-large;
+    }
+}
+.post_id {
+    color: #6d6e76;
+    span {
+        color: #232536;
+    }
+}
+.posts-container {
+    display: grid;
+    row-gap: 3em;
+    padding: 6em;
+    img {
+        border-radius: 1em;
+        transition: all 0.3s ease-out;
+        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+        &:hover {
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.4);
+        }
+    }
+}
+
+
+
+@keyframes dominos {
+  50% {
+    opacity: 0.7;
+  }
+  75% {
+    transform: rotate(90deg);
+  }
+  80% {
+    opacity: 1;
+  }
+}
+
+.newtons-cradle {
+  --uib-size: 50px;
+  --uib-speed: 1.2s;
+  --uib-color: #22c55e; /* Green color */
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--uib-size);
+  height: var(--uib-size);
+}
+
+.newtons-cradle__dot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  width: 25%;
+  transform-origin: center top;
+}
+
+.newtons-cradle__dot::after {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 25%;
+  border-radius: 50%;
+  background-color: var(--uib-color);
+}
+
+.newtons-cradle__dot:first-child {
+  animation: swing var(--uib-speed) linear infinite;
+}
+
+.newtons-cradle__dot:last-child {
+  animation: swing2 var(--uib-speed) linear infinite;
+}
+
+@keyframes swing {
+  0% {
+    transform: rotate(0deg);
+    animation-timing-function: ease-out;
+  }
+
+  25% {
+    transform: rotate(70deg);
+    animation-timing-function: ease-in;
+  }
+
+  50% {
+    transform: rotate(0deg);
+    animation-timing-function: linear;
+  }
+}
+
+@keyframes swing2 {
+  0% {
+    transform: rotate(0deg);
+    animation-timing-function: linear;
+  }
+
+  50% {
+    transform: rotate(0deg);
+    animation-timing-function: ease-out;
+  }
+
+  75% {
+    transform: rotate(-70deg);
+    animation-timing-function: ease-in;
+  }
+}
