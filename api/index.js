@@ -34,9 +34,11 @@ import bodyParser from 'body-parser';
 
 // Importer le modèle de données ConversationModel
 import ConversationModel from './models/Conversation.js';
-
+import CommentModel from './models/Comments.js';
 // Importer le modèle de données CategoryModel
 import CategoryModel from './models/categories.js';
+import { refreshUserInfo } from "./middlewares/auth.js";
+import { authMiddleware, authorMiddleware, adminMiddleware } from './middlewares/auth.js';
 
 // Générer un sel pour le hachage des mots de passe avec bcrypt
 const salt = bcrypt.genSaltSync(10);
@@ -230,14 +232,20 @@ app.post('/send', async (req, res) => {
 
 // Définir une route pour la création d'un nouvel utilisateur
 app.post("/register/", async (req, res) => {
-  const { username, password, email } = req.body;
+  const { username, password, email, role } = req.body;
   const hashedPassword = await bcrypt.hash(password, salt);
-  const userDoc = await UserModel.create({
-    username,
-    password: hashedPassword,
-    email
-  });
-  res.json(userDoc);
+  try {
+    const userDoc = await UserModel.create({
+      username,
+      password: hashedPassword,
+      email,
+      role,
+      isAuthorized: role === 'user' // Les utilisateurs normaux sont autorisés par défaut
+    });
+    res.json(userDoc);
+  } catch (error) {
+    res.status(400).json(error);
+  }
 });
 
 // Définir une route pour l'authentification d'un utilisateur
@@ -262,18 +270,16 @@ app.post("/login", async (req, res) => {
 // Définir une route pour récupérer les informations de profil de l'utilisateur connecté
 app.get("/profile", (req, res) => {
   const { token } = req.cookies;
-
-  // Check if token exists
-  if (!token) {
-    return res.status(401).json({ message: "Unauthorized: Missing token" });
-  }
-
-  jwt.verify(token, secret, {}, (err, info) => {
+  jwt.verify(token, secret, {}, async (err, info) => {
     if (err) {
-      // Handle JWT verification errors (e.g., invalid token, expired token)
       return res.status(401).json({ message: "Unauthorized: Invalid token" });
     }
-    res.json(info);
+    const user = await UserModel.findById(info.id);
+    res.json({
+      id: user._id,
+      username: user.username,
+      role: user.role  // Assurez-vous d'inclure le rôle ici
+    });
   });
 });
 
@@ -283,7 +289,7 @@ app.post("/logout/", (req, res) => {
 });
 
 // Définir une route pour la création d'un nouveau post
-app.post('/post', upload.single('file'), async (req,res) => {
+app.post('/post', authMiddleware, authorMiddleware, upload.single('file'), async (req,res) => {
   const {originalname,path} = req.file;
   const parts = originalname.split('.');
   const ext = parts[parts.length - 1];
@@ -308,7 +314,42 @@ app.post('/post', upload.single('file'), async (req,res) => {
   });
 
 });
+// Route pour vérifier si l'utilisateur est admin
+app.get('/check-admin', authMiddleware, adminMiddleware, (req, res) => {
+  console.log('User in check-admin:', req.user.role);
+  res.json({ isAdmin: req.user.role == 'admin' });
+});
 
+
+// Route pour obtenir la liste des auteurs en attente d'autorisation
+app.get('/pending-authors', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const pendingAuthors = await UserModel.find({ role: 'author', isAuthorized: false });
+    res.json(pendingAuthors);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Route pour autoriser un auteur (accessible uniquement par les admins)
+app.post("/authorize-author",authMiddleware, adminMiddleware, async (req, res) => {
+  const { token } = req.cookies;
+  jwt.verify(token, secret, {}, async (err, info) => {
+    if (err) throw err;
+    const adminUser = await UserModel.findById(info.id);
+    if (adminUser.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+    const { userId } = req.body;
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    user.isAuthorized = true;
+    await user.save();
+    res.json({ message: 'User authorized successfully' });
+  });
+});
 // Définir une route pour la mise à jour d'un post existant
 app.put('/post/:id', async (req, res) => {
      try {
@@ -323,8 +364,96 @@ app.put('/post/:id', async (req, res) => {
      }
  });
 
+app.post('/comment', async (req, res) => {
+  const { token } = req.cookies;
+  jwt.verify(token, secret, {}, async (err, info) => {
+    if (err) return res.status(401).json({ message: "Unauthorized" });
+    const { content, postId } = req.body;
+    const commentDoc = await CommentModel.create({
+      content,
+      author: info.id,
+      post: postId,
+    });
+    res.json(commentDoc);
+  });
+});
 
+// Route pour récupérer les commentaires d'un post
+app.get('/comments/:postId', async (req, res) => {
+  const { postId } = req.params;
+  const comments = await CommentModel.find({ post: postId })
+    .populate('author', ['username'])
+    .sort({ createdAt: -1 });
+  res.json(comments);
+});
 
+// Route pour liker un commentaire
+app.post('/comment/:CommentId/like', authMiddleware, async (req, res) => {
+  const { CommentId } = req.params;
+  const userId = req.user.id;
+
+  try {
+    const comment = await CommentModel.findById(CommentId);
+    if (!comment) {
+      return res.status(404).json({ message: 'Comment not found' });
+    }
+
+    const likeIndex = comment.likes.indexOf(userId);
+    const dislikeIndex = comment.dislikes.indexOf(userId);
+
+    if (likeIndex > -1) {
+      // L'utilisateur a déjà liké, on retire son like
+      comment.likes.splice(likeIndex, 1);
+    } else {
+      // L'utilisateur n'a pas encore liké, on ajoute son like
+      comment.likes.push(userId);
+      // Si l'utilisateur avait disliké, on retire son dislike
+      if (dislikeIndex > -1) {
+        comment.dislikes.splice(dislikeIndex, 1);
+      }
+    }
+
+    await comment.save();
+    res.json({ likes: comment.likes, dislikes: comment.dislikes });
+  } catch (error) {
+    console.error('Error liking comment:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Route pour disliker un commentaire
+app.post('/comment/:CommentId/dislike', authMiddleware, async (req, res) => {
+  const { CommentId } = req.params;
+  const userId = req.user.id;
+
+  try {
+    const comment = await CommentModel.findById(CommentId);
+    if (!comment) {
+      return res.status(404).json({ message: 'Comment not found' });
+    }
+
+    const likeIndex = comment.likes.indexOf(userId);
+    const dislikeIndex = comment.dislikes.indexOf(userId);
+
+    if (dislikeIndex > -1) {
+      // L'utilisateur a déjà disliké, on retire son dislike
+      comment.dislikes.splice(dislikeIndex, 1);
+    } else {
+      // L'utilisateur n'a pas encore disliké, on ajoute son dislike
+      comment.dislikes.push(userId);
+      // Si l'utilisateur avait liké, on retire son like
+      if (likeIndex > -1) {
+        comment.likes.splice(likeIndex, 1);
+      }
+    }
+
+    await comment.save();
+    res.json({ likes: comment.likes, dislikes: comment.dislikes });
+  } catch (error) {
+    console.error('Error disliking comment:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 // Définir une route pour récupérer les 20 derniers posts
 app.get('/post', async (req,res) => {
   res.json(
@@ -445,7 +574,121 @@ app.delete('/categories/:categoryId', async (req, res) => {
   }
 });
 
+// Modifier un commentaire
+app.put('/comment/:commentId', authMiddleware, async (req, res) => {
+  const { commentId } = req.params;
+  const { content } = req.body;
+  const userId = req.user.id;
 
+  try {
+    const comment = await CommentModel.findById(commentId);
+    if (!comment) {
+      return res.status(404).json({ message: 'Comment not found' });
+    }
+    if (comment.author.toString() !== userId) {
+      return res.status(403).json({ message: 'Not authorized to edit this comment' });
+    }
+
+    comment.content = content;
+    await comment.save();
+
+    res.json(comment);
+  } catch (error) {
+    console.error('Error updating comment:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Route pour liker un post
+app.post('/post/:id/like', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+
+  try {
+    const post = await PostModel.findById(id);
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    const likeIndex = post.likes.indexOf(userId);
+    const dislikeIndex = post.dislikes.indexOf(userId);
+
+    if (likeIndex > -1) {
+      // L'utilisateur a déjà liké, on retire son like
+      post.likes.splice(likeIndex, 1);
+    } else {
+      // L'utilisateur n'a pas encore liké, on ajoute son like
+      post.likes.push(userId);
+      // Si l'utilisateur avait disliké, on retire son dislike
+      if (dislikeIndex > -1) {
+        post.dislikes.splice(dislikeIndex, 1);
+      }
+    }
+
+    await post.save();
+    res.json({ likes: post.likes, dislikes: post.dislikes });
+  } catch (error) {
+    console.error('Error liking post:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Route pour disliker un post
+app.post('/post/:id/dislike', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+
+  try {
+    const post = await PostModel.findById(id);
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+
+    const likeIndex = post.likes.indexOf(userId);
+    const dislikeIndex = post.dislikes.indexOf(userId);
+
+    if (dislikeIndex > -1) {
+      // L'utilisateur a déjà disliké, on retire son dislike
+      post.dislikes.splice(dislikeIndex, 1);
+    } else {
+      // L'utilisateur n'a pas encore disliké, on ajoute son dislike
+      post.dislikes.push(userId);
+      // Si l'utilisateur avait liké, on retire son like
+      if (likeIndex > -1) {
+        post.likes.splice(likeIndex, 1);
+      }
+    }
+
+    await post.save();
+    res.json({ likes: post.likes, dislikes: post.dislikes });
+  } catch (error) {
+    console.error('Error disliking post:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Supprimer un commentaire
+app.delete('/comment/:commentId', authMiddleware, async (req, res) => {
+  const { commentId } = req.params;
+  const userId = req.user.id;
+
+  try {
+    const comment = await CommentModel.findById(commentId);
+    if (!comment) {
+      return res.status(404).json({ message: 'Comment not found' });
+    }
+    if (comment.author.toString() !== userId) {
+      return res.status(403).json({ message: 'Not authorized to delete this comment' });
+    }
+
+    await CommentModel.findByIdAndDelete(commentId);
+
+    res.json({ message: 'Comment deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting comment:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
 // Démarrer le serveur sur le port 4200
 app.listen(4200, () => {

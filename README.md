@@ -1,8 +1,33 @@
-# React + Vite
+<h1 align="center">Welcome to iwomi 👋</h1>
+<p>
+  <img alt="Version" src="https://img.shields.io/badge/version-0.0.0-blue.svg?cacheSeconds=2592000" />
+  <a href="https://twitter.com/ai\_friendly\_art" target="_blank">
+    <img alt="Twitter: ai\_friendly\_art" src="https://img.shields.io/twitter/follow/ai\_friendly\_art.svg?style=social" />
+  </a>
+</p>
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> It's a functional MERN stack blog running with a ai chatbot. The ai of a chatbot is a Qwen model taked in a huggingface spaces used by Qwen models. 
 
-Currently, two official plugins are available:
+### 🏠 [Homepage](Home.tsx)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Install
+
+```sh
+npm install
+```
+
+## Author
+
+👤 **Johan Priso**
+
+* Website: yoricksenpai
+* Twitter: [@ai\_friendly\_art](https://twitter.com/ai\_friendly\_art)
+* Github: [@yoricksenpai](https://github.com/yoricksenpai)
+* LinkedIn: [@Johan Yorick Priso](https://linkedin.com/in/Johan Yorick Priso)
+
+## Show your support
+
+Give a ⭐️ if this project helped you!
+
+***
+_This README was generated with ❤️ by [readme-md-generator](https://github.com/kefranabg/readme-md-generator)_

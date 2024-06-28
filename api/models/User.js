@@ -1,24 +1,7 @@
-/**
- * User model for the MongoDB database.
- * @module models/User
- */
-
 import mongoose from 'mongoose';
 
 const { Schema, model } = mongoose;
 
-/**
- * User schema definition.
- * @typedef {Object} UserSchema
- * @property {string} username - Username.
- * @property {string} password - Password.
- * @property {string} email - Email.
- */
-
-/**
- * User schema.
- * @type {UserSchema}
- */
 const UserSchema = new Schema({
   username: {
     type: String,
@@ -34,13 +17,18 @@ const UserSchema = new Schema({
     type: String,
     required: true,
     unique: true
+  },
+  role: {
+    type: String,
+    enum: ['admin', 'author', 'user'],
+    default: 'user'
+  },
+  isAuthorized: {
+    type: Boolean,
+    default: false
   }
 });
 
-/**
- * User model.
- * @type {mongoose.Model<UserSchema>}
- */
 const UserModel = model('User', UserSchema);
 
 export default UserModel;

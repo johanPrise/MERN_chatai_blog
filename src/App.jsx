@@ -14,6 +14,7 @@ import CreateCategory from "./pages/createCategory.tsx";
 import DeleteCategories from "./pages/DelCategory.tsx";
 import ForgotPassword from "./pages/ForgotPassword.tsx"
 import ResetPassword from "./pages/ResetPassword.tsx";
+import AdminDashboard from "./pages/AdminDashboard.tsx";
 
 /**
  * Renders the main application component with various routes and components.
@@ -24,7 +25,7 @@ function App() {
   return (
     <>
       <UserContextProvider>
-        <div className="font-sans font-semibold bg-sky-50 dark:bg-blue-900 ">
+        <div className="font-sans font-semibold bg-[#F8F7F4] dark:bg-blue-900 ">
           <Header />
           <Routes>
             <Route index element={<Home />} />
@@ -37,6 +38,7 @@ function App() {
             <Route path="/login_page" element={<Login />} />
             <Route path="/forgot_password" element={<ForgotPassword />} />
             <Route path="/reset-password/:resetToken" element={<ResetPassword />} />
+            <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/edit_page/:id" element={<EditPost />} />
           </Routes>
           <Chatbot /> {/* Ajout du composant Chatbot */}

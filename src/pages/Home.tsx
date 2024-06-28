@@ -11,13 +11,7 @@ interface HomeProps {
   featuredPosts: PostType[];
 }
 
-const mainFeaturedPost = {
-  name: "Step-by-step guide to choosing great font pairs",
-  author: "John Doe",
-  date: "May 24 2024",
-  description: "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident.",
-  image: "https://picsum.photos/id/1015/400/300",
-};
+
 
 /**
  * Renders the Home component, which displays a list of posts and categories.

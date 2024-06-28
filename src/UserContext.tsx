@@ -1,6 +1,5 @@
 import React, {useState, createContext} from "react";
 export const UserContext = createContext({});
-
 /**
  * Renders the User Context Provider component with the provided children.
  *
@@ -9,6 +8,8 @@ export const UserContext = createContext({});
  */
 export const UserContextProvider = ({ children }) => {
     const [userInfo, setUserInfo] = useState({});
+    console.log("UserInfo in context:", userInfo);  // Ajoutez ceci pour déboguer
+
     return (
         <UserContext.Provider value={{ userInfo, setUserInfo }}>
             {children}

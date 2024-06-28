@@ -22,6 +22,8 @@ const PostSchema = new Schema(
     author: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     category: { type: Schema.Types.ObjectId, ref: 'Category', required: true },
     featured: { type: Boolean, default: false }, // Ajout du champ featured
+    likes: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+    dislikes: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   },
   {
     timestamps: true,

@@ -1,14 +1,9 @@
 // src/components/Header.tsx
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { UserContext } from '../UserContext';
 import '../css/Link-header.css';
 
-/**
- * Renders a header component with a navigation menu and user authentication options.
- *
- * @return {ReactElement} The rendered header component.
- */
 const Header: React.FC = () => {
   const { setUserInfo, userInfo } = useContext(UserContext);
   const [isMenuOpen, setMenuOpen] = useState(false);
@@ -16,37 +11,45 @@ const Header: React.FC = () => {
   const [isDropdownVisible, setDropdownVisible] = useState(false);
   const [categories, setCategories] = useState([]);
 
-  useEffect(() => {
-    fetch("/api/profile", { credentials: "include" })
-      .then(response => response.json())
-      .then(userInfo => {
-        setUserInfo(userInfo);
-      });
+  const fetchUserInfo = useCallback(async () => {
+    try {
+      const response = await fetch("/api/profile", { credentials: "include" });
+      if (!response.ok) throw new Error('Failed to fetch user info');
+      const userInfo = await response.json();
+      setUserInfo(userInfo);
+    } catch (error) {
+      console.error('Error fetching user info:', error);
+    }
   }, [setUserInfo]);
 
+  useEffect(() => {
+    fetchUserInfo();
+  }, [fetchUserInfo]);
 
   useEffect(() => {
-    fetch('/api/category')
-      .then((response) => response.json())
-      .then((categories) => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('/api/category');
+        if (!response.ok) throw new Error('Failed to fetch categories');
+        const categories = await response.json();
         setCategories(categories);
-      });
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+    fetchCategories();
   }, []);
 
-  ;
-  /**
-   * Logs out the user by sending a POST request to the "/api/logout" endpoint and setting the userInfo state to null.
-   *
-   * @return {void} This function does not return anything.
-   */
-  const logout = () => {
-    fetch("/api/logout", { credentials: "include", method: "POST" });
-    setUserInfo(null);
+  const logout = async () => {
+    try {
+      await fetch("/api/logout", { credentials: "include", method: "POST" });
+      setUserInfo(null);
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
   };
-
   const username = userInfo?.username;
-
-  // Handle dropdown visibility with delay
+  const role = userInfo?.role;
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (isDropdownOpen) {
@@ -64,7 +67,7 @@ const Header: React.FC = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <Link to="/" className="text-lime-800 p-2 rounded uppercase font-bold hover:bg-lime-700 hover:text-white">
-                IWOMI BLOG
+                IWOMI BLOG {role}
               </Link>
             </div>
             <div className="flex lg:hidden">
@@ -104,37 +107,50 @@ const Header: React.FC = () => {
                   }`}
                 >
                   {categories.map((category) => (
-                  <Link style={{ transform: isDropdownVisible ? 'translateY(0)' : 'translateY(20px)' }}
-                  className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-lime-100 dark:hover:bg-gray-600 hover:text-lime-800 dark:hover:text-lime-400 transform transition-transform duration-500 ease-in-out"
-                  to={`/category/${category._id}`}>{category.name}</Link>
-                    ))}
-                 
+                    <Link 
+                      key={category._id}
+                      style={{ transform: isDropdownVisible ? 'translateY(0)' : 'translateY(20px)' }}
+                      className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-lime-100 dark:hover:bg-gray-600 hover:text-lime-800 dark:hover:text-lime-400 transform transition-transform duration-500 ease-in-out"
+                      to={`/category/${category._id}`}
+                    >
+                      {category.name}
+                    </Link>
+                  ))}
                 </div>
               </div>
               <div className="flex items-center gap-4 md:ml-6">
-                {username ? (
-                  <>
-                    <Link to="/create_post" className="block hover:text-white rounded-md bg-green-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-green-700">
-                      Create Post
-                    </Link>
-                    <Link to="/create_category" className="block hover:text-white rounded-md bg-green-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-green-700">Create Category</Link>
-
-
-                    <button onClick={logout} className="rounded-md bg-gray-100 px-5 py-2.5 text-sm font-medium text-teal-600 transition hover:text-teal-600/75 sm:block">
-                      Logout
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <Link to="/login_page" className="block hover:text-white rounded-md bg-green-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-green-700">
-                      Login
-                    </Link>
-                    <Link to="/register_page" className="hidden rounded-md bg-gray-100 px-5 py-2.5 text-sm font-medium text-lime-600 transition hover:text-lime-600/75 sm:block">
-                      Register
-                    </Link>
-                  </>
-                )}
-              </div>
+        {username ? (
+          <>
+            {(role === 'admin' || role === 'author') && (
+              <>
+                <Link to="/create_post" className="block hover:text-white rounded-md bg-green-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-green-700">
+                  Create Post
+                </Link>
+                <Link to="/create_category" className="block hover:text-white rounded-md bg-green-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-green-700">
+                  Create Category
+                </Link>
+              </>
+            )}
+            {role === 'admin' && (
+              <Link to="/admin" className="block hover:text-white rounded-md bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700">
+                Admin Dashboard
+              </Link>
+            )}
+            <button onClick={logout} className="rounded-md bg-gray-100 px-5 py-2.5 text-sm font-medium text-teal-600 transition hover:text-teal-600/75 sm:block">
+              Logout
+            </button>
+          </>
+        ) : (
+          <>
+            <Link to="/login_page" className="block hover:text-white rounded-md bg-green-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-green-700">
+              Login
+            </Link>
+            <Link to="/register_page" className="hidden rounded-md bg-gray-100 px-5 py-2.5 text-sm font-medium text-lime-600 transition hover:text-lime-600/75 sm:block">
+              Register
+            </Link>
+          </>
+        )}
+      </div>
             </div>
           </div>
         </div>

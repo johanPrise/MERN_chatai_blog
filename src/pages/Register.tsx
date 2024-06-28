@@ -6,27 +6,30 @@ function Register() {
     const [username, setUsername] = useState<string>("");
     const [password, setPassword] = useState<string>("");
     const [email, setEmail] = useState<string>("");
+    const [role, setRole] = useState('user');
   const navigate = useNavigate();
 
   async function register(ev: React.FormEvent<HTMLFormElement>) {
       ev.preventDefault();
-      const response = await fetch("api/register/", {
-          method: "POST",
-          headers: {
-              "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ username, password, email }),
-      });
+    const response = await fetch("api/register/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ username, password, email, role }),
+    });
 
-      if (!response.ok) {
-          alert("Registration failed");
-          throw new Error(`HTTP error! status: ${response.status}`);
+    if (response.ok) {
+      const data = await response.json();
+      if (role === 'author') {
+        alert("Your author request has been submitted. Please wait for admin approval.");
+      } else {
+        alert("Registration successful");
       }
-
-      const jsonResponse = await response.json();
-      console.log(jsonResponse);
-      alert("Registration successful");
       navigate("/login");
+    } else {
+      alert("Registration failed");
+    }
   }
 
   return (
@@ -91,7 +94,22 @@ function Register() {
                                   onChange={(ev) => setPassword(ev.target.value)}
                               />
                           </div>
-                      </div>
+                  </div>
+                  <div>
+        <label htmlFor="role" className="block text-sm font-medium leading-6 text-gray-900">
+          Role
+        </label>
+        <select
+          id="role"
+          name="role"
+          value={role}
+          onChange={(ev) => setRole(ev.target.value)}
+          className="mt-2 block w-full rounded-md border-0 py-1.5 pl-3 pr-10 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-lime-600 sm:text-sm sm:leading-6"
+        >
+          <option value="user">User</option>
+          <option value="author">Author (requires approval)</option>
+        </select>
+      </div>
 
                       <div>
                           <button
