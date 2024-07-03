@@ -1,0 +1,180 @@
+Tree
+┣ 📂.idea
+┃ ┣ 📂dataSources
+┃ ┃ ┗ 📜4b660b6a-3e56-423e-8413-5d27b2336cc6.xml
+┃ ┣ 📂inspectionProfiles
+┃ ┃ ┗ 📜Project_Default.xml
+┃ ┣ 📜.gitignore
+┃ ┣ 📜.name
+┃ ┣ 📜dataSources.local.xml
+┃ ┣ 📜dataSources.xml
+┃ ┣ 📜developer-tools.xml
+┃ ┣ 📜iwomi.iml
+┃ ┣ 📜jsLibraryMappings.xml
+┃ ┣ 📜modules.xml
+┃ ┣ 📜rcb-settings.xml
+┃ ┣ 📜vcs.xml
+┃ ┗ 📜workspace.xml
+┣ 📂.vscode
+┃ ┣ 📜easycode.ignore
+┃ ┗ 📜settings.json
+┣ 📂api
+┃ ┣ 📂dist
+┃ ┃ ┣ 📜index.dev.js
+┃ ┃ ┗ 📜WorkerInit.dev.js
+┃ ┣ 📂middlewares
+┃ ┃ ┣ 📂dist
+┃ ┃ ┃ ┗ 📜auth.dev.js
+┃ ┃ ┗ 📜auth.js
+┃ ┣ 📂models
+┃ ┃ ┣ 📂dist
+┃ ┃ ┃ ┣ 📜categories.dev.js
+┃ ┃ ┃ ┣ 📜chatbot.dev.js
+┃ ┃ ┃ ┣ 📜Comments.dev.js
+┃ ┃ ┃ ┣ 📜Conversation.dev.js
+┃ ┃ ┃ ┣ 📜Post.dev.js
+┃ ┃ ┃ ┣ 📜prompt.dev.js
+┃ ┃ ┃ ┗ 📜User.dev.js
+┃ ┃ ┣ 📜categories.js
+┃ ┃ ┣ 📜Comments.js
+┃ ┃ ┣ 📜Conversation.js
+┃ ┃ ┣ 📜Post.js
+┃ ┃ ┗ 📜User.js
+┃ ┣ 📂uploads
+┃ ┃ ┣ 📜01966e3e81b69da51da413f2ca7b564b.png
+┃ ┃ ┣ 📜051770e925a37734210b72e433db354b.jpeg
+┃ ┃ ┣ 📜18000feac011681a23c98749bf812575.png
+┃ ┃ ┣ 📜1a70efddd017004c82dad8881044b7fd.jpg
+┃ ┃ ┣ 📜1af21384308e4da5aef43e18421f5450.jpg
+┃ ┃ ┣ 📜21e63972dff6ffba1156593a3d663b7e.jpg
+┃ ┃ ┣ 📜37f44eac97f528c94918d1d6a71e10bb.jpg
+┃ ┃ ┣ 📜3a7ed18b91740c4f7ec95b5ec0bd3a78.png
+┃ ┃ ┣ 📜3f7f72485bcbcf8d26f3fb8704a26cbf.png
+┃ ┃ ┣ 📜41ca0168b0b35a82ef86759e2f289b5d.png
+┃ ┃ ┣ 📜69a61ac19bb26bcd0137466428f16e9a.PNG
+┃ ┃ ┣ 📜72ea925a8898d8ef7ebafdf5af515b24.jpg
+┃ ┃ ┣ 📜86b7a248b85989f52e21340fb64130d4.png
+┃ ┃ ┣ 📜879b425880e9be31665dff050bff4c03.jpg
+┃ ┃ ┣ 📜9328578484e22d61aaeb70929afa423c.jpg
+┃ ┃ ┣ 📜959f4bd383e7e9279f7341aa2cdc53a8.png
+┃ ┃ ┣ 📜98553355eafafe29d6eaa796ee3482cb.png
+┃ ┃ ┣ 📜ab67e7817f60a02eacb9903dc1e40109.webp
+┃ ┃ ┣ 📜ae0b61994f701b6e62fd847019bfe1d7.jpg
+┃ ┃ ┣ 📜b2859aefeef6b14e335f2cc28ebe9d3c.png
+┃ ┃ ┣ 📜db8c867d0e0f4dba780d53f405f245e1.png
+┃ ┃ ┣ 📜dfaedcee3975b9bdf4e66c2332fae051.jpg
+┃ ┃ ┣ 📜e8f3bdf2bee547824e647d0dda3fc7a6.jpg
+┃ ┃ ┣ 📜f284e18007712bbd91cf57fe125c8a3b.jpg
+┃ ┃ ┣ 📜fd58753fb4b968851dccce73dd2afb2e.PNG
+┃ ┃ ┗ 📜fd7bc6793d23ba0ae873c26589f09189.png
+┃ ┣ 📜.DS_Store
+┃ ┗ 📜index.js
+┣ 📂dist
+┃ ┣ 📂assets
+┃ ┃ ┣ 📜index-BEJ6152i.js
+┃ ┃ ┗ 📜index-CRHp6FrB.css
+┃ ┣ 📜env.dev.js
+┃ ┣ 📜index.html
+┃ ┣ 📜tailwind.config.dev.js
+┃ ┣ 📜vite.config.dev.js
+┃ ┗ 📜webpack.config.dev.js
+┣ 📂public
+┣ 📂src
+┃ ┣ 📂assets
+┃ ┃ ┣ 📂png
+┃ ┃ ┃ ┗ 📜heroicons-thumb_down-circle_cloudly.png
+┃ ┃ ┗ 📂svg
+┃ ┃   ┣ 📜heroicons-thumb_down-circle_cloudly.svg
+┃ ┃   ┣ 📜heroicons-thumb_up-circle.svg
+┃ ┃   ┗ 📜heroicons-thumb_up-circle(1).svg
+┃ ┣ 📂components
+┃ ┃ ┣ 📂assets
+┃ ┃ ┃ ┗ 📜.DS_Store
+┃ ┃ ┣ 📂dist
+┃ ┃ ┃ ┣ 📜AnimateOnView.js
+┃ ┃ ┃ ┣ 📜category.js
+┃ ┃ ┃ ┣ 📜ConfirmationModal.js
+┃ ┃ ┃ ┣ 📜Editor.js
+┃ ┃ ┃ ┣ 📜Featured.js
+┃ ┃ ┃ ┣ 📜header.js
+┃ ┃ ┃ ┣ 📜Layout.js
+┃ ┃ ┃ ┣ 📜pagination.js
+┃ ┃ ┃ ┗ 📜Post.js
+┃ ┃ ┣ 📜AnimateOnView.tsx
+┃ ┃ ┣ 📜button.jsx
+┃ ┃ ┣ 📜category.tsx
+┃ ┃ ┣ 📜Chatbot.jsx
+┃ ┃ ┣ 📜ConfirmationModal.tsx
+┃ ┃ ┣ 📜Editor.tsx
+┃ ┃ ┣ 📜Featured.tsx
+┃ ┃ ┣ 📜header.tsx
+┃ ┃ ┣ 📜Layout.tsx
+┃ ┃ ┣ 📜pagination.tsx
+┃ ┃ ┗ 📜Post.tsx
+┃ ┣ 📂css
+┃ ┃ ┣ 📜App.css
+┃ ┃ ┣ 📜categoryPage.css
+┃ ┃ ┣ 📜index.css
+┃ ┃ ┣ 📜Link-header.css
+┃ ┃ ┣ 📜post_him.css
+┃ ┃ ┗ 📜Post.css
+┃ ┣ 📂dev
+┃ ┃ ┣ 📜index.js
+┃ ┃ ┣ 📜palette.jsx
+┃ ┃ ┣ 📜previews.jsx
+┃ ┃ ┣ 📜README.md
+┃ ┃ ┗ 📜useInitial.js
+┃ ┣ 📂dist
+┃ ┃ ┗ 📜UserContext.js
+┃ ┣ 📂pages
+┃ ┃ ┣ 📂dist
+┃ ┃ ┃ ┣ 📜AdminDashboard.js
+┃ ┃ ┃ ┣ 📜Category.js
+┃ ┃ ┃ ┣ 📜createCategory.js
+┃ ┃ ┃ ┣ 📜createPost.js
+┃ ┃ ┃ ┣ 📜DelCategory.js
+┃ ┃ ┃ ┣ 📜EditPost.js
+┃ ┃ ┃ ┣ 📜ForgotPassword.js
+┃ ┃ ┃ ┣ 📜Home.js
+┃ ┃ ┃ ┣ 📜Login.js
+┃ ┃ ┃ ┣ 📜Post.js
+┃ ┃ ┃ ┣ 📜Register.js
+┃ ┃ ┃ ┗ 📜ResetPassword.js
+┃ ┃ ┣ 📜AdminDashboard.tsx
+┃ ┃ ┣ 📜Category.tsx
+┃ ┃ ┣ 📜createCategory.tsx
+┃ ┃ ┣ 📜createPost.tsx
+┃ ┃ ┣ 📜DelCategory.tsx
+┃ ┃ ┣ 📜EditPost.tsx
+┃ ┃ ┣ 📜ForgotPassword.tsx
+┃ ┃ ┣ 📜Home.tsx
+┃ ┃ ┣ 📜Login.tsx
+┃ ┃ ┣ 📜Post.tsx
+┃ ┃ ┣ 📜Register.tsx
+┃ ┃ ┗ 📜ResetPassword.tsx
+┃ ┣ 📜.DS_Store
+┃ ┣ 📜App.jsx
+┃ ┣ 📜main.jsx
+┃ ┣ 📜UserContext.tsx
+┃ ┗ 📜vite-env.d.ts
+┣ 📂utils
+┃ ┣ 📂dist
+┃ ┃ ┗ 📜cn.js
+┃ ┗ 📜cn.ts
+┣ 📜.DS_Store
+┣ 📜.editorconfig
+┣ 📜.env
+┣ 📜.eslintrc.cjs
+┣ 📜.gitignore
+┣ 📜.hintrc
+┣ 📜custom.d.ts
+┣ 📜env.js
+┣ 📜index.html
+┣ 📜iwomi2.yaml
+┣ 📜package.json
+┣ 📜postcss.config.js
+┣ 📜qodana.yaml
+┣ 📜README.md
+┣ 📜tailwind.config.js
+┣ 📜vite-env.d.ts
+┗ 📜vite.config.js

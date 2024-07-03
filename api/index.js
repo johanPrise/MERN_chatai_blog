@@ -1,10 +1,12 @@
 // Importer le framework Express
 import express from "express";
+import dotenv from 'dotenv';
 // Importer le package nanoid pour la création de jetons
 import { nanoid } from 'nanoid';
+import { env } from 'node:process';
+
 // Importer le middleware Multer pour la gestion des fichiers
 import multer from "multer";
-import prompt, { VITE_MONGO_URI } from "../env.js";
 // Importer le package Mongoose pour la connexion à MongoDB
 import mongoose from "mongoose";
 // Importer le package fs pour la gestion du système de fichiers
@@ -37,7 +39,6 @@ import ConversationModel from './models/Conversation.js';
 import CommentModel from './models/Comments.js';
 // Importer le modèle de données CategoryModel
 import CategoryModel from './models/categories.js';
-import { refreshUserInfo } from "./middlewares/auth.js";
 import { authMiddleware, authorMiddleware, adminMiddleware } from './middlewares/auth.js';
 
 // Générer un sel pour le hachage des mots de passe avec bcrypt
@@ -54,7 +55,7 @@ const resetPasswordSecret = "6a51acbeed5589caef8465b83e2bedb346e3c9a512867eff004
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-
+dotenv.config();
 // Utiliser le middleware cookie-parser pour parser les cookies entrants
 app.use(cookieParser());
 
@@ -63,12 +64,17 @@ app.use(cookieParser());
 // Configurer Multer pour stocker les fichiers téléchargés dans le répertoire "uploads/"
 const upload = multer({
   dest: "uploads/",
-  limits: { fileSize: 50 * 1024 * 1024 } // 50 MB limit
 });
-
+const MONGO_URI = env.VITE_MONGO_URI;
+const prompt = env.VITE_QWEN_PROMPT;
+let PORT;
+if (env.VITE_API_PORT === "") {
+  PORT = 4200;
+} else {
+  PORT = env.VITE_API_PORT;
+}
 // Se connecter à la base de données MongoDB
-mongoose.connect(
-    VITE_MONGO_URI);
+mongoose.connect(MONGO_URI);
 
 app.use(bodyParser.json());
 
@@ -793,6 +799,6 @@ app.post("/reject-author", authMiddleware, adminMiddleware, async (req, res) => 
   }
 });
 // Démarrer le serveur sur le port 4200
-app.listen(4200, () => {
-  console.log("Serveur en écoute sur le port 4200");
+app.listen(PORT, () => {
+  console.log(`Serveur en écoute sur le port ${PORT}`);
 });

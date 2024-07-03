@@ -311,6 +311,7 @@ const handleReply = async (parentId, content) => {
 };
 const renderComments = (comments, depth = 0, parentId = null) => {
   return comments.map((comment) => (
+// [MermaidChart: 21eff2e7-b486-4790-8dbc-5b91f59c78c5]
     <div key={comment._id} id={`comment-${comment._id}`} className={`${depth > 0 ? 'ml-8' : ''} bg-white rounded-lg shadow-md p-4 mb-4`}>
       <div className="flex items-start space-x-3 mb-4">
         <img 
