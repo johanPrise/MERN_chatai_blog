@@ -1,7 +1,7 @@
 import {ComponentPreview, Previews} from '@react-buddy/ide-toolbox'
 import {PaletteTree} from './palette'
 import PostPage from "../pages/Post.tsx";
-import Editor from "../components/Editor.jsx";
+import Editor from "../components/Editor.tsx";
 
 const ComponentPreviews = () => {
     return (
