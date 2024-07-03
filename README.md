@@ -21,7 +21,7 @@ npm install
 👤 **Johan Priso**
 
 * Website: yoricksenpai
-* Twitter: [@ai\_friendly\_art](https://twitter.com/ai\_friendly\_art)
+* Twitter: [@reaperNahoj](https://twitter.com/reaperNahoj)
 * Github: [@yoricksenpai](https://github.com/yoricksenpai)
 * LinkedIn: [@Johan Yorick Priso](https://linkedin.com/in/Johan Yorick Priso)
 
