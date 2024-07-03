@@ -1,7 +1,7 @@
 <h1 align="center">Welcome to iwomi 👋</h1>
 <p>
   <img alt="Version" src="https://img.shields.io/badge/version-0.0.0-blue.svg?cacheSeconds=2592000" />
-  <a href="https://twitter.com/ai\_friendly\_art" target="_blank">
+  <a href="https://twitter.com/reaper_nahoj" target="_blank">
     <img alt="Twitter: ai\_friendly\_art" src="https://img.shields.io/twitter/follow/ai\_friendly\_art.svg?style=social" />
   </a>
 </p>
