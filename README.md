@@ -1,8 +1,8 @@
 <h1 align="center">Welcome to iwomi 👋</h1>
 <p>
   <img alt="Version" src="https://img.shields.io/badge/version-0.0.0-blue.svg?cacheSeconds=2592000" />
-  <a href="https://twitter.com/ai\_friendly\_art" target="_blank">
-    <img alt="Twitter: ai\_friendly\_art" src="https://img.shields.io/twitter/follow/ai\_friendly\_art.svg?style=social" />
+  <a href="https://twitter.com/reaperNahoj" target="_blank">
+    <img alt="Twitter: /reaperNahoj" src="https://img.shields.io/twitter/follow/reaperNahoj.svg?style=social" />
   </a>
 </p>
 
@@ -21,7 +21,7 @@ npm install
 👤 **Johan Priso**
 
 * Website: yoricksenpai
-* Twitter: [@ai\_friendly\_art](https://twitter.com/ai\_friendly\_art)
+* Twitter: [@reaperNahoj](https://twitter.com/reaperNahoj)
 * Github: [@yoricksenpai](https://github.com/yoricksenpai)
 * LinkedIn: [@Johan Yorick Priso](https://linkedin.com/in/Johan Yorick Priso)
 
