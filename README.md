@@ -2,7 +2,7 @@
 <p>
   <img alt="Version" src="https://img.shields.io/badge/version-0.0.0-blue.svg?cacheSeconds=2592000" />
   <a href="https://twitter.com/reaper\_nahoj" target="_blank">
-    <img alt="Twitter: /reaper\_nahoj" src="https://img.shields.io/twitter/follow/reaper\_nahojt.svg?style=social" />
+    <img alt="Twitter: /reaper\_nahoj" src="https://img.shields.io/twitter/follow/reaper\_nahoj.svg?style=social" />
   </a>
 </p>
 
