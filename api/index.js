@@ -51,13 +51,20 @@ const secret = "bj3behrj2o3ierbhj3j2no";
 const resetPasswordSecret = "6a51acbeed5589caef8465b83e2bedb346e3c9a512867eff00431e31cb73e469"
 
 // Utiliser le middleware json d'Express pour parser les données JSON entrantes
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
 
 // Utiliser le middleware cookie-parser pour parser les cookies entrants
 app.use(cookieParser());
 
+
+
 // Configurer Multer pour stocker les fichiers téléchargés dans le répertoire "uploads/"
-const upload = multer({ dest: "uploads/" });
+const upload = multer({
+  dest: "uploads/",
+  limits: { fileSize: 50 * 1024 * 1024 } // 50 MB limit
+});
 
 // Se connecter à la base de données MongoDB
 mongoose.connect(
@@ -321,35 +328,110 @@ app.get('/check-admin', authMiddleware, adminMiddleware, (req, res) => {
 });
 
 
-// Route pour obtenir la liste des auteurs en attente d'autorisation
-app.get('/pending-authors', authMiddleware, adminMiddleware, async (req, res) => {
+// Route pour obtenir tous les utilisateurs (accessible uniquement par les admins)
+app.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const pendingAuthors = await UserModel.find({ role: 'author', isAuthorized: false });
-    res.json(pendingAuthors);
+    const { page = 1, limit = 10, sort = 'username', order = 'asc', search = '' } = req.query;
+
+    // Construire la requête de base
+    let query = UserModel.find();
+
+    // Appliquer la recherche si un terme est fourni
+    if (search) {
+      query = query.or([
+        { username: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ]);
+    }
+
+    // Compter le nombre total d'utilisateurs correspondant à la recherche
+    const total = await UserModel.countDocuments(query);
+
+    // Appliquer la pagination et le tri
+    query = query
+      .sort({ [sort]: order === 'asc' ? 1 : -1 })
+      .skip((page - 1) * limit)
+      .limit(Number(limit));
+
+    // Sélectionner les champs à retourner (exclure le mot de passe)
+    query = query.select('-password');
+
+    // Exécuter la requête
+    const users = await query.exec();
+
+    // Envoyer la réponse
+    res.json({
+      users,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      totalUsers: total
+    });
+
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Erreur lors de la récupération des utilisateurs:', error);
+    res.status(500).json({ 
+      message: 'Erreur serveur lors de la récupération des utilisateurs',
+      error: error.message 
+    });
   }
 });
 
-// Route pour autoriser un auteur (accessible uniquement par les admins)
-app.post("/authorize-author",authMiddleware, adminMiddleware, async (req, res) => {
-  const { token } = req.cookies;
-  jwt.verify(token, secret, {}, async (err, info) => {
-    if (err) throw err;
-    const adminUser = await UserModel.findById(info.id);
-    if (adminUser.role !== 'admin') {
-      return res.status(403).json({ message: 'Not authorized' });
-    }
-    const { userId } = req.body;
+
+
+// Route pour changer le rôle d'un utilisateur (accessible uniquement par les admins)
+app.post('/change-user-role', authMiddleware, adminMiddleware, async (req, res) => {
+  const { userId, newRole } = req.body;
+
+  if (!userId || !newRole) {
+    return res.status(400).json({ message: 'userId et newRole sont requis' });
+  }
+
+  if (!['user', 'author', 'admin'].includes(newRole)) {
+    return res.status(400).json({ message: 'Rôle invalide' });
+  }
+
+  try {
     const user = await UserModel.findById(userId);
+
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
     }
-    user.isAuthorized = true;
+
+    // Vérifier si l'utilisateur essaie de changer son propre rôle
+    if (user._id.toString() === req.user._id.toString() && user.role === 'admin' && newRole !== 'admin') {
+      return res.status(403).json({ message: 'Vous ne pouvez pas rétrograder votre propre rôle d\'administrateur' });
+    }
+
+    // Vérifier s'il reste au moins un administrateur
+    if (user.role === 'admin' && newRole !== 'admin') {
+      const adminCount = await UserModel.countDocuments({ role: 'admin' });
+      if (adminCount <= 1) {
+        return res.status(403).json({ message: 'Impossible de rétrograder le dernier administrateur' });
+    }
+  }
+
+    user.role = newRole;
     await user.save();
-    res.json({ message: 'User authorized successfully' });
-  });
+
+    // Journaliser le changement de rôle
+    console.log(`L'utilisateur ${req.user.username} a changé le rôle de ${user.username} en ${newRole}`);
+
+    res.json({ 
+      message: 'Rôle de l\'utilisateur mis à jour avec succès',
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur lors du changement de rôle :', error);
+    res.status(500).json({ message: 'Erreur serveur lors du changement de rôle de l\'utilisateur' });
+  }
 });
+
 // Définir une route pour la mise à jour d'un post existant
 app.put('/post/:id', async (req, res) => {
      try {
@@ -364,18 +446,19 @@ app.put('/post/:id', async (req, res) => {
      }
  });
 
-app.post('/comment', async (req, res) => {
-  const { token } = req.cookies;
-  jwt.verify(token, secret, {}, async (err, info) => {
-    if (err) return res.status(401).json({ message: "Unauthorized" });
+app.post('/comment', authMiddleware, async (req, res) => {
+  try {
     const { content, postId } = req.body;
     const commentDoc = await CommentModel.create({
       content,
-      author: info.id,
+      author: req.user._id,
       post: postId,
     });
     res.json(commentDoc);
-  });
+  } catch (error) {
+    console.error('Error creating comment:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
 });
 
 // Route pour récupérer les commentaires d'un post
@@ -689,7 +772,26 @@ app.delete('/comment/:commentId', authMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
-
+// Route pour refuser un auteur (accessible uniquement par les admins)
+app.post("/reject-author", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    // Au lieu de supprimer l'utilisateur, vous pourriez simplement changer son rôle en 'user'
+    // ou ajouter un champ 'isRejected' à votre modèle User
+    user.role = 'user';
+    // Si vous avez un champ 'isRejected', vous pourriez faire :
+    // user.isRejected = true;
+    await user.save();
+    res.json({ message: 'Author request rejected successfully' });
+  } catch (error) {
+    console.error('Error rejecting author:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 // Démarrer le serveur sur le port 4200
 app.listen(4200, () => {
   console.log("Serveur en écoute sur le port 4200");

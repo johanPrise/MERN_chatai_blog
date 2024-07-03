@@ -4,7 +4,8 @@ import '../css/post_him.css';
 import { UserContext } from '../UserContext';
 import ConfirmationModal from '../components/ConfirmationModal';
 import '../css/Link-header.css'
-import { FaThumbsDown,FaThumbsUp}  from 'react-icons/fa';
+import { FaThumbsDown, FaThumbsUp } from 'react-icons/fa';
+import '../css/Post.css';
 interface Comment {
   _id: string;
   author: {
@@ -13,6 +14,7 @@ interface Comment {
   content: string;
   createdAt: string;
   likes: string[];
+  dislikes: string[];
 }
 
 /**
@@ -48,6 +50,32 @@ const fetchComments = () => {
     .catch(error => console.error('Error fetching comments:', error));
 };
 
+const formatContent = (content) => {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(content, 'text/html');
+    
+    // Centrer et arrondir toutes les images
+    doc.querySelectorAll('img').forEach(img => {
+      img.style.display = 'block';
+      img.style.margin = '0 auto';
+      img.style.borderRadius = '0.5rem';
+      img.style.maxWidth = '100%';
+      img.style.height = 'auto';
+    });
+  
+   // Ajuster l'espacement des titres et paragraphes
+  doc.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(heading => {
+    heading.style.marginTop = '1.5rem';
+    heading.style.marginBottom = '0.5rem';
+  });
+
+  doc.querySelectorAll('p').forEach(paragraph => {
+    paragraph.style.marginTop = '0.5rem';
+    paragraph.style.marginBottom = '1rem';
+  });
+
+    return doc.body.innerHTML;
+  };
 
 const handleLikeComment = async (commentId: string) => {
   if (!userInfo) {
@@ -167,12 +195,8 @@ const handleReply = async (parentId, content) => {
     console.error('Error posting reply:', error);
   }
 };
-const handleCommentSubmit = async (e, parentId = null) => {
+ const handleCommentSubmit = async (e, parentId = null) => {
     e.preventDefault();
-    if (!userInfo) {
-      alert('You must be logged in to comment');
-      return;
-    }
     try {
       const response = await fetch('/api/comment', {
         method: 'POST',
@@ -191,10 +215,12 @@ const handleCommentSubmit = async (e, parentId = null) => {
         setReplyingTo(null);
         fetchComments();
       } else {
-        alert('Failed to post comment');
+        const data = await response.json();
+        alert(data.message || 'Failed to post comment');
       }
     } catch (error) {
       console.error('Error posting comment:', error);
+      alert('An error occurred while posting your comment');
     }
   };
 
@@ -213,6 +239,21 @@ const handleCommentSubmit = async (e, parentId = null) => {
       .catch(error => console.error('Error fetching post:', error));
 
     fetchComments();
+     const style = document.createElement('style');
+    style.textContent = `
+      .highlight {
+        animation: highlightFade 2s;
+      }
+      @keyframes highlightFade {
+        0% { background-color: #fff3cd; }
+        100% { background-color: transparent; }
+      }
+    `;
+    document.head.appendChild(style);
+
+    return () => {
+      document.head.removeChild(style);
+    };
   }, [id, userInfo]);
 
     const handleLikePost = async () => {
@@ -258,104 +299,139 @@ const handleCommentSubmit = async (e, parentId = null) => {
       console.error('Error disliking post:', error);
     }
   };
-  const renderComments = (comments, depth = 0) => {
+  const scrollToComment = (commentId) => {
+  const element = document.getElementById(`comment-${commentId}`);
+  if (element) {
+    element.scrollIntoView({ behavior: 'smooth' });
+    element.classList.add('highlight');
+    setTimeout(() => {
+      element.classList.remove('highlight');
+    }, 2000);
+  }
+};
+const renderComments = (comments, depth = 0, parentId = null) => {
   return comments.map((comment) => (
-    <article key={comment._id} className={`p-4 mb-2 text-sm rounded-lg ${depth === 0 ? 'border border-green-300' : ''}`}>
-      <footer className="flex justify-between items-center mb-1">
-        <div className="flex items-center">
-          <p className="inline-flex items-center mr-3 text-sm text-gray-900 font-semibold">
-            <img className="mr-2 w-5 h-5 rounded-full" src={`https://ui-avatars.com/api/?name=${comment.author.username}`} alt={comment.author.username} />
-            {comment.author.username}
-          </p>
-          <p className="text-xs text-gray-600">
-            <time dateTime={comment.createdAt}>{new Date(comment.createdAt).toLocaleString()}</time>
-          </p>
+    <div key={comment._id} id={`comment-${comment._id}`} className={`${depth > 0 ? 'ml-8' : ''} bg-white rounded-lg shadow-md p-4 mb-4`}>
+      <div className="flex items-start space-x-3 mb-4">
+        <img 
+          className="w-10 h-10 rounded-full" 
+          src={`https://ui-avatars.com/api/?name=${comment.author.username}&background=random`} 
+          alt={comment.author.username} 
+        />
+        <div className="flex-1">
+          <div className="flex items-center justify-between">
+            <h4 className="font-semibold text-sm">{comment.author.username}</h4>
+            <span className="text-xs text-gray-500">{new Date(comment.createdAt).toLocaleString()}</span>
+          </div>
+          
+          {parentId && (
+            <div className="text-xs text-gray-500 mt-1 mb-2">
+              replying to <a 
+                href={`#comment-${parentId}`} 
+                onClick={(e) => {
+                  e.preventDefault();
+                  scrollToComment(parentId);
+                }} 
+                className="text-blue-500 hover:underline"
+              >
+                {comments.find(c => c._id === parentId)?.author.username}
+              </a>
+            </div>
+          )}
+
+          {editingComment === comment._id ? (
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              handleUpdateComment(comment._id);
+            }} className="mt-2">
+              <textarea
+                value={editedContent}
+                onChange={(e) => setEditedContent(e.target.value)}
+                className="w-full p-2 border rounded text-sm"
+                required
+              />
+              <div className="flex justify-end mt-2 space-x-2">
+                <button type="submit" className="px-3 py-1 bg-blue-500 text-white rounded-md text-xs hover:bg-blue-600 transition">
+                  Update
+                </button>
+                <button onClick={() => setEditingComment(null)} className="px-3 py-1 bg-gray-300 text-gray-700 rounded-md text-xs hover:bg-gray-400 transition">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : (
+            <p className="text-gray-700 mt-1">{comment.content}</p>
+          )}
+          
+          <div className="flex items-center space-x-4 mt-3">
+            <button 
+              onClick={() => handleLikeComment(comment._id)} 
+              className={`flex items-center space-x-1 text-sm ${comment.likes.includes(userInfo?.id) ? 'text-blue-500' : 'text-gray-500'} hover:text-blue-600 transition`}
+            >
+              <FaThumbsUp />
+              <span>{comment.likes.length}</span>
+            </button>
+            <button 
+              onClick={() => handleDislikeComment(comment._id)} 
+              className={`flex items-center space-x-1 text-sm ${comment.dislikes.includes(userInfo?.id) ? 'text-red-500' : 'text-gray-500'} hover:text-red-600 transition`}
+            >
+              <FaThumbsDown />
+              <span>{comment.dislikes.length}</span>
+            </button>
+            <button 
+              onClick={() => setReplyingTo(comment._id)} 
+              className="flex items-center space-x-1 text-sm text-gray-500 hover:text-blue-500 transition"
+            >
+              <span>Reply</span>
+            </button>
+            {userInfo && userInfo.id === comment.author._id && (
+              <>
+                <button 
+                  onClick={() => handleEditComment(comment._id)} 
+                  className="flex items-center space-x-1 text-sm text-gray-500 hover:text-blue-500 transition"
+                >
+                  <span>Edit</span>
+                </button>
+                <button 
+                  onClick={() => handleDeleteComment(comment._id)} 
+                  className="flex items-center space-x-1 text-sm text-gray-500 hover:text-red-500 transition"
+                >
+                  <span>Delete</span>
+                </button>
+              </>
+            )}
+          </div>
         </div>
-      </footer>
-      <div className="pl-2">
-        {editingComment === comment._id ? (
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            handleUpdateComment(comment._id);
-          }}>
-            <textarea
-              value={editedContent}
-              onChange={(e) => setEditedContent(e.target.value)}
-              className="w-full p-2 border rounded text-sm"
-              required
-            />
-            <div className="flex mt-2">
-              <button type="submit" className="text-xs bg-green-500 text-white px-2 py-1 rounded mr-2">
-                Update
-              </button>
-              <button onClick={() => setEditingComment(null)} className="text-xs bg-gray-500 text-white px-2 py-1 rounded">
-                Cancel
-              </button>
-            </div>
-          </form>
-        ) : (
-          <>
-            <p className="text-gray-700 mb-2">{comment.content}</p>
-            <div className="flex items-center space-x-2 text-xs">
-<button 
-    onClick={() => handleLikeComment(comment._id)} 
-    className={`flex items-center ${comment.likes.includes(userInfo?.id) ? 'text-blue-500' : 'text-gray-500'}`}
-  >
-    <LikeIcon />
-    <span>{comment.likes.length}</span>
-  </button>
-  <button 
-    onClick={() => handleDislikeComment(comment._id)} 
-    className={`flex items-center ${comment.dislikes.includes(userInfo?.id) ? 'text-red-500' : 'text-gray-500'}`}
-  >
-    <DislikeIcon />
-    <span>{comment.dislikes.length}</span>
-  </button>
-              <button type="button" onClick={() => setReplyingTo(comment._id)} className="text-gray-500 hover:underline">
-                Reply
-              </button>
-              {userInfo && userInfo.id === comment.author._id && (
-                <>
-                  <button onClick={() => {
-                    setEditingComment(comment._id);
-                    setEditedContent(comment.content);
-                  }} className="text-blue-500 hover:underline">
-                    Edit
-                  </button>
-                  <button onClick={() => handleDeleteComment(comment._id)} className="text-red-500 hover:underline">
-                    Delete
-                  </button>
-                </>
-              )}
-            </div>
-          </>
-        )}
-        {replyingTo === comment._id && (
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            handleReply(comment._id, newComment);
-            setNewComment('');
-            setReplyingTo(null);
-          }} className="mt-2">
-            <textarea
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Write your reply..."
-              className="w-full p-2 border rounded text-sm"
-              required
-            />
-            <button type="submit" className="mt-1 text-xs bg-green-500 text-white px-2 py-1 rounded">
+      </div>
+      
+      {replyingTo === comment._id && (
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          handleReply(comment._id, newComment);
+          setNewComment('');
+          setReplyingTo(null);
+        }} className="mt-4">
+          <textarea
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            placeholder="Write your reply..."
+            className="w-full p-2 border rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            required
+          />
+          <div className="flex justify-end mt-2">
+            <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-600 transition">
               Post Reply
             </button>
-          </form>
-        )}
-        {comment.replies && (
-          <div className="mt-2 pl-4 border-l-2 border-gray-200">
-            {renderComments(comment.replies, depth + 1)}
           </div>
-        )}
-      </div>
-    </article>
+        </form>
+      )}
+      
+      {comment.replies && comment.replies.length > 0 && (
+        <div className="mt-4">
+          {renderComments(comment.replies, depth + 1, comment._id)}
+        </div>
+      )}
+    </div>
   ));
 };
 
@@ -423,86 +499,91 @@ const formatImagePath = (path) => {
 
 
   
-  return (
-    <div className="post_himself justify-between mx-auto grid text-center">
-      <div className="relative w-full h-96 bg-cover mb-2 bg-center" style={{ backgroundImage: `url(${formatImagePath(`/../../api/${postInfo.cover}`)})`, marginTop: '-2rem' }}>
-        <div className="absolute inset-0 bg-black opacity-50"></div>
-        <div className="relative z-10 flex flex-col justify-center items-center h-full text-white p-4">
-          <h1 className="text-4xl font-bold">{postInfo.title}</h1>
-          <time className="text-lg mt-2">
-            {new Date(postInfo.createdAt).toLocaleString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric"
-            })}
-          </time>
+ return (
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="mb-8">
+        <div className="relative w-full h-96 bg-cover bg-center rounded-lg overflow-hidden">
+          <img src={formatImagePath(`/../../api/${postInfo.cover}`)} alt={postInfo.title} className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-black bg-opacity-50 flex flex-col justify-center items-center text-white p-4">
+            <h1 className="text-4xl font-bold text-center mb-4">{postInfo.title}</h1>
+            <time className="text-lg">
+              {new Date(postInfo.createdAt).toLocaleString("en-US", {
+                month: "long",
+                day: "numeric",
+                year: "numeric"
+              })}
+            </time>
+          </div>
         </div>
       </div>
-      <div className="post-content grid justify-center items-center p-8">
-        <div dangerouslySetInnerHTML={{ __html: postInfo.content }} />
+
+ <div className="bg-white shadow-lg rounded-lg p-6 mb-8">
+        <div 
+          className="prose max-w-none"
+          dangerouslySetInnerHTML={{ __html: formatContent(postInfo.content) }}
+        />
       </div>
-            <div className="flex items-center justify-center mt-4">
-        <button onClick={handleLikePost} className={`flex items-center mr-4 ${userLiked ? 'text-blue-500' : 'text-gray-500'}`}>
-          <div className="w-5 h-5 mr-1">
-            <LikeIcon/>
-          </div>
-          <span>{likes}</span>
+
+      <div className="flex justify-center items-center space-x-8 mb-8">
+        <button onClick={handleLikePost} className={`flex items-center space-x-2 ${userLiked ? 'text-blue-500' : 'text-gray-500'} hover:text-blue-600 transition`}>
+          <FaThumbsUp className="w-6 h-6" />
+          <span className="text-lg">{likes}</span>
         </button>
-        <button onClick={handleDislikePost} className={`flex items-center ${userDisliked ? 'text-red-500' : 'text-gray-500'}`}>
-          <div className="w-5 h-5 mr-1">
-            <DislikeIcon/>
-          </div>
-          <span>{dislikes}</span>
+        <button onClick={handleDislikePost} className={`flex items-center space-x-2 ${userDisliked ? 'text-red-500' : 'text-gray-500'} hover:text-red-600 transition`}>
+          <FaThumbsDown className="w-6 h-6" />
+          <span className="text-lg">{dislikes}</span>
         </button>
       </div>
 
       {id2 === postInfo.author && (
-        <div className="edit-row flex justify-center transition ease-in-out rounded p-3 m-2">
-          <Link className="button-class flex items-center bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-md" to={`/edit_page/${postInfo._id}`}>
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 mr-2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-            </svg>
-            <p>Edit the post</p>
+        <div className="flex justify-center space-x-4 mb-8">
+          <Link to={`/edit_page/${postInfo._id}`} className="flex items-center bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md transition">
+            Edit Post
           </Link>
-          <button className="button-class_2 flex items-center bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-md ml-4" onClick={() => deletePost(postInfo._id)}>
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 mr-2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-            <p>Delete Post</p>
+          <button onClick={() => deletePost(postInfo._id)} className="flex items-center bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md transition">
+            Delete Post
           </button>
-          <ConfirmationModal isOpen={confirmModalIsOpen} onRequestClose={() => setConfirmModalIsOpen(false)} onConfirm={confirmModalOnConfirm} />
         </div>
       )}
- <section className="bg-white dark:bg-gray-900 py-8 lg:py-16 antialiased">
-        <div className="max-w-2xl mx-auto px-4">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-lg lg:text-2xl font-bold text-gray-900 dark:text-white">Discussion ({comments.length})</h2>
-          </div>
-          <form className="mb-6" onSubmit={handleCommentSubmit}>
-            <div className="py-2 px-4 mb-4 bg-white rounded-lg rounded-t-lg border-2 border-green-500">
-              <label htmlFor="comment" className="sr-only">Your comment</label>
-              <textarea 
-                id="comment" 
-                rows="6"
-                className="px-0 w-full text-sm text-gray-900 border-0 focus:ring-0 focus:outline-none"
-                placeholder="Write a comment..."
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                required
-              ></textarea>
-            </div>
+
+      <div className="bg-gray-100 rounded-lg p-6">
+        <h2 className="text-2xl font-bold mb-6">Discussion ({comments.length})</h2>
+        
+        {username ? (
+          <form onSubmit={handleCommentSubmit} className="mb-8">
+            <textarea 
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              rows="4"
+              placeholder="Write your comment..."
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              required
+            ></textarea>
             <button 
               type="submit"
-              className="inline-flex items-center py-2.5 px-4 text-xs font-medium text-center text-white bg-green-500 rounded-lg focus:ring-4 focus:ring-primary-200 dark:focus:ring-primary-900 hover:bg-green-600"
+              className="mt-2 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition"
             >
-              Post comment
+              Post Comment
             </button>
           </form>
+        ) : (
+          <p className="mb-6 text-gray-600">Please <Link to="/login_page" className="text-blue-500 hover:underline">log in</Link> to comment and like.</p>
+        )}
+
+        <div className="space-y-6">
           {renderComments(comments)}
         </div>
-      </section>
+      </div>
+
+      <ConfirmationModal 
+        isOpen={confirmModalIsOpen} 
+        onRequestClose={() => setConfirmModalIsOpen(false)} 
+        onConfirm={confirmModalOnConfirm} 
+      />
     </div>
   );
 };
+
+
 
 export default PostPage;
