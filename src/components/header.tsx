@@ -42,7 +42,7 @@ const Header: React.FC = () => {
 
   const logout = async () => {
     try {
-      await fetch("/api/logout", { credentials: "include", method: "POST" });
+      await fetch("https://mern-backend-neon.vercel.app/logout", { credentials: "include", method: "POST" });
       setUserInfo(null);
     } catch (error) {
       console.error('Error logging out:', error);
