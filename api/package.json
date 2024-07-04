@@ -5,7 +5,7 @@
     "scripts": {
         "start": "node index.js",
         "dev": "nodemon index.js",
-        "build": "babel -d dist",
+        "build": "babel . --ignore node_modules,test --out-dir dist",
         "prod": "NODE_ENV=production node dist/index.js"
     },
     "dependencies": {
