@@ -65,7 +65,7 @@ app.use(cookieParser());
 const upload = multer({
   dest: "uploads/",
 });
-const MONGO_URI = env.VITE_MONGO_URI;
+const MONGO_URI = env.VITE_MONGO_URI || env.MONGODB_URI;
 const prompt = env.VITE_QWEN_PROMPT;
 let PORT;
 if (env.VITE_API_PORT === "") {
