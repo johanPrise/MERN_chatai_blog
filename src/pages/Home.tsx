@@ -52,7 +52,7 @@ export default function Home() {
   }, []);
   
   useEffect(() => {
-    fetch("/api/category").then((response) => {
+    fetch("https://mern-backend-neon.vercel.app/category").then((response) => {
       response.json().then((categories) => {
         setCategories(categories);
       });
