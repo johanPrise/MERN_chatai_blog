@@ -13,7 +13,7 @@ const Header: React.FC = () => {
 
   const fetchUserInfo = useCallback(async () => {
     try {
-      const response = await fetch("/api/profile", { credentials: "include" });
+      const response = await fetch("https://mern-backend-neon.vercel.app/profile", { credentials: "include" });
       if (!response.ok) throw new Error('Failed to fetch user info');
       const userInfo = await response.json();
       setUserInfo(userInfo);
