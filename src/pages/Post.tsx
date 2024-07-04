@@ -42,7 +42,7 @@ const PostPage = () => {
   const { id } = useParams();
 
 const fetchComments = () => {
-  fetch(`/api/comments/${id}`)
+  fetch(`https://mern-backend-neon.vercel.app/comments/${id}`)
     .then(response => response.json())
     .then((fetchedComments: Comment[]) => {
       setComments(fetchedComments);
@@ -83,7 +83,7 @@ const handleLikeComment = async (commentId: string) => {
     return;
   }
   try {
-    const response = await fetch(`/api/comment/${commentId}/like`, {
+    const response = await fetch(`https://mern-backend-neon.vercel.app/comment/${commentId}/like`, {
       method: 'POST',
       credentials: 'include',
     });
@@ -106,7 +106,7 @@ const handleDislikeComment = async (commentId: string) => {
     return;
   }
   try {
-    const response = await fetch(`/api/comment/${commentId}/dislike`, {
+    const response = await fetch(`https://mern-backend-neon.vercel.app/comment/${commentId}/dislike`, {
       method: 'POST',
       credentials: 'include',
     });
@@ -131,7 +131,7 @@ const handleDislikeComment = async (commentId: string) => {
 
 const handleUpdateComment = async (commentId) => {
   try {
-    const response = await fetch(`/api/comment/${commentId}`, {
+    const response = await fetch(`https://mern-backend-neon.vercel.app/comment/${commentId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -153,7 +153,7 @@ const handleUpdateComment = async (commentId) => {
 const handleDeleteComment = async (commentId) => {
   if (window.confirm('Are you sure you want to delete this comment?')) {
     try {
-      const response = await fetch(`/api/comment/${commentId}`, {
+      const response = await fetch(`https://mern-backend-neon.vercel.app/comment/${commentId}`, {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -174,7 +174,7 @@ const handleReply = async (parentId, content) => {
     return;
   }
   try {
-    const response = await fetch('/api/comment', {
+    const response = await fetch('https://mern-backend-neon.vercel.app/comment', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -198,7 +198,7 @@ const handleReply = async (parentId, content) => {
  const handleCommentSubmit = async (e, parentId = null) => {
     e.preventDefault();
     try {
-      const response = await fetch('/api/comment', {
+      const response = await fetch('https://mern-backend-neon.vercel.app/comment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -225,7 +225,7 @@ const handleReply = async (parentId, content) => {
   };
 
   useEffect(() => {
-    fetch(`/api/post/${id}`)
+    fetch(`https://mern-backend-neon.vercel.app/post/${id}`)
       .then(response => response.json())
       .then(postInfo => {
         setPostInfo(postInfo);
@@ -262,7 +262,7 @@ const handleReply = async (parentId, content) => {
       return;
     }
     try {
-      const response = await fetch(`/api/post/${id}/like`, {
+      const response = await fetch(`https://mern-backend-neon.vercel.app/post/${id}/like`, {
         method: 'POST',
         credentials: 'include',
       });
@@ -284,7 +284,7 @@ const handleReply = async (parentId, content) => {
       return;
     }
     try {
-      const response = await fetch(`/api/post/${id}/dislike`, {
+      const response = await fetch(`https://mern-backend-neon.vercel.app/post/${id}/dislike`, {
         method: 'POST',
         credentials: 'include',
       });
