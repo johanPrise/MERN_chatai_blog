@@ -31,7 +31,7 @@ const CreatePost: React.FC = () => {
 
 
     try {
-      const response = await fetch('api/post/', {
+      const response = await fetch('https://mern-backend-neon.vercel.app/post/', {
         method: 'POST',
         body: data,
       });
@@ -48,7 +48,7 @@ const CreatePost: React.FC = () => {
 
   useEffect(() => {
     const fetchCategories = async () => {
-      const res = await fetch('/api/category');
+      const res = await fetch('https://mern-backend-neon.vercel.app/category');
       const data = await res.json();
       setCategories(data);
     };
