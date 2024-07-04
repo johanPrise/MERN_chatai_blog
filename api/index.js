@@ -78,9 +78,19 @@ mongoose.connect(MONGO_URI);
 
 app.use(bodyParser.json());
 
+function getFilePath(importMetaUrl) {
+  if (process.env.VERCEL) {
+    // Sur Vercel, utilisez un chemin relatif
+    return './';
+  } else {
+    // En développement local, utilisez fileURLToPath
+    return path.dirname(fileURLToPath(importMetaUrl));
+  }
+}
+
 //Importer le package nodemailer pour envoyer les emails 
 import nodemailer from 'nodemailer'
-const __filename = fileURLToPath(import.meta.url);
+const __filename = getFilePath(import.meta.url);
 const __dirname = path.dirname(__filename);
 // Configurer le middleware cors pour autoriser les requêtes cross-origin
 app.use(bodyParser.json());
@@ -798,7 +808,12 @@ app.post("/reject-author", authMiddleware, adminMiddleware, async (req, res) => 
     res.status(500).json({ message: 'Server error' });
   }
 });
-// Démarrer le serveur sur le port 4200
-app.listen(PORT, () => {
-  console.log(`Serveur en écoute sur le port ${PORT}`);
-});
+
+if (env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 4200;
+  app.listen(PORT, () => {
+    console.log(`Serveur en écoute sur le port ${PORT}`);
+  });
+}
+
+export default app;
