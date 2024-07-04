@@ -189,6 +189,10 @@ app.post('/reset-password/:resetToken', async (req, res) => {
   }
 });
 
+app.get('/', async (req, res) => {
+    res.json('Hello')
+})
+
 /**
  * Generates a response from the API based on the provided messages.
  *
