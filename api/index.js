@@ -114,10 +114,16 @@ const __filename = getFilePath(import.meta.url);
 const __dirname = path.dirname(__filename);
 // Configurer le middleware cors pour autoriser les requêtes cross-origin
 app.use(bodyParser.json());
+const allowedOrigins = ['https://mern-chatai-blog.vercel.app'];
 app.use(cors({
-  origin: "https://mern-chatai-blog.vercel.app/",
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  credentials: true// Autoriser les requêtes depuis le port utilisé par Vite
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
 }));
 
 // Configurez le transporteur de nodemailer pour envoyer des emails
