@@ -30,7 +30,7 @@ export default defineConfig(({ command, mode }) => {
         '/api': {
           target: process.env.VITE_API_URL && process.env.VITE_API_URL.trim() !== "" 
                 ? process.env.VITE_API_URL 
-                  : 'http://localhost:4200',
+                  : 'https://blog-backend-sigma-wine.vercel.app/',
               changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api/, '')
         }
