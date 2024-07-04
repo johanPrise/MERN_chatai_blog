@@ -834,7 +834,7 @@ app.post("/reject-author", authMiddleware, adminMiddleware, async (req, res) => 
     res.status(500).json({ message: 'Server error' });
   }
 });
-if (env.NODE_ENV !== 'production){
+if (env.NODE_ENV !== 'production'){
   const PORT = process.env.PORT || 4200;
   app.listen(PORT, () => {
     console.log(`Serveur en écoute sur le port ${PORT}`);
