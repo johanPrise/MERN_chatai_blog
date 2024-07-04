@@ -62,9 +62,29 @@ app.use(cookieParser());
 
 
 // Configurer Multer pour stocker les fichiers téléchargés dans le répertoire "uploads/"
-const upload = multer({
-  dest: "uploads/",
+// const upload = multer({
+//   dest: "uploads/",
+// });
+
+ // Set the upload directory based on the environment
+const uploadDir = process.env.NODE_ENV === 'production' ? '/tmp/uploads' : path.join(__dirname, 'uploads');
+
+// Ensure the upload directory exists
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Define the storage location
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+        cb(null, Date.now() + path.extname(file.originalname)); // Append the current timestamp to the file name
+    }
 });
+
+const upload = multer({ storage: storage });
 const MONGO_URI = env.VITE_MONGO_URI || env.MONGODB_URI;
 const prompt = env.VITE_QWEN_PROMPT;
 let PORT;
