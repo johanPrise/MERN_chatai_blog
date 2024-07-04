@@ -190,7 +190,7 @@ app.post('/reset-password/:resetToken', async (req, res) => {
 });
 
 app.get('/', async (req, res) => {
-    res.json('Hello')
+    res.json({ message: "bONJOUR? je marche t'inquiète" })
 })
 
 /**
