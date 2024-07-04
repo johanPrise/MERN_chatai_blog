@@ -85,7 +85,7 @@ const __dirname = path.dirname(__filename);
 // Configurer le middleware cors pour autoriser les requêtes cross-origin
 app.use(bodyParser.json());
 app.use(cors({
-  origin: "http://localhost:5173" // Autoriser les requêtes depuis le port utilisé par Vite
+  origin: "https://mern-chatai-blog.vercel.app/" // Autoriser les requêtes depuis le port utilisé par Vite
 }));
 
 // Configurez le transporteur de nodemailer pour envoyer des emails
