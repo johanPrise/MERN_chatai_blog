@@ -29,7 +29,7 @@ const Header: React.FC = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch('/api/category');
+        const response = await fetch('https://mern-backend-neon.vercel.app/category');
         if (!response.ok) throw new Error('Failed to fetch categories');
         const categories = await response.json();
         setCategories(categories);
