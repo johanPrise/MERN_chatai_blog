@@ -48,7 +48,7 @@ const Chatbot = () => {
             setIsThinking(true);
 
             try {
-                const response = await fetch("/api/send", {
+                const response = await fetch("https://mern-backend-neon.vercel.app/send", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
