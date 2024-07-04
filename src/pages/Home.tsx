@@ -1,5 +1,3 @@
-bon je voudrai faire une dernière expérience....
-je voudrais que cette paeg ai aussi un meilleur tailwindcss pour le telephone et le mode sombre 
 import React, { useEffect, useState } from "react";
 import Featured from "../components/Featured";
 import Post from "../components/Post";
