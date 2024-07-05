@@ -16,7 +16,12 @@ export const authMiddleware = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({ message: 'User not found' });
     }
-    req.user = user;
+    req.user = {
+      id: user._id,
+      username: user.username,
+      role: user.role,
+      isAuthorized: user.isAuthorized
+    };
     next();
   } catch (error) {
     console.error('Auth error:', error);
@@ -24,12 +29,12 @@ export const authMiddleware = async (req, res, next) => {
   }
 };
 
-export const authorMiddleware = async (req, res, next) => {
+export const authorMiddleware = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
   }
   
-  if (req.user.role === 'author' || req.user.role === 'admin' && req.user.isAuthorized) {
+  if (req.user.role === 'author' || req.user.role === 'admin') {
     next();
   } else {
     res.status(403).json({ message: 'Not authorized as an author' });
