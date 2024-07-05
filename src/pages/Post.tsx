@@ -153,7 +153,7 @@ const handleUpdateComment = async (commentId) => {
 const handleDeleteComment = async (commentId) => {
   if (window.confirm('Are you sure you want to delete this comment?')) {
     try {
-      const response = await fetch(`https://mern-backend-neon.vercel.app/comment/${commentId}`, {
+      const response = await fetch(`api/comment/${commentId}`, {
         method: 'DELETE',
         credentials: 'include',
       });
