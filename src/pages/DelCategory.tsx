@@ -129,4 +129,5 @@ if (!isAuthorOrAdmin) {
     </div>
   );
 };
+};
 export default DeleteCategories;
