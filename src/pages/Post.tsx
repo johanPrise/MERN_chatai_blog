@@ -494,9 +494,8 @@ const renderComments = (comments, depth = 0, parentId = null) => {
   );
 
 const formatImagePath = (path) => {
-  // Remplacer toutes les barres obliques inversées par des barres obliques normales
-  return path.replace(/\\/g, '/');
-  };
+  return `https://mern-backend-neon.vercel.app/${path.replace(/\\/g, '/')}`;
+};
 
 
   
@@ -504,7 +503,7 @@ const formatImagePath = (path) => {
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="mb-8">
         <div className="relative w-full h-96 bg-cover bg-center rounded-lg overflow-hidden">
-          <img src={formatImagePath(`/../../https://mern-backend-neon.vercel.app/${postInfo.cover}`)} alt={postInfo.title} className="w-full h-full object-cover" />
+          <img src={formatImagePath(postInfo.cover)} alt={postInfo.title} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-black bg-opacity-50 flex flex-col justify-center items-center text-white p-4">
             <h1 className="text-4xl font-bold text-center mb-4">{postInfo.title}</h1>
             <time className="text-lg">
