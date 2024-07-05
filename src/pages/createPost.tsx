@@ -20,7 +20,7 @@ const [isAuthorOrAdmin, setIsAuthorOrAdmin] = useState(false);
 useEffect(() => {
   const checkAuthorAdminStatus = async () => {
     try {
-      const response = await fetch('/check-author-admin', {
+      const response = await fetch('api/check-author-admin', {
         credentials: 'include',
       });
       const data = await response.json();
