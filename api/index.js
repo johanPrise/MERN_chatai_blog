@@ -604,7 +604,11 @@ app.get('/post', async (req,res) => {
 });
 
 // Définir une route pour servir les fichiers statiques du répertoire "uploads/"
-app.use("/uploads", express.static("uploads"));
+if (process.env.NODE_ENV === 'production') {
+    app.use("/uploads", express.static("/tmp/uploads"));
+} else {
+    app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+}
 
 // Définir une route pour servir les fichiers statiques du répertoire "images/"
 app.use("/src/components/assets/images", express.static("images"));
