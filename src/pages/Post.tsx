@@ -459,7 +459,7 @@ const renderComments = (comments, depth = 0, parentId = null) => {
       });
 
       if (confirmDeletion) {
-        const response = await fetch(`/api/post/${postId}`, {
+        const response = await fetch(`https://mern-backend-neon.vercel.app/post/${postId}`, {
           method: 'DELETE',
           credentials: 'include'
         });
@@ -504,7 +504,7 @@ const formatImagePath = (path) => {
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="mb-8">
         <div className="relative w-full h-96 bg-cover bg-center rounded-lg overflow-hidden">
-          <img src={formatImagePath(`/../../api/${postInfo.cover}`)} alt={postInfo.title} className="w-full h-full object-cover" />
+          <img src={formatImagePath(`/../../https://mern-backend-neon.vercel.app/${postInfo.cover}`)} alt={postInfo.title} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-black bg-opacity-50 flex flex-col justify-center items-center text-white p-4">
             <h1 className="text-4xl font-bold text-center mb-4">{postInfo.title}</h1>
             <time className="text-lg">
