@@ -17,9 +17,12 @@ const [isAuthorOrAdmin, setIsAuthorOrAdmin] = useState(false);
 useEffect(() => {
   const checkAuthorAdminStatus = async () => {
     try {
-      const response = await fetch('api/check-author-admin', {
+      const response = await fetch('https://mern-backend-neon.vercel.app/check-author-admin', {
         credentials: 'include',
       });
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
       const data = await response.json();
       setIsAuthorOrAdmin(data.isAuthorOrAdmin);
     } catch (error) {
