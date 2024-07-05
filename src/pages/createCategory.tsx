@@ -15,6 +15,28 @@ import { Link } from 'react-router-dom';
 const CreateCategory: React.FC = () => {
   const [name, setName] = useState<string>('');
   const [description, setDescription] = useState<string>('');
+const [isAuthorOrAdmin, setIsAuthorOrAdmin] = useState(false);
+
+useEffect(() => {
+  const checkAuthorAdminStatus = async () => {
+    try {
+      const response = await fetch('/check-author-admin', {
+        credentials: 'include',
+      });
+      const data = await response.json();
+      setIsAuthorOrAdmin(data.isAuthorOrAdmin);
+    } catch (error) {
+      console.error('Error checking author/admin status:', error);
+      setIsAuthorOrAdmin(false);
+    }
+  };
+
+  checkAuthorAdminStatus();
+}, []);
+
+
+
+// Le reste du code du composant...
 
 /**
  * Asynchronously creates a new category by sending a POST request to the '/api/category' endpoint.
@@ -77,6 +99,19 @@ const CreateCategory: React.FC = () => {
   ];
 
     return (
+        // Dans le rendu du composant
+if (!isAuthorOrAdmin) {
+  return (
+    <div className="mx-auto max-w-screen-xl px-4 py-16 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-lg">
+        <h1 className="text-center text-2xl font-bold text-indigo-600 sm:text-3xl">Accès Non Autorisé</h1>
+        <p className="mx-auto mt-4 max-w-md text-center text-gray-500">
+          Cette page est réservée aux auteurs et administrateurs. Veuillez vous connecter avec un compte approprié.
+        </p>
+      </div>
+    </div>
+  );
+}else{
     <div className="mx-auto max-w-screen-xl px-4 py-16 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-lg">
         <h1 className="text-center text-2xl font-bold text-lime-600 sm:text-3xl">
@@ -118,7 +153,7 @@ const CreateCategory: React.FC = () => {
         </div>
       </div>
     </div>
-  );
+  );}
 };
 
 export default CreateCategory;
