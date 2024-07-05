@@ -361,7 +361,7 @@ app.post("/logout/", (req, res) => {
 });
 
 // Définir une route pour la création d'un nouveau post
-app.post('/post',authorMiddleware, upload.single('file'), async (req,res) => {
+app.post('/post',upload.single('file'), async (req,res) => {
   const {originalname,path} = req.file;
   const parts = originalname.split('.');
   const ext = parts[parts.length - 1];
