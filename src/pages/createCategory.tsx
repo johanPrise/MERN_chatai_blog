@@ -14,7 +14,7 @@ import { Link } from 'react-router-dom';
 const CreateCategory: React.FC = () => {
   const [name, setName] = useState<string>('');
   const [description, setDescription] = useState<string>('');
-const [isAuthorOrAdmin, setIsAuthorOrAdmin] = useState(false);
+  const [isAuthorOrAdmin, setIsAuthorOrAdmin] = useState(false);
 
 useEffect(() => {
   const checkAuthorAdminStatus = async () => {
@@ -35,7 +35,6 @@ useEffect(() => {
 
 
 
-// Le reste du code du composant...
 
 /**
  * Asynchronously creates a new category by sending a POST request to the '/api/category' endpoint.
