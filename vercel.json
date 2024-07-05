@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "https://mern-backend-neon.vercel.app/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
