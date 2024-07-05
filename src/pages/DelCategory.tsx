@@ -51,7 +51,7 @@ const DeleteCategories: React.FC = () => {
           }
         })
       );
-      navigate('/categories');
+      navigate('/');
     } catch (error) {
       console.error('Erreur lors de la suppression des catégories', error);
     }
