@@ -5,7 +5,6 @@ import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import '../css/App.css';
 import { Link } from 'react-router-dom';
-
 /**
  * Handles the creation of a new category by sending a POST request to the '/api/category' endpoint.
  *
