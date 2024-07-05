@@ -43,6 +43,7 @@ const DeleteCategories: React.FC = () => {
         selectedCategories.map(async (categoryId) => {
           const response = await fetch(`https://mern-backend-neon.vercel.app/category/${categoryId}`, {
             method: 'DELETE',
+            credentials: 'include', // Ajoutez cette ligne
           });
 
           if (!response.ok) {
