@@ -158,7 +158,7 @@ app.post('/forgot-password', async (req, res) => {
     await user.save();
 
     // Envoyez un email avec le lien de réinitialisation de mot de passe
-    const resetUrl = `http://localhost:5173/reset-password/${resetToken}`;
+    const resetUrl = `https://mern-chatai-blog.vercel.app/reset-password/${resetToken}`;
     const mailOptions = {
       from: 'prisojohan2@gmail.com',
       to: email,
