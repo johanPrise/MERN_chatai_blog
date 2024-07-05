@@ -79,15 +79,6 @@ useEffect(() => {
     }
     setIsDeleting(false);
   };
-
-    return (
-    <div className="mx-auto max-w-screen-xl px-4 py-16 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-lg">
-        <h1 className="text-center text-2xl font-bold text-lime-600 sm:text-3xl">
-          Delete Categories
-        </h1>
-        <div className="mb-0 mt-6 space-y-4 bg-white rounded-lg p-4 shadow-lg sm:p-6 lg:p-8">
-            // Dans le rendu du composant
 if (!isAuthorOrAdmin) {
   return (
     <div className="mx-auto max-w-screen-xl px-4 py-16 sm:px-6 lg:px-8">
@@ -100,6 +91,15 @@ if (!isAuthorOrAdmin) {
     </div>
   );
 }else{
+    return (
+    <div className="mx-auto max-w-screen-xl px-4 py-16 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-lg">
+        <h1 className="text-center text-2xl font-bold text-lime-600 sm:text-3xl">
+          Delete Categories
+        </h1>
+        <div className="mb-0 mt-6 space-y-4 bg-white rounded-lg p-4 shadow-lg sm:p-6 lg:p-8">
+            // Dans le rendu du composant
+
           {categories.map((category) => (
             <div key={category._id} className="flex items-center">
               <input
@@ -129,6 +129,7 @@ if (!isAuthorOrAdmin) {
       </div>
     </div>
   );
+}
 };
 
 export default DeleteCategories;
