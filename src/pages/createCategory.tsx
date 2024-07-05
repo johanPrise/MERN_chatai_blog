@@ -32,6 +32,7 @@ const CreateCategory: React.FC = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ name, description }),
+        credentials: 'include', // Ajoutez cette ligne
       });
 
       if (response.ok) {
