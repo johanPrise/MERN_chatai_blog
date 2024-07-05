@@ -29,38 +29,17 @@ export const authMiddleware = async (req, res, next) => {
   }
 };
 
-export const authorMiddleware = async (req, res, next) => {
-  const { token } = req.cookies;
-  
-  if (!token) {
+export const authorMiddleware = (req, res, next) => {
+  if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
   }
-
-  try {
-    const decoded = jwt.verify(token, secret);
-    const user = await UserModel.findById(decoded.id);
-    
-    if (!user) {
-      return res.status(401).json({ message: 'User not found' });
-    }
-
-    if (user.role === 'author' || user.role === 'admin') {
-      req.user = {
-        id: user._id,
-        username: user.username,
-        role: user.role,
-        isAuthorized: user.isAuthorized
-      };
-      next();
-    } else {
-      res.status(403).json({ message: 'Not authorized as an author' });
-    }
-  } catch (error) {
-    console.error('Author middleware error:', error);
-    res.status(401).json({ message: 'Invalid or expired token' });
+  
+  if (req.user.role === 'author' || req.user.role === 'admin') {
+    next();
+  } else {
+    res.status(403).json({ message: 'Author or admin access required' });
   }
 };
-
 export const adminMiddleware = async (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ message: 'Authentication required' });
