@@ -219,18 +219,9 @@ app.post('/reset-password/:resetToken', async (req, res) => {
 });
 
 // Route pour vérifier si l'utilisateur est auteur ou admin
-app.get('/check-author-admin', authMiddleware, async (req, res) => {
-  try {
-    const user = await UserModel.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-    const isAuthorOrAdmin = user.role === 'author' || user.role === 'admin';
-    res.json({ isAuthorOrAdmin });
-  } catch (error) {
-    console.error('Error checking author/admin status:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
+app.get('/check-author-admin', authMiddleware, authorMiddleware, (req, res) => {
+  console.log('User in check-author-admin:', req.user.role);
+  res.json({ isAuthorOrAdmin: req.user.role === 'author' || req.user.role === 'admin' });
 });
 
 app.get('/', async (req, res) => {
