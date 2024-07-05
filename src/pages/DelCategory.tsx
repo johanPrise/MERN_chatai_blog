@@ -117,7 +117,7 @@ if (!isAuthorOrAdmin) {
               </label>
             </div>
           ))}
-            }
+            
           <button
             className="block w-full rounded-lg bg-red-600 px-5 py-3 text-sm font-medium text-white"
             onClick={handleDelete}
