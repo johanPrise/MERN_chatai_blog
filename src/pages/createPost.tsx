@@ -34,6 +34,7 @@ const CreatePost: React.FC = () => {
       const response = await fetch('https://mern-backend-neon.vercel.app/post/', {
         method: 'POST',
         body: data,
+        credentials: 'include', // Ajoutez cette ligne
       });
 
       if (response.ok) {
