@@ -41,7 +41,7 @@ const DeleteCategories: React.FC = () => {
     try {
       await Promise.all(
         selectedCategories.map(async (categoryId) => {
-          const response = await fetch(`https://mern-backend-neon.vercel.app/category/${categoryId}`, {
+          const response = await fetch(`api/category/${categoryId}`, {
             method: 'DELETE',
             credentials: 'include', // Ajoutez cette ligne
           });
