@@ -51,7 +51,7 @@ useEffect(() => {
       formData.append('file', file);
 
       try {
-        const response = await fetch('https://mern-backend-neon.vercel.app/post', {
+        const response = await fetch('/post', {
           method: 'POST',
           body: formData,
           credentials: 'include',
@@ -64,29 +64,47 @@ useEffect(() => {
     }
   };
 
-const handleSubmit = async (event:FormEvent) => {
+const handleSubmit = async (event) => {
   event.preventDefault();
 
   try {
-    const formData = new FormData();
-    formData.append('title', title);
-    formData.append('summary', summary);
-      formData.append('content', content);
-      formData.append('category', selectedCategory);
-      formData.append('featured', featured ? 'true' : 'false'); // Ajout de la valeur booléenne    
-    // Utiliser l'URL de l'image déjà uploadée si elle existe
-    if (coverUrl) {
-      formData.append('cover', coverUrl);
-    } else if (files && files[0]) {
-      // Si l'image n'a pas été préalablement uploadée, l'ajouter au formData
-      formData.append('file', files[0]);
+    // Préparer les données à envoyer
+    const postData = {
+      title,
+      summary,
+      content,
+      category: selectedCategory,
+      featured: featured ? 'true' : 'false', // Ajout de la valeur booléenne
+      cover: coverUrl || null // Utiliser l'URL de l'image déjà uploadée si elle existe
+    };
+
+    // Si une nouvelle image est sélectionnée, l'uploader séparément
+    let coverUrlToSend = coverUrl;
+    if (files && files[0]) {
+      const uploadResponse = await fetch('api/upload', {
+        method: 'POST',
+        body: files[0],
+        credentials: 'include',
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('File upload failed');
+      }
+
+      const uploadData = await uploadResponse.json();
+      coverUrlToSend = uploadData.url;
     }
 
- 
+    // Mettre à jour l'objet postData avec l'URL de l'image
+    postData.cover = coverUrlToSend;
 
-    const response = await fetch('https://mern-backend-neon.vercel.app/post', {
+    // Envoyer la requête JSON
+    const response = await fetch('api/post', {
       method: 'POST',
-      body: formData,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(postData),
       credentials: 'include',
     });
 
