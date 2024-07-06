@@ -54,7 +54,7 @@ export default function Post({ post }: { post: PostType }) {
     <article className="overflow-hidden rounded-lg shadow transition hover:shadow-lg">
 <img
   alt=""
-  src={cover.startsWith('http') ? cover : `https://mern-backend-neon.vercel.app/${cover}`}
+  src={cover.startsWith('http') ? cover : `api/${cover}`}
   className="h-56 w-full object-cover"
 />
 
