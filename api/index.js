@@ -396,8 +396,6 @@ app.post('/post', upload.single('file'), async (req, res) => {
   jwt.verify(token, secret, {}, async (err, info) => {
     if (err) throw err;
     
-    const { title, summary, content, category, featured } = req.body;
-    
     let coverUrl = '';
     
     if (req.file) {
@@ -409,32 +407,34 @@ app.post('/post', upload.single('file'), async (req, res) => {
       }
     }
     
-    const postDoc = await PostModel.create({
-      title,
-      summary,
-      content,
-      cover: coverUrl,
-      author: info.id,
-      category,
-      featured: featured || false
-    });
-
-    app.post('/upload', upload.single('file'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded' });
+    // Si seulement un fichier est envoyé, retourner l'URL de l'image
+    if (Object.keys(req.body).length === 0 && req.file) {
+      return res.json({ url: coverUrl });
     }
-    const fileUrl = await uploadFile(req.file);
-    res.json({ fileUrl });
-  } catch (error) {
-    console.error('Error uploading file:', error);
-    res.status(500).json({ message: 'File upload failed' });
-  }
-});
+        const isFeatured = featured === 'true';
+    // Sinon, créer le post avec l'image
+    const { title, summary, content, category, featured } = req.body;
     
-    res.json(postDoc);
+    try {
+      const postDoc = await PostModel.create({
+        title,
+        summary,
+        content,
+        cover: coverUrl,
+        author: info.id,
+        category,
+        featured: isFeatured
+      });
+      
+      res.json(postDoc);
+    } catch (error) {
+      console.error('Error creating post:', error);
+      res.status(500).json({ message: 'Error creating post' });
+    }
   });
 });
+
+    
 // Route pour vérifier si l'utilisateur est admin
 app.get('/check-admin', authMiddleware, adminMiddleware, (req, res) => {
   console.log('User in check-admin:', req.user.role);

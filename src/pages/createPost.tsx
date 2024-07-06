@@ -1,6 +1,5 @@
 // src/pages/CreatePost.tsx
 import React, { useState, FormEvent, useEffect, useRef } from 'react';
-import { Grid } from '@mui/material';
 import ReactQuill from 'react-quill';
 import { Navigate } from 'react-router-dom';
 import 'react-quill/dist/quill.snow.css';
@@ -19,6 +18,8 @@ const CreatePost: React.FC = () => {
   const [blob, setBlob] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const inputFileRef = useRef(null);
+  const [coverUrl, setCoverUrl] = useState('');
+
 
 useEffect(() => {
   const checkAuthorAdminStatus = async () => {
@@ -42,60 +43,78 @@ useEffect(() => {
 
 
 
-// Le reste du code du composant...
+  // Fonction pour gérer l'upload d'image seul
+  const handleImageUpload = async (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const formData = new FormData();
+      formData.append('file', file);
 
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setIsUploading(true);
-
-    try {
-      const file = inputFileRef.current.files[0];
-      if (!file) {
-        alert('Please select a file');
-        return;
+      try {
+        const response = await fetch('/post', {
+          method: 'POST',
+          body: formData,
+          credentials: 'include',
+        });
+        const data = await response.json();
+        setCoverUrl(data.url); // Stocke l'URL de l'image uploadée
+      } catch (error) {
+        console.error('Erreur lors de l\'upload de l\'image:', error);
       }
-
-      // Upload file to Vercel Blob
-      const fileResponse = await fetch(`/api/upload?filename=${file.name}`, {
-        method: 'POST',
-        body: file,
-      });
-
-      if (!fileResponse.ok) throw new Error('File upload failed');
-      const newBlob = await fileResponse.json();
-      setBlob(newBlob);
-
-      // Create post with the uploaded file URL
-      const postData = {
-        title,
-        summary,
-        content,
-        category: selectedCategory,
-        featured,
-        cover: newBlob.url,
-      };
-
-      const postResponse = await fetch('/api/post', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(postData),
-        credentials: 'include',
-      });
-
-      if (!postResponse.ok) throw new Error('Post creation failed');
-
-      alert('Post created successfully!');
-      // Reset form or redirect
-    } catch (error) {
-      console.error('Error:', error);
-      alert('An error occurred. Please try again.');
-    } finally {
-      setIsUploading(false);
     }
   };
+
+const handleSubmit = async (event) => {
+  event.preventDefault();
+
+  try {
+    const formData = new FormData();
+    formData.append('title', title);
+    formData.append('summary', summary);
+      formData.append('content', content);
+      formData.append('category', selectedCategory);
+      formData.append('featured', featured ? 'true' : 'false'); // Ajout de la valeur booléenne    
+    // Utiliser l'URL de l'image déjà uploadée si elle existe
+    if (coverUrl) {
+      formData.append('cover', coverUrl);
+    } else if (files && files[0]) {
+      // Si l'image n'a pas été préalablement uploadée, l'ajouter au formData
+      formData.append('file', files[0]);
+    }
+
+ 
+
+    const response = await fetch('/post', {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Post creation failed');
+    }
+
+    const data = await response.json();
+    
+    // Gérer la réponse
+    console.log('Post created:', data);
+    alert('Post created successfully!');
+
+    // Réinitialiser le formulaire
+    setTitle('');
+    setSummary('');
+    setContent('');
+    setFiles(null);
+    setCoverUrl('');
+
+    // Rediriger vers la page du nouveau post ou la liste des posts
+    // history.push(`/post/${data._id}`);
+
+  } catch (error) {
+    console.error('Error creating post:', error);
+    alert('An error occurred while creating the post. Please try again.');
+  }
+};
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -178,12 +197,13 @@ useEffect(() => {
             required
             className="w-full rounded-lg border-gray-200 p-4 text-sm shadow-sm"
           />
-          <input
-            type="file"
-            ref={inputFileRef}
-            required
-            className="w-full rounded-lg border-gray-200 p-4 text-sm shadow-sm"
-          />
+<input 
+        type="file" 
+        onChange={e => {
+          setFiles(e.target.files);
+          handleImageUpload(e); // Upload l'image dès qu'elle est sélectionnée
+        }}
+      />
           <ReactQuill
             value={content}
             modules={modules}
