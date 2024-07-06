@@ -58,7 +58,12 @@ dotenv.config();
 // Utiliser le middleware cookie-parser pour parser les cookies entrants
 app.use(cookieParser());
 
-
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // limite la taille du fichier à 5MB
+  },
+});
 
 // Configurer Multer pour stocker les fichiers téléchargés dans le répertoire "uploads/"
 // const upload = multer({
@@ -650,6 +655,37 @@ app.get("/post/:id", async (req, res) => {
   const { id } = req.params;
   const postDoc = await PostModel.findById(id);
   res.json(postDoc);
+});
+
+// Route pour supprimer un post
+app.delete('/post/:id', async (req, res) => {
+  const { id } = req.params;
+  const token = req.cookies.token;
+  
+  jwt.verify(token, secret, {}, async (err, info) => {
+    if (err) throw err;
+    
+    const postDoc = await PostModel.findById(id);
+    if (!postDoc) {
+      return res.status(404).json({ message: 'Post not found' });
+    }
+    
+    if (postDoc.author.toString() !== info.id) {
+      return res.status(403).json({ message: 'You are not the author of this post' });
+    }
+    
+    if (postDoc.cover) {
+      try {
+        await deleteFile(postDoc.cover);
+      } catch (error) {
+        console.error('Error deleting file:', error);
+        // Continue with post deletion even if file deletion fails
+      }
+    }
+    
+    await PostModel.findByIdAndDelete(id);
+    res.json({ message: 'Post deleted successfully' });
+  });
 });
 
 // Définir une route pour récupérer un post par son ID avec les informations de l'auteur
