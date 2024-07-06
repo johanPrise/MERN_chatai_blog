@@ -398,48 +398,43 @@ app.post("/logout/", (req, res) => {
 
 // Définir une route pour la création d'un nouveau post
 // Route pour créer un post
+// Route pour créer un post
 app.post('/post', upload.single('file'), async (req, res) => {
-  const token = req.cookies.token;
+  let coverUrl = '';
   
-  jwt.verify(token, secret, {}, async (err, info) => {
-    if (err) throw err;
-    
-    let coverUrl = '';
-    
-    if (req.file) {
-      try {
-        coverUrl = await uploadFile(req.file);
-      } catch (error) {
-        console.error('Error uploading file:', error);
-        return res.status(500).json({ message: 'Error uploading file' });
-      }
-    }
-    
-    // Si seulement un fichier est envoyé, retourner l'URL de l'image
-    if (Object.keys(req.body).length === 0 && req.file) {
-      return res.json({ url: coverUrl });
-    }
-        const isFeatured = featured === 'true';
-    // Sinon, créer le post avec l'image
-    const { title, summary, content, category, featured } = req.body;
-    
+  if (req.file) {
     try {
-      const postDoc = await PostModel.create({
-        title,
-        summary,
-        content,
-        cover: coverUrl,
-        author: info.id,
-        category,
-        featured: isFeatured
-      });
-      
-      res.json(postDoc);
+      coverUrl = await uploadFile(req.file);
     } catch (error) {
-      console.error('Error creating post:', error);
-      res.status(500).json({ message: 'Error creating post' });
+      console.error('Error uploading file:', error);
+      return res.status(500).json({ message: 'Error uploading file' });
     }
-  });
+  }
+  
+  // Si seulement un fichier est envoyé, retourner l'URL de l'image
+  if (Object.keys(req.body).length === 0 && req.file) {
+    return res.json({ url: coverUrl });
+  }
+  
+  const { title, summary, content, category, featured } = req.body;
+  const isFeatured = featured === 'true';
+  
+  try {
+    const postDoc = await PostModel.create({
+      title,
+      summary,
+      content,
+      cover: coverUrl,
+      author: null, // Vous pouvez définir l'auteur à null ou à une valeur par défaut si nécessaire
+      category,
+      featured: isFeatured
+    });
+    
+    res.json(postDoc);
+  } catch (error) {
+    console.error('Error creating post:', error);
+    res.status(500).json({ message: 'Error creating post' });
+  }
 });
 
     
