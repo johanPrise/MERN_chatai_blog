@@ -390,7 +390,7 @@ app.post("/logout/", (req, res) => {
 
 // Définir une route pour la création d'un nouveau post
 // Route pour créer un post
-app.post('/post', upload.single('file'), async (req, res) => {
+app.post('/post', authMiddleware, upload.single('file'), async (req, res) => {
   const { token } = req.cookies;
   
   jwt.verify(token, secret, {}, async (err, info) => {
