@@ -5,7 +5,7 @@ import UserModel from '../models/User.js';
 const secret = "bj3behrj2o3ierbhj3j2no";
 
 export const authMiddleware = async (req, res, next) => {
-  const { token } = req.cookies.token;
+  const { token } = req.cookies;
   if (!token) {
     return res.status(401).json({ message: 'Authentication required' });
   }
