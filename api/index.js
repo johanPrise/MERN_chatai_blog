@@ -266,16 +266,22 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 // Fonction pour uploader un fichier
 async function uploadFile(file) {
-  if (isProduction) {
-    const blob = await put(file.originalname, file.buffer, {
-      access: 'public',
-    });
-    return blob.url;
-  } else {
-    const fileName = Date.now() + '-' + file.originalname;
-    const filePath = path.join(__dirname, 'uploads', fileName);
-    await fs.promises.writeFile(filePath, file.buffer);
-    return `/uploads/${fileName}`;
+  try {
+    const uniqueFileName = `${Date.now()}-${file.originalname}`;
+    
+    if (isProduction) {
+      const blob = await put(`uploads/${uniqueFileName}`, file.buffer, {
+        access: 'public',
+      });
+      return blob.url;
+    } else {
+      const filePath = path.join(__dirname, 'uploads', uniqueFileName);
+      await fs.promises.writeFile(filePath, file.buffer);
+      return `/uploads/${uniqueFileName}`;
+    }
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    throw new Error('File upload failed');
   }
 }
 
