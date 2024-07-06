@@ -4,8 +4,7 @@ import dotenv from 'dotenv';
 // Importer le package nanoid pour la création de jetons
 import { nanoid } from 'nanoid';
 import { env } from 'node:process';
-
-// Importer le middleware Multer pour la gestion des fichiers
+import { put, del } from '@vercel/blob';// Importer le middleware Multer pour la gestion des fichiers
 import multer from "multer";
 // Importer le package Mongoose pour la connexion à MongoDB
 import mongoose from "mongoose";
@@ -66,25 +65,25 @@ app.use(cookieParser());
 //   dest: "uploads/",
 // });
 
- // Set the upload directory based on the environment
-const uploadDir = process.env.NODE_ENV === 'production' ? '/tmp/uploads' : path.join(__dirname, 'uploads');
+//  // Set the upload directory based on the environment
+// const uploadDir = process.env.NODE_ENV === 'production' ? '/tmp/uploads' : path.join(__dirname, 'uploads');
 
-// Ensure the upload directory exists
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-}
+// // Ensure the upload directory exists
+// if (!fs.existsSync(uploadDir)) {
+//     fs.mkdirSync(uploadDir, { recursive: true });
+// }
 
-// Define the storage location
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, uploadDir);
-    },
-    filename: function (req, file, cb) {
-        cb(null, Date.now() + path.extname(file.originalname)); // Append the current timestamp to the file name
-    }
-});
+// // Define the storage location
+// const storage = multer.diskStorage({
+//     destination: function (req, file, cb) {
+//         cb(null, uploadDir);
+//     },
+//     filename: function (req, file, cb) {
+//         cb(null, Date.now() + path.extname(file.originalname)); // Append the current timestamp to the file name
+//     }
+// });
 
-const upload = multer({ storage: storage });
+// const upload = multer({ storage: storage });
 const MONGO_URI = env.VITE_MONGO_URI || env.MONGODB_URI;
 const prompt = env.VITE_QWEN_PROMPT;
 let PORT;
@@ -114,8 +113,17 @@ const __filename = getFilePath(import.meta.url);
 const __dirname = path.dirname(__filename);
 // Configurer le middleware cors pour autoriser les requêtes cross-origin
 app.use(bodyParser.json());
+const allowedOrigins = ['https://mern-chatai-blog.vercel.app'];
 app.use(cors({
-  origin: "https://mern-chatai-blog.vercel.app/" // Autoriser les requêtes depuis le port utilisé par Vite
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 }));
 
 // Configurez le transporteur de nodemailer pour envoyer des emails
@@ -150,7 +158,7 @@ app.post('/forgot-password', async (req, res) => {
     await user.save();
 
     // Envoyez un email avec le lien de réinitialisation de mot de passe
-    const resetUrl = `http://localhost:5173/reset-password/${resetToken}`;
+    const resetUrl = `https://mern-chatai-blog.vercel.app/reset-password/${resetToken}`;
     const mailOptions = {
       from: 'prisojohan2@gmail.com',
       to: email,
@@ -209,6 +217,12 @@ app.post('/reset-password/:resetToken', async (req, res) => {
   }
 });
 
+// Route pour vérifier si l'utilisateur est auteur ou admin
+app.get('/check-author-admin', authMiddleware, authorMiddleware, (req, res) => {
+  console.log('User in check-author-admin:', req.user.role);
+  res.json({ isAuthorOrAdmin: req.user.role === 'author' || req.user.role === 'admin' });
+});
+
 app.get('/', async (req, res) => {
     res.send("bONJOUR? je marche t'inquiète" )
 })
@@ -242,6 +256,33 @@ const generateResponse = async (messages) => {
 
   return aiResponse;
 };
+
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Fonction pour uploader un fichier
+async function uploadFile(file) {
+  if (isProduction) {
+    const blob = await put(file.originalname, file.buffer, {
+      access: 'public',
+    });
+    return blob.url;
+  } else {
+    const fileName = Date.now() + '-' + file.originalname;
+    const filePath = path.join(__dirname, 'uploads', fileName);
+    await fs.promises.writeFile(filePath, file.buffer);
+    return `/uploads/${fileName}`;
+  }
+}
+
+// Fonction pour supprimer un fichier
+async function deleteFile(fileUrl) {
+  if (isProduction) {
+    await del(fileUrl);
+  } else {
+    const filePath = path.join(__dirname, fileUrl);
+    await fs.promises.unlink(filePath);
+  }
+}
 
 // Générer une nouvelle conversation
 app.post('/send', async (req, res) => {
@@ -302,13 +343,14 @@ app.post("/login", async (req, res) => {
   const passOk = bcrypt.compareSync(password, userDoc.password);
   if (passOk) {
     // logged in
-    jwt.sign({ username, id: userDoc._id }, secret, {}, (err, token) => {
-      if (err) throw err;
-      res.cookie("token", token,{}).json({
-        id: userDoc._id,
-        username,
-      });
-    });
+    jwt.sign({ username, id: userDoc._id, role: userDoc.role }, secret, {}, (err, token) => {
+  if (err) throw err;
+  res.cookie("token", token, {}).json({
+    id: userDoc._id,
+    username,
+    role: userDoc.role
+  });
+});
   } else {
     res.status(400).json("wrong credentials");
   }
@@ -336,30 +378,38 @@ app.post("/logout/", (req, res) => {
 });
 
 // Définir une route pour la création d'un nouveau post
-app.post('/post', authMiddleware, authorMiddleware, upload.single('file'), async (req,res) => {
-  const {originalname,path} = req.file;
-  const parts = originalname.split('.');
-  const ext = parts[parts.length - 1];
-  const newPath = path+'.'+ext;
-  fs.renameSync(path, newPath);
-
-  const {token} = req.cookies;
-  console.log(token)
-  jwt.verify(token, secret, {}, async (err,info) => {
+// Route pour créer un post
+app.post('/post', upload.single('file'), async (req, res) => {
+  const { token } = req.cookies;
+  
+  jwt.verify(token, secret, {}, async (err, info) => {
     if (err) throw err;
-    const {title,summary,content, category, featured} = req.body;
+    
+    const { title, summary, content, category, featured } = req.body;
+    
+    let coverUrl = '';
+    
+    if (req.file) {
+      try {
+        coverUrl = await uploadFile(req.file);
+      } catch (error) {
+        console.error('Error uploading file:', error);
+        return res.status(500).json({ message: 'Error uploading file' });
+      }
+    }
+    
     const postDoc = await PostModel.create({
       title,
       summary,
       content,
-      cover:newPath,
+      cover: coverUrl,
       author: info.id,
       category,
-      featured: featured || false // Ajout du champ featured
+      featured: featured || false
     });
+    
     res.json(postDoc);
   });
-
 });
 // Route pour vérifier si l'utilisateur est admin
 app.get('/check-admin', authMiddleware, adminMiddleware, (req, res) => {
@@ -588,7 +638,9 @@ app.get('/post', async (req,res) => {
 });
 
 // Définir une route pour servir les fichiers statiques du répertoire "uploads/"
-app.use("/uploads", express.static("uploads"));
+if (!isProduction) {
+  app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+}
 
 // Définir une route pour servir les fichiers statiques du répertoire "images/"
 app.use("/src/components/assets/images", express.static("images"));
@@ -607,37 +659,7 @@ app.get("/post/:id", async (req, res) => {
   res.json(postDoc);
 });
 
-// Définir une route pour supprimer un post par son ID
-app.delete('/post/:id', async (req, res) => {
-  const { id } = req.params;
-  const token = req.cookies.token;
-  jwt.verify(token, secret, {}, async (err, info) => {
-    if (err) throw err;
-    const postDoc = await PostModel.findById(id);
-    if (!postDoc) {
-      return res.status(404).json({ message: 'Post not found' });
-    }
-    if (postDoc.author.toString()!== info.id) {
-      return res.status(403).json({ message: 'You are not the author of this post' });
-    }
-          // Tentative de suppression de l'image de couverture
-      if (postDoc.cover) {
-        // Construire le chemin complet vers l'image
-        const imagePath = path.join(__dirname, 'uploads', path.basename(postDoc.cover));
-        
-        fs.unlink(imagePath, (unlinkError) => {
-          if (unlinkError) {
-            console.error('Failed to delete image:', unlinkError);
-            // On ne renvoie pas d'erreur ici, on continue la suppression du post
-          } else {
-            console.log('Image successfully deleted');
-          }
-        });
-      }
-    await PostModel.findByIdAndDelete(id);
-    res.json({ message: 'Post deleted successfully' });
-  });
-});
+
 
 // Définir une route pour la création d'une nouvelle catégorie
 app.post('/category', async (req, res) => {
@@ -832,12 +854,10 @@ app.post("/reject-author", authMiddleware, adminMiddleware, async (req, res) => 
     res.status(500).json({ message: 'Server error' });
   }
 });
-
-if (env.NODE_ENV !== 'production') {
+if (env.NODE_ENV !== 'production'){
   const PORT = process.env.PORT || 4200;
   app.listen(PORT, () => {
     console.log(`Serveur en écoute sur le port ${PORT}`);
   });
 }
-
 export default app;

@@ -494,10 +494,11 @@ const renderComments = (comments, depth = 0, parentId = null) => {
   );
 
 const formatImagePath = (path) => {
-  // Remplacer toutes les barres obliques inversées par des barres obliques normales
-  return path.replace(/\\/g, '/');
-  };
-
+  if (path.startsWith('http')) {
+    return path;
+  }
+  return `https://mern-backend-neon.vercel.app/${path.replace(/\\/g, '/')}`;
+};
 
   
  return (

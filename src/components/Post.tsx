@@ -52,11 +52,11 @@ export default function Post({ post }: { post: PostType }) {
 
   return (
     <article className="overflow-hidden rounded-lg shadow transition hover:shadow-lg">
-      <img
-        alt=""
-        src={`/api/${cover}`}
-        className="h-56 w-full object-cover"
-      />
+<img
+  alt=""
+  src={cover.startsWith('http') ? cover : `https://mern-backend-neon.vercel.app/${cover}`}
+  className="h-56 w-full object-cover"
+/>
 
       <div className="bg-white p-4 sm:p-6">
         <time dateTime={formatISO9075(new Date(createdAt))} className="block text-xs text-gray-500">
