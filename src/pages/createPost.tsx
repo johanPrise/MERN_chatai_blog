@@ -51,7 +51,7 @@ useEffect(() => {
       formData.append('file', file);
 
       try {
-        const response = await fetch('/post', {
+        const response = await fetch('api/post', {
           method: 'POST',
           body: formData,
           credentials: 'include',
@@ -84,7 +84,7 @@ const handleSubmit = async (event) => {
 
  
 
-    const response = await fetch('/post', {
+    const response = await fetch('api/post', {
       method: 'POST',
       body: formData,
       credentials: 'include',
