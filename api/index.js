@@ -112,6 +112,14 @@ function getFilePath(importMetaUrl) {
   }
 }
 
+const extractToken = (req, res, next) => {
+  const token = req.cookies.token || req.headers['authorization']?.split(' ')[1];
+  if (token) {
+    req.userToken = token;
+  }
+  next();
+};
+
 //Importer le package nodemailer pour envoyer les emails 
 import nodemailer from 'nodemailer'
 const __filename = getFilePath(import.meta.url);
@@ -390,11 +398,18 @@ app.post("/logout/", (req, res) => {
 
 // Définir une route pour la création d'un nouveau post
 // Route pour créer un post
-app.post('/post', authMiddleware, upload.single('file'), async (req, res) => {
-  const { token } = req.cookies;
+app.post('/post', extractToken, upload.single('file'), async (req, res) => {
+  const token = req.userToken;
   
+  if (!token) {
+    return res.status(401).json({ message: "No token provided" });
+  }
+
   jwt.verify(token, secret, {}, async (err, info) => {
-    if (err) throw err;
+    if (err) {
+      console.error('Token verification failed:', err);
+      return res.status(401).json({ message: "Unauthorized" });
+    }
     
     let coverUrl = '';
     
@@ -411,9 +426,9 @@ app.post('/post', authMiddleware, upload.single('file'), async (req, res) => {
     if (Object.keys(req.body).length === 0 && req.file) {
       return res.json({ url: coverUrl });
     }
-        const isFeatured = featured === 'true';
-    // Sinon, créer le post avec l'image
+    
     const { title, summary, content, category, featured } = req.body;
+    const isFeatured = featured === 'true';
     
     try {
       const postDoc = await PostModel.create({
@@ -433,7 +448,6 @@ app.post('/post', authMiddleware, upload.single('file'), async (req, res) => {
     }
   });
 });
-
     
 // Route pour vérifier si l'utilisateur est admin
 app.get('/check-admin', authMiddleware, adminMiddleware, (req, res) => {

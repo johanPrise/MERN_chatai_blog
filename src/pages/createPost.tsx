@@ -64,7 +64,7 @@ useEffect(() => {
     }
   };
 
-const handleSubmit = async (event) => {
+const handleSubmit = async (event:FormEvent) => {
   event.preventDefault();
 
   try {
