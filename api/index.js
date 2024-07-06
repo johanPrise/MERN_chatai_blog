@@ -114,6 +114,7 @@ function getFilePath(importMetaUrl) {
 
 const extractToken = (req, res, next) => {
   const token = req.cookies.token || req.headers['authorization']?.split(' ')[1];
+  console.log('Extracted token:', token);
   if (token) {
     req.userToken = token;
   }
@@ -361,15 +362,14 @@ app.post("/login", async (req, res) => {
   const userDoc = await UserModel.findOne({ username });
   const passOk = bcrypt.compareSync(password, userDoc.password);
   if (passOk) {
-    // logged in
     jwt.sign({ username, id: userDoc._id, role: userDoc.role }, secret, {}, (err, token) => {
-  if (err) throw err;
-  res.cookie("token", token, {}).json({
-    id: userDoc._id,
-    username,
-    role: userDoc.role
-  });
-});
+      if (err) throw err;
+      res.cookie("token", token, { httpOnly: true, secure: true, sameSite: 'strict' }).json({
+        id: userDoc._id,
+        username,
+        role: userDoc.role
+      });
+    });
   } else {
     res.status(400).json("wrong credentials");
   }
@@ -399,7 +399,7 @@ app.post("/logout/", (req, res) => {
 // Définir une route pour la création d'un nouveau post
 // Route pour créer un post
 app.post('/post',extractToken, authMiddleware, upload.single('file'), async (req, res) => {
-  const token = req.cookies.token;
+    const { token } = req.cookies.token;
     console.log('Token received:', token);
   
   jwt.verify(token, secret, {}, async (err, info) => {
@@ -572,7 +572,7 @@ app.put('/post/:id', async (req, res) => {
      }
  });
 
-app.post('/comment', authMiddleware, async (req, res) => {
+app.post('/comment', async (req, res) => {
   try {
     const { content, postId } = req.body;
     const commentDoc = await CommentModel.create({

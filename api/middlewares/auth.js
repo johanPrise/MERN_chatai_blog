@@ -5,13 +5,15 @@ import UserModel from '../models/User.js';
 const secret = "bj3behrj2o3ierbhj3j2no";
 
 export const authMiddleware = async (req, res, next) => {
-  const { token } = req.cookies;
+  const { token } = req.cookies.token;
+  console.log('Token from cookies:', token);
   if (!token) {
     return res.status(401).json({ message: 'Authentication required' });
   }
 
   try {
     const decoded = jwt.verify(token, secret);
+    console.log('Decoded token:', decoded);
     const user = await UserModel.findById(decoded.id);
     if (!user) {
       return res.status(401).json({ message: 'User not found' });
@@ -22,6 +24,7 @@ export const authMiddleware = async (req, res, next) => {
       role: user.role,
       isAuthorized: user.isAuthorized
     };
+    console.log('User found:', req.user);
     next();
   } catch (error) {
     console.error('Auth error:', error);
