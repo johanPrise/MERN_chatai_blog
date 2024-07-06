@@ -418,6 +418,19 @@ app.post('/post', upload.single('file'), async (req, res) => {
       category,
       featured: featured || false
     });
+
+    app.post('/upload', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+    const fileUrl = await uploadFile(req.file);
+    res.json({ fileUrl });
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    res.status(500).json({ message: 'File upload failed' });
+  }
+});
     
     res.json(postDoc);
   });
