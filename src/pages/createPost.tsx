@@ -1,5 +1,5 @@
 // src/pages/CreatePost.tsx
-import React, { useState, FormEvent, useEffect } from 'react';
+import React, { useState, FormEvent, useEffect, useRef } from 'react';
 import { Grid } from '@mui/material';
 import ReactQuill from 'react-quill';
 import { Navigate } from 'react-router-dom';
@@ -15,7 +15,10 @@ const CreatePost: React.FC = () => {
   const [categories, setCategories] = useState<{ _id: string; name: string }[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [featured, setFeatured] = useState<boolean>(false); // Ajout du state featured
-const [isAuthorOrAdmin, setIsAuthorOrAdmin] = useState(false);
+  const [isAuthorOrAdmin, setIsAuthorOrAdmin] = useState(false)
+  const [blob, setBlob] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const inputFileRef = useRef(null);
 
 useEffect(() => {
   const checkAuthorAdminStatus = async () => {
@@ -42,33 +45,55 @@ useEffect(() => {
 // Le reste du code du composant...
 
 
-  const createNewPost = async (ev: FormEvent) => {
-    ev.preventDefault();
-    if (!files || files.length === 0) return;
-
-    const data = new FormData();
-    data.set('title', title);
-    data.set('summary', summary);
-    data.set('content', content);
-    data.set('file', files[0]);
-    data.set('category', selectedCategory);
-    data.set('featured', featured.toString()); // Ajout du champ featured
-
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setIsUploading(true);
 
     try {
-      const response = await fetch('api/post/', {
+      const file = inputFileRef.current.files[0];
+      if (!file) {
+        alert('Please select a file');
+        return;
+      }
+
+      // Upload file to Vercel Blob
+      const fileResponse = await fetch(`/api/upload?filename=${file.name}`, {
         method: 'POST',
-        body: data,
-        credentials: 'include', // Ajoutez cette ligne
+        body: file,
       });
 
-      if (response.ok) {
-        setRedirect(true);
-        alert('Post created!');
+      if (!fileResponse.ok) throw new Error('File upload failed');
+      const newBlob = await fileResponse.json();
+      setBlob(newBlob);
 
-      }
+      // Create post with the uploaded file URL
+      const postData = {
+        title,
+        summary,
+        content,
+        category: selectedCategory,
+        featured,
+        cover: newBlob.url,
+      };
+
+      const postResponse = await fetch('/api/post', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(postData),
+        credentials: 'include',
+      });
+
+      if (!postResponse.ok) throw new Error('Post creation failed');
+
+      alert('Post created successfully!');
+      // Reset form or redirect
     } catch (error) {
-      console.error(error);
+      console.error('Error:', error);
+      alert('An error occurred. Please try again.');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -134,7 +159,7 @@ useEffect(() => {
           Create a New Post
         </h1>
         <form
-          onSubmit={createNewPost}
+          onSubmit={handleSubmit}
           className="mb-0 mt-6 space-y-4 bg-white rounded-lg p-4 shadow-lg sm:p-6 lg:p-8"
         >
           <input
@@ -155,7 +180,7 @@ useEffect(() => {
           />
           <input
             type="file"
-            onChange={(ev) => setFiles(ev.target.files)}
+            ref={inputFileRef}
             required
             className="w-full rounded-lg border-gray-200 p-4 text-sm shadow-sm"
           />
@@ -197,11 +222,18 @@ useEffect(() => {
           </div>
           <button
             type="submit"
+            disabled={isUploading}
             className="block w-full rounded-lg bg-lime-600 px-5 py-3 text-sm font-medium text-white"
           >
-            Create your post
+            {isUploading ? 'Uploading...' : 'Create your post'}
           </button>
-        </form>
+                </form>
+                {blob && (
+          <div className="mt-4">
+            <p>Cover image uploaded: <a href={blob.url} target="_blank" rel="noopener noreferrer">{blob.url}</a></p>
+            <img src={blob.url} alt="Uploaded cover" className="mt-2 max-w-full h-auto" />
+          </div>
+        )}
       </div>
     </div>);
 }

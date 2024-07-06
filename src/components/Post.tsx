@@ -49,13 +49,21 @@ export default function Post({ post }: { post: PostType }) {
     wordwrap: 130,
     limits: { maxInputLength: 500 },
   });
-
+const getImageUrl = (path) => {
+  if (path.startsWith('http')) {
+    return path; // Already a full URL
+  }
+  return `/uploads/${path}`;
+    };
+    const getOptimizedImageUrl = (url, width = 800) => {
+  return `${url}?width=${width}&quality=80&format=webp`;
+};
   return (
     <article className="overflow-hidden rounded-lg shadow transition hover:shadow-lg">
 <img
   alt=""
-  src={cover.startsWith('http') ? cover : `api/${cover}`}
-  className="h-56 w-full object-cover"
+              src={getOptimizedImageUrl(getImageUrl(cover))}
+              className="h-56 w-full object-cover"
 />
 
       <div className="bg-white p-4 sm:p-6">
