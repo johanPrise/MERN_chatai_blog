@@ -24,7 +24,7 @@ const CategoryCard = ({ categoryId }: { categoryId: string }) => {
      * @param {string} categoryId - The ID of the category to fetch.
      */
     const fetchCategory = async () => {
-      const res = await fetch(`/api/category/${categoryId}`);
+      const res = await fetch(`https://mern-backend-neon.vercel.app/category/${categoryId}`);
       const data = await res.json();
       setCategoryData(data);
     };

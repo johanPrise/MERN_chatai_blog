@@ -13,7 +13,7 @@ const Header: React.FC = () => {
 
   const fetchUserInfo = useCallback(async () => {
     try {
-      const response = await fetch("/api/profile", { credentials: "include" });
+      const response = await fetch("https://mern-backend-neon.vercel.app/profile", { credentials: "include" });
       if (!response.ok) throw new Error('Failed to fetch user info');
       const userInfo = await response.json();
       setUserInfo(userInfo);
@@ -29,7 +29,7 @@ const Header: React.FC = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch('/api/category');
+        const response = await fetch('https://mern-backend-neon.vercel.app/category');
         if (!response.ok) throw new Error('Failed to fetch categories');
         const categories = await response.json();
         setCategories(categories);
@@ -42,7 +42,7 @@ const Header: React.FC = () => {
 
   const logout = async () => {
     try {
-      await fetch("/api/logout", { credentials: "include", method: "POST" });
+      await fetch("https://mern-backend-neon.vercel.app/logout", { credentials: "include", method: "POST" });
       setUserInfo(null);
     } catch (error) {
       console.error('Error logging out:', error);

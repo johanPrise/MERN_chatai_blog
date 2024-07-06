@@ -23,7 +23,7 @@ const Featured: React.FC<FeaturedProps> = ({ featured }) => {
   return (
     <div className="flex flex-col md:flex-row md:items-center">
       <div className="md:w-1/2 md:pr-8">
-        <img src={`/api/${cover}`} alt={title} className="w-full md:h-96 object-cover rounded-lg" />
+        <img src={`https://mern-backend-neon.vercel.app/${cover}`} alt={title} className="w-full md:h-96 object-cover rounded-lg" />
       </div>
       <div className="mt-4 md:mt-0 md:w-1/2">
         <h3 className="text-gray-800 font-semibold mb-2">FEATURED POST</h3>

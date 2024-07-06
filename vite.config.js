@@ -28,9 +28,7 @@ export default defineConfig(({ command, mode }) => {
     server: {
       proxy: {
         '/api': {
-          target: process.env.VITE_API_URL && process.env.VITE_API_URL.trim() !== "" 
-                ? process.env.VITE_API_URL 
-                  : 'https://mern-backend-whej.onrender.com',
+          target:'https://mern-backend-neon.vercel.app/',
               changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api/, '')
         }

@@ -30,7 +30,7 @@ function AdminDashboard() {
 
   const checkAdminStatus = async () => {
     try {
-      const response = await fetch('/api/check-admin', {
+      const response = await fetch('https://mern-backend-neon.vercel.app/check-admin', {
         credentials: 'include',
       });
       const data = await response.json();
@@ -44,7 +44,7 @@ function AdminDashboard() {
   const fetchUsers = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/users?page=${page}&search=${search}&sort=${sort}&order=${order}`, {
+      const response = await fetch(`https://mern-backend-neon.vercel.app/users?page=${page}&search=${search}&sort=${sort}&order=${order}`, {
         credentials: 'include',
       });
       const data = await response.json();
@@ -63,7 +63,7 @@ const handleRoleChange = async (userId: string, newRole: 'user' | 'author' | 'ad
   setError(null);
 
   try {
-    const response = await fetch('/api/change-user-role', {
+    const response = await fetch('https://mern-backend-neon.vercel.app/change-user-role', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

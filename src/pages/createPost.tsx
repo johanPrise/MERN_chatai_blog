@@ -15,6 +15,31 @@ const CreatePost: React.FC = () => {
   const [categories, setCategories] = useState<{ _id: string; name: string }[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [featured, setFeatured] = useState<boolean>(false); // Ajout du state featured
+const [isAuthorOrAdmin, setIsAuthorOrAdmin] = useState(false);
+
+useEffect(() => {
+  const checkAuthorAdminStatus = async () => {
+    try {
+      const response = await fetch('https://mern-backend-neon.vercel.app/check-author-admin', {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      const data = await response.json();
+      setIsAuthorOrAdmin(data.isAuthorOrAdmin);
+    } catch (error) {
+      console.error('Error checking author/admin status:', error);
+      setIsAuthorOrAdmin(false);
+    }
+  };
+
+  checkAuthorAdminStatus();
+}, []);
+
+
+
+// Le reste du code du composant...
 
 
   const createNewPost = async (ev: FormEvent) => {
@@ -34,6 +59,7 @@ const CreatePost: React.FC = () => {
       const response = await fetch('api/post/', {
         method: 'POST',
         body: data,
+        credentials: 'include', // Ajoutez cette ligne
       });
 
       if (response.ok) {
@@ -48,7 +74,7 @@ const CreatePost: React.FC = () => {
 
   useEffect(() => {
     const fetchCategories = async () => {
-      const res = await fetch('/api/category');
+      const res = await fetch('https://mern-backend-neon.vercel.app/category');
       const data = await res.json();
       setCategories(data);
     };
@@ -88,6 +114,18 @@ const CreatePost: React.FC = () => {
     'link',
     'image',
   ];
+    if (!isAuthorOrAdmin) {
+  return (
+    <div className="mx-auto max-w-screen-xl px-4 py-16 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-lg">
+        <h1 className="text-center text-2xl font-bold text-indigo-600 sm:text-3xl">Accès Non Autorisé</h1>
+        <p className="mx-auto mt-4 max-w-md text-center text-gray-500">
+          Cette page est réservée aux auteurs et administrateurs. Veuillez vous connecter avec un compte approprié.
+        </p>
+      </div>
+    </div>
+  );
+}else{
 
     return (
     <div className="mx-auto max-w-screen-xl px-4 py-16 sm:px-6 lg:px-8">
@@ -165,8 +203,9 @@ const CreatePost: React.FC = () => {
           </button>
         </form>
       </div>
-    </div>
-  );
-};
+    </div>);
+}
+}
+;
 
 export default CreatePost;

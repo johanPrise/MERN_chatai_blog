@@ -5,7 +5,7 @@ function ForgotPassword() {
 
   async function handleSubmit(ev: React.FormEvent<HTMLFormElement>) {
     ev.preventDefault();
-    const response = await fetch("api/forgot-password", {
+    const response = await fetch("https://mern-backend-neon.vercel.app/forgot-password", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

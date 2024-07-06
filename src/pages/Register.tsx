@@ -10,7 +10,7 @@ function Register() {
 
   async function register(ev: React.FormEvent<HTMLFormElement>) {
       ev.preventDefault();
-    const response = await fetch("api/register/", {
+    const response = await fetch("https://mern-backend-neon.vercel.app/register/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -20,7 +20,7 @@ function Register() {
 
     if (response.ok) {
       alert("Registration successful");
-      navigate("/login");
+      navigate("/login_page");
     } else {
       alert("Registration failed");
     }

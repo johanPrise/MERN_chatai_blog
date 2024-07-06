@@ -1,11 +1,10 @@
 // src/pages/CreateCategory.tsx
-import React, { useState, FormEvent } from 'react';
+import React, { useState, FormEvent, useEffect } from 'react';
 import { Grid } from '@mui/material';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import '../css/App.css';
 import { Link } from 'react-router-dom';
-
 /**
  * Handles the creation of a new category by sending a POST request to the '/api/category' endpoint.
  *
@@ -15,6 +14,29 @@ import { Link } from 'react-router-dom';
 const CreateCategory: React.FC = () => {
   const [name, setName] = useState<string>('');
   const [description, setDescription] = useState<string>('');
+  const [isAuthorOrAdmin, setIsAuthorOrAdmin] = useState(false);
+
+useEffect(() => {
+  const checkAuthorAdminStatus = async () => {
+    try {
+      const response = await fetch('https://mern-backend-neon.vercel.app/check-author-admin', {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      const data = await response.json();
+      setIsAuthorOrAdmin(data.isAuthorOrAdmin);
+    } catch (error) {
+      console.error('Error checking author/admin status:', error);
+      setIsAuthorOrAdmin(false);
+    }
+  };
+
+  checkAuthorAdminStatus();
+}, []);
+
+
 
 /**
  * Asynchronously creates a new category by sending a POST request to the '/api/category' endpoint.
@@ -26,12 +48,13 @@ const CreateCategory: React.FC = () => {
     ev.preventDefault();
 
     try {
-      const response = await fetch('/api/category', {
+      const response = await fetch('https://mern-backend-neon.vercel.app/category', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ name, description }),
+        credentials: 'include', // Ajoutez cette ligne
       });
 
       if (response.ok) {
@@ -74,8 +97,21 @@ const CreateCategory: React.FC = () => {
     'link',
     'image',
   ];
-
+if (!isAuthorOrAdmin) {
+  return (
+    <div className="mx-auto max-w-screen-xl px-4 py-16 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-lg">
+        <h1 className="text-center text-2xl font-bold text-indigo-600 sm:text-3xl">Accès Non Autorisé</h1>
+        <p className="mx-auto mt-4 max-w-md text-center text-gray-500">
+          Cette page est réservée aux auteurs et administrateurs. Veuillez vous connecter avec un compte approprié.
+        </p>
+      </div>
+    </div>
+  );
+}else{
     return (
+        // Dans le rendu du composant
+
     <div className="mx-auto max-w-screen-xl px-4 py-16 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-lg">
         <h1 className="text-center text-2xl font-bold text-lime-600 sm:text-3xl">
@@ -117,7 +153,7 @@ const CreateCategory: React.FC = () => {
         </div>
       </div>
     </div>
-  );
+  );}
 };
 
 export default CreateCategory;

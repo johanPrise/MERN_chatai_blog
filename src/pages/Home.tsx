@@ -6,13 +6,9 @@ import AnimateOnView from "../components/AnimateOnView";
 import "../css/App.css"; // Assurez-vous que ce fichier contient le CSS personnalisé défini ci-dessus
 import Pagination from "../components/pagination";
 import { PostType } from "../components/Post";
-
 interface HomeProps {
   featuredPosts: PostType[];
 }
-
-
-
 /**
  * Renders the Home component, which displays a list of posts and categories.
  *
@@ -20,15 +16,12 @@ interface HomeProps {
  */
 export default function Home() {
   const [currentPage, setCurrentPage] = useState(1);
-
   const postsPerPage = 6;
   const [posts, setPosts] = useState([]);
   const totalPages = Math.ceil(posts.length / postsPerPage);
   const [categories, setCategories] = useState([]);
   const [featuredPosts, setFeaturedPosts] = useState([]); // Ajout du state featuredPosts
   
-
-
   /**
    * A description of the entire function.
    *
@@ -40,10 +33,8 @@ export default function Home() {
       setCurrentPage(page);
     }
   };
-
-
   useEffect(() => {
-    fetch('/api/post')
+    fetch('https://mern-backend-neon.vercel.app/post')
       .then(response => response.json())
       .then(posts => {
         setPosts(posts);
@@ -52,7 +43,7 @@ export default function Home() {
   }, []);
   
   useEffect(() => {
-    fetch("/api/category").then((response) => {
+    fetch("https://mern-backend-neon.vercel.app/category").then((response) => {
       response.json().then((categories) => {
         setCategories(categories);
       });
@@ -104,7 +95,6 @@ export default function Home() {
           {categories.map((category) => (
     <CategoryCard2 key={category._id} category={category} />
   ))}
-
         </div>
       </div>
     </div>
