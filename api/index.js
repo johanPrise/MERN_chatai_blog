@@ -399,7 +399,7 @@ app.post("/logout/", (req, res) => {
 // Définir une route pour la création d'un nouveau post
 // Route pour créer un post
 // Route pour la création d'un post
-app.post('/post', authMiddleware, async (req, res) => {
+app.post('/create_post', authMiddleware, async (req, res) => {
   try {
     const { title, summary, content, category, featured, cover } = req.body;
     
@@ -651,7 +651,7 @@ app.get('/post', async (req,res) => {
 
 // Dans votre fichier index.js (côté serveur)
 
-app.post('/upload', authMiddleware, async (req, res) => {
+app.post('/uploads', authMiddleware, async (req, res) => {
   try {
     const { filename, data } = req.body;
     
