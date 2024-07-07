@@ -65,30 +65,7 @@ const upload = multer({
   },
 });
 
-// Configurer Multer pour stocker les fichiers téléchargés dans le répertoire "uploads/"
-// const upload = multer({
-//   dest: "uploads/",
-// });
 
-//  // Set the upload directory based on the environment
-// const uploadDir = process.env.NODE_ENV === 'production' ? '/tmp/uploads' : path.join(__dirname, 'uploads');
-
-// // Ensure the upload directory exists
-// if (!fs.existsSync(uploadDir)) {
-//     fs.mkdirSync(uploadDir, { recursive: true });
-// }
-
-// // Define the storage location
-// const storage = multer.diskStorage({
-//     destination: function (req, file, cb) {
-//         cb(null, uploadDir);
-//     },
-//     filename: function (req, file, cb) {
-//         cb(null, Date.now() + path.extname(file.originalname)); // Append the current timestamp to the file name
-//     }
-// });
-
-// const upload = multer({ storage: storage });
 const MONGO_URI = env.VITE_MONGO_URI || env.MONGODB_URI;
 const prompt = env.VITE_QWEN_PROMPT;
 let PORT;
@@ -247,29 +224,64 @@ app.get('/', async (req, res) => {
  * @return {Promise<string>} A promise that resolves to the generated response.
  * @throws {Error} If the response format from the API is invalid.
  */
+// const generateResponse = async (messages) => {
+//   const client = await Client.connect("Qwen/Qwen2-72B-Instruct");
+//   const result = await client.predict("/model_chat_1", {
+//     query: messages[messages.length - 1].content,
+//     history: messages.map(msg => [msg.content, msg.sender]),
+//     system: prompt
+//   });
+
+//   // Log de la réponse brute pour débogage
+//   console.log("Raw result from API:", result.data);
+
+//   // Vérifiez si la réponse contient les données attendues
+//   if (!result || !result.data) {
+//     throw new Error("Invalid response format from API");
+//   }
+
+//     const responseArray = result.data[1];
+//     const lastInteraction = responseArray[responseArray.length - 1];
+//     const aiResponse = lastInteraction[1]; // Prendre la deuxième phrase du dernier élément
+
+//   return aiResponse;
+// };
+
 const generateResponse = async (messages) => {
-  const client = await Client.connect("Qwen/Qwen2-72B-Instruct");
-  const result = await client.predict("/model_chat_1", {
-    query: messages[messages.length - 1].content,
-    history: messages.map(msg => [msg.content, msg.sender]),
-    system: prompt
-  });
+  try {
+    const app = await client("Qwen/Qwen1.5-110B-Chat-demo");
+    
+    // Préparer l'historique des messages
+    const history = messages.slice(0, -1).map(msg => [msg.content, msg.sender === "model" ? msg.content : null]);
 
-  // Log de la réponse brute pour débogage
-  console.log("Raw result from API:", result.data);
+    // Prendre le dernier message de l'utilisateur
+    const lastUserMessage = messages[messages.length - 1].content;
 
-  // Vérifiez si la réponse contient les données attendues
-  if (!result || !result.data) {
-    throw new Error("Invalid response format from API");
+    // Construire le prompt complet
+    const fullPrompt = `${prompt}\n\n${lastUserMessage}`;
+
+    const result = await app.predict("/model_chat", [
+      fullPrompt,  // string in 'Input' Textbox component
+      history,     // array in 'qwen1.5-110b-chat' Chatbot component
+      fullPrompt,  // string in 'parameter_8' Textbox component
+    ]);
+
+    console.log("Raw result from API:", result.data);
+
+    if (!result || !result.data) {
+      throw new Error("Invalid response format from API");
+    }
+
+    // Extraire la réponse du modèle
+    // Nous supposons que la réponse est le dernier élément du tableau result.data[1]
+    const aiResponse = result.data[1][result.data[1].length - 1][1];
+
+    return aiResponse;
+  } catch (error) {
+    console.error("Error generating response:", error);
+    throw error;
   }
-
-    const responseArray = result.data[1];
-    const lastInteraction = responseArray[responseArray.length - 1];
-    const aiResponse = lastInteraction[1]; // Prendre la deuxième phrase du dernier élément
-
-  return aiResponse;
 };
-
 const isProduction = process.env.NODE_ENV === 'production';
 
 // Fonction pour uploader un fichier
