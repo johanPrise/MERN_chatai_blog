@@ -399,7 +399,7 @@ app.post("/logout/", (req, res) => {
 // Définir une route pour la création d'un nouveau post
 // Route pour créer un post
 // Route pour la création d'un post
-router.post('/post', authMiddleware, async (req, res) => {
+app.post('/post', authMiddleware, async (req, res) => {
   try {
     const { title, summary, content, category, featured, cover } = req.body;
     
