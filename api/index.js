@@ -398,51 +398,28 @@ app.post("/logout/", (req, res) => {
 
 // Définir une route pour la création d'un nouveau post
 // Route pour créer un post
-app.post('/post', authMiddleware, upload.single('file'), async (req, res) => {
-    console.log('Token received:', token);
-  
-  jwt.verify(token, secret, {}, async (err, info) => {
- if (err) {
-      console.error('Token verification failed:', err);
-      throw err;
-      }
-        console.log('Token verified, user info:', info);  
-    let coverUrl = '';
+// Route pour la création d'un post
+router.post('/post', authMiddleware, async (req, res) => {
+  try {
+    const { title, summary, content, category, featured, cover } = req.body;
     
-    if (req.file) {
-      try {
-        coverUrl = await uploadFile(req.file);
-      } catch (error) {
-        console.error('Error uploading file:', error);
-        return res.status(500).json({ message: 'Error uploading file' });
-      }
-    }
+    const newPost = new PostModel({
+      title,
+      summary,
+      content,
+      cover,
+      author: req.user._id, // Assuming authMiddleware adds user to req
+      category,
+      featured: featured === 'true'
+    });
+
+    const savedPost = await newPost.save();
     
-    // Si seulement un fichier est envoyé, retourner l'URL de l'image
-    if (Object.keys(req.body).length === 0 && req.file) {
-      return res.json({ url: coverUrl });
-    }
-        const isFeatured = featured === 'true';
-    // Sinon, créer le post avec l'image
-    const { title, summary, content, category, featured } = req.body;
-    
-    try {
-      const postDoc = await PostModel.create({
-        title,
-        summary,
-        content,
-        cover: coverUrl,
-        author: info.id,
-        category,
-        featured: isFeatured
-      });
-      
-      res.json(postDoc);
-    } catch (error) {
-      console.error('Error creating post:', error);
-      res.status(500).json({ message: 'Error creating post' });
-    }
-  });
+    res.status(201).json(savedPost);
+  } catch (error) {
+    console.error('Error creating post:', error);
+    res.status(500).json({ message: 'Error creating post' });
+  }
 });
 
     
@@ -671,6 +648,29 @@ app.get('/post', async (req,res) => {
           .limit(20)
   );
 });
+
+// Dans votre fichier index.js (côté serveur)
+
+app.post('/upload', authMiddleware, async (req, res) => {
+  try {
+    const { filename, data } = req.body;
+    
+    // Convertir la chaîne base64 en Buffer
+    const buffer = Buffer.from(data, 'base64');
+    
+    // Générer un nom de fichier unique
+    const uniqueFilename = `${Date.now()}-${filename}`;
+    
+    // Uploader le fichier (utilisez votre logique d'upload ici)
+    const uploadedUrl = await uploadFile(buffer, uniqueFilename);
+    
+    res.json({ url: uploadedUrl });
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    res.status(500).json({ message: 'Error uploading image' });
+  }
+});
+
 
 // Définir une route pour servir les fichiers statiques du répertoire "uploads/"
 if (!isProduction) {

@@ -44,62 +44,53 @@ useEffect(() => {
 
 
   // Fonction pour gérer l'upload d'image seul
-  const handleImageUpload = async (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const formData = new FormData();
-      formData.append('file', file);
+// Dans CreatePost.tsx
 
+const handleImageUpload = async (event) => {
+  const file = event.target.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64String = reader.result.replace(/^data:.+;base64,/, '');
+      
       try {
-        const response = await fetch('/post', {
+        const response = await fetch('/api/upload', {
           method: 'POST',
-          body: formData,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            filename: file.name,
+            data: base64String
+          }),
           credentials: 'include',
         });
         const data = await response.json();
-        setCoverUrl(data.url); // Stocke l'URL de l'image uploadée
+        setCoverUrl(data.url);
       } catch (error) {
         console.error('Erreur lors de l\'upload de l\'image:', error);
       }
-    }
-  };
+    };
+    reader.readAsDataURL(file);
+  }
+};
+
+
 
 const handleSubmit = async (event) => {
   event.preventDefault();
 
   try {
-    // Préparer les données à envoyer
     const postData = {
       title,
       summary,
       content,
       category: selectedCategory,
-      featured: featured ? 'true' : 'false', // Ajout de la valeur booléenne
-      cover: coverUrl || null // Utiliser l'URL de l'image déjà uploadée si elle existe
+      featured: featured ? 'true' : 'false',
+      cover: coverUrl
     };
 
-    // Si une nouvelle image est sélectionnée, l'uploader séparément
-    let coverUrlToSend = coverUrl;
-    if (files && files[0]) {
-      const uploadResponse = await fetch('api/upload', {
-        method: 'POST',
-        body: files[0],
-        credentials: 'include',
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error('File upload failed');
-      }
-
-      const uploadData = await uploadResponse.json();
-      coverUrlToSend = uploadData.url;
-    }
-
-    // Mettre à jour l'objet postData avec l'URL de l'image
-    postData.cover = coverUrlToSend;
-
-    // Envoyer la requête JSON
-    const response = await fetch('api/post', {
+    const response = await fetch('/api/post', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -113,8 +104,6 @@ const handleSubmit = async (event) => {
     }
 
     const data = await response.json();
-    
-    // Gérer la réponse
     console.log('Post created:', data);
     alert('Post created successfully!');
 
@@ -122,12 +111,9 @@ const handleSubmit = async (event) => {
     setTitle('');
     setSummary('');
     setContent('');
-    setFiles(null);
     setCoverUrl('');
 
-    // Rediriger vers la page du nouveau post ou la liste des posts
-    // history.push(`/post/${data._id}`);
-
+    // Rediriger ou faire autre chose après la création du post
   } catch (error) {
     console.error('Error creating post:', error);
     alert('An error occurred while creating the post. Please try again.');
@@ -216,12 +202,9 @@ const handleSubmit = async (event) => {
             className="w-full rounded-lg border-gray-200 p-4 text-sm shadow-sm"
           />
 <input 
-        type="file" 
-        onChange={e => {
-          setFiles(e.target.files);
-          handleImageUpload(e); // Upload l'image dès qu'elle est sélectionnée
-        }}
-      />
+  type="file" 
+                        onChange={handleImageUpload}
+        accept="image/*"/>
           <ReactQuill
             value={content}
             modules={modules}
