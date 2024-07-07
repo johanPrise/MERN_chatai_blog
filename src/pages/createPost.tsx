@@ -54,7 +54,7 @@ const handleImageUpload = async (ev: FormEvent) => {
       const base64String = reader.result.replace(/^data:.+;base64,/, '');
       
       try {
-        const response = await fetch('api/uploads', {
+        const response = await fetch('https://mern-backend-neon.vercel.app/uploads', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -90,7 +90,7 @@ const handleImageUpload = async (ev: FormEvent) => {
       cover: coverUrl
     };
 
-    const response = await fetch('api/create_post', {
+    const response = await fetch('https://mern-backend-neon.vercel.app/create_post', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

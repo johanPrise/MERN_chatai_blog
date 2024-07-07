@@ -126,7 +126,7 @@ const __filename = getFilePath(import.meta.url);
 const __dirname = path.dirname(__filename);
 // Configurer le middleware cors pour autoriser les requêtes cross-origin
 app.use(bodyParser.json());
-const allowedOrigins = ['https://mern-chatai-blog.vercel.app'];
+const allowedOrigins = ['https://mern-chatai-blog.vercel.app', 'https://mern-chatai-blog.vercel.app/create_post'];
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
@@ -396,8 +396,7 @@ app.post("/logout/", (req, res) => {
   res.cookie("token", "").json("ok");
 });
 
-// Définir une route pour la création d'un nouveau post
-// Route pour créer un post
+
 // Route pour la création d'un post
 app.post('/create_post', authMiddleware, async (req, res) => {
   try {
