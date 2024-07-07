@@ -46,15 +46,15 @@ useEffect(() => {
   // Fonction pour gérer l'upload d'image seul
 // Dans CreatePost.tsx
 
-const handleImageUpload = async (event) => {
-  const file = event.target.files[0];
+const handleImageUpload = async (ev: FormEvent) => {
+  const file = ev.target.files[0];
   if (file) {
     const reader = new FileReader();
     reader.onloadend = async () => {
       const base64String = reader.result.replace(/^data:.+;base64,/, '');
       
       try {
-        const response = await fetch('/api/upload', {
+        const response = await fetch('api/uploads', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -77,8 +77,8 @@ const handleImageUpload = async (event) => {
 
 
 
-const handleSubmit = async (event) => {
-  event.preventDefault();
+    const handleSubmit = async(ev:FormEvent) => {
+  ev.preventDefault();
 
   try {
     const postData = {
@@ -90,13 +90,13 @@ const handleSubmit = async (event) => {
       cover: coverUrl
     };
 
-    const response = await fetch('/api/post', {
+    const response = await fetch('api/create_post', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(postData),
-      credentials: 'include',
+      credentials: 'include'
     });
 
     if (!response.ok) {
