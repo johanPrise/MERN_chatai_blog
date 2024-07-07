@@ -547,7 +547,7 @@ app.put('/post/:id', async (req, res) => {
      }
  });
 
-app.post('/comment', async (req, res) => {
+app.post('/comment', authMiddleware, async (req, res) => {
   try {
     const { content, postId } = req.body;
     const commentDoc = await CommentModel.create({
