@@ -407,7 +407,7 @@ app.post('/create_post', authMiddleware, async (req, res) => {
       summary,
       content,
       cover,
-      author: req.user._id, // Assuming authMiddleware adds user to req
+      author: req.user.id, // Assuming authMiddleware adds user to req
       category,
       featured: featured === 'true'
     });
