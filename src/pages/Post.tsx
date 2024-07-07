@@ -198,7 +198,7 @@ const handleReply = async (parentId, content) => {
  const handleCommentSubmit = async (e, parentId = null) => {
     e.preventDefault();
     try {
-      const response = await fetch('api/comment', {
+      const response = await fetch('https://mern-backend-neon.vercel.app/comment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
