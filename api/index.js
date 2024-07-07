@@ -247,24 +247,22 @@ app.get('/', async (req, res) => {
 //   return aiResponse;
 // };
 
+
 const generateResponse = async (messages) => {
   try {
-    const app = await client("Qwen/Qwen1.5-110B-Chat-demo");
+    const client = await Client.connect("Qwen/Qwen1.5-110B-Chat-demo");
     
-    // Préparer l'historique des messages
-    const history = messages.slice(0, -1).map(msg => [msg.content, msg.sender === "model" ? msg.content : null]);
-
     // Prendre le dernier message de l'utilisateur
     const lastUserMessage = messages[messages.length - 1].content;
 
-    // Construire le prompt complet
-    const fullPrompt = `${prompt}\n\n${lastUserMessage}`;
+    // Préparer l'historique des messages
+    const history = messages.slice(0, -1).map(msg => [msg.content, msg.sender]);
 
-    const result = await app.predict("/model_chat", [
-      fullPrompt,  // string in 'Input' Textbox component
-      history,     // array in 'qwen1.5-110b-chat' Chatbot component
-      fullPrompt,  // string in 'parameter_8' Textbox component
-    ]);
+    const result = await client.predict("/model_chat", {
+      query: lastUserMessage,
+      history: history,
+      system: process.env.VITE_QWEN_PROMPT
+    });
 
     console.log("Raw result from API:", result.data);
 
