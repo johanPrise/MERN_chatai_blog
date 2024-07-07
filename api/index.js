@@ -552,7 +552,7 @@ app.post('/comment', async (req, res) => {
     const { content, postId } = req.body;
     const commentDoc = await CommentModel.create({
       content,
-      author: req.user._id,
+      author: req.user.id,
       post: postId,
     });
     res.json(commentDoc);
