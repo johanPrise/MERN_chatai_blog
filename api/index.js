@@ -499,7 +499,7 @@ app.post('/change-user-role', authMiddleware, adminMiddleware, async (req, res) 
     }
 
     // Vérifier si l'utilisateur essaie de changer son propre rôle
-    if (user._id.toString() === req.user._id.toString() && user.role === 'admin' && newRole !== 'admin') {
+    if (user._id.toString() === req.user.id.toString() && user.role === 'admin' && newRole !== 'admin') {
       return res.status(403).json({ message: 'Vous ne pouvez pas rétrograder votre propre rôle d\'administrateur' });
     }
 
