@@ -95,29 +95,26 @@ const Header: React.FC = () => {
             }`}
           >
             <div className="flex flex-col md:flex-row md:mx-1 relative">
-              <div
-                className="my-2 text-sm leading-5 text-gray-700 dark:text-gray-200 hover:text-lime-800 dark:hover:text-lime-400 hover:underline md:mx-4 md:my-0 cursor-pointer"
-                onMouseEnter={() => setDropdownOpen(true)}
-                onMouseLeave={() => setDropdownOpen(false)}
-              >
-                <p className="p-2 hover:text-white rounded ease-in-out hover:bg-lime-700">Categories</p>
-                <div
-                  className={`absolute z-10 mt-2 py-2 w-48 bg-white rounded-md shadow-xl dark:bg-gray-800 transition-opacity duration-500 ${
-                    isDropdownVisible ? 'opacity-100' : 'opacity-0'
-                  }`}
-                >
-                  {categories.map((category) => (
-                    <Link 
-                      key={category._id}
-                      style={{ transform: isDropdownVisible ? 'translateY(0)' : 'translateY(20px)' }}
-                      className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-lime-100 dark:hover:bg-gray-600 hover:text-lime-800 dark:hover:text-lime-400 transform transition-transform duration-500 ease-in-out"
-                      to={`/category/${category._id}`}
-                    >
-                      {category.name}
-                    </Link>
-                  ))}
-                </div>
-              </div>
+    <div
+      className="my-2 text-sm leading-5 text-gray-700 dark:text-gray-200 hover:text-lime-800 dark:hover:text-lime-400 hover:underline md:mx-4 md:my-0 cursor-pointer"
+      onMouseEnter={() => setDropdownOpen(true)}
+      onMouseLeave={() => setDropdownOpen(false)}
+    >
+      <p className="p-2 hover:text-white rounded ease-in-out hover:bg-lime-700">Categories</p>
+      {isDropdownOpen && (
+        <div className="absolute z-10 mt-2 py-2 w-48 bg-white rounded-md shadow-xl dark:bg-gray-800">
+          {categories.map((category) => (
+            <Link 
+              key={category._id}
+              className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-lime-100 dark:hover:bg-gray-600 hover:text-lime-800 dark:hover:text-lime-400"
+              to={`/category/${category._id}`}
+            >
+              {category.name}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
               <div className="flex items-center gap-4 md:ml-6">
         {username ? (
           <>

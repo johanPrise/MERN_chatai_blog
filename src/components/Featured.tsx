@@ -7,7 +7,15 @@ import { PostType } from '../components/Post';
 interface FeaturedProps {
   featured: PostType | null;
 }
-
+const getImageUrl = (path) => {
+  if (path.startsWith('http')) {
+    return path; // Already a full URL
+  }
+  return `/uploads/${path}`;
+    };
+    const getOptimizedImageUrl = (url, width = 800) => {
+  return `${url}?width=${width}&quality=80&format=webp`;
+};
 /**
  * Renders a featured post with an image, title, author, date, summary, and a link to the full post.
  *
@@ -23,7 +31,7 @@ const Featured: React.FC<FeaturedProps> = ({ featured }) => {
   return (
     <div className="flex flex-col md:flex-row md:items-center">
       <div className="md:w-1/2 md:pr-8">
-        <img src={`https://mern-backend-neon.vercel.app/${cover}`} alt={title} className="w-full md:h-96 object-cover rounded-lg" />
+        <img src={getOptimizedImageUrl(getImageUrl(cover))} alt={title} className="w-full md:h-96 object-cover rounded-lg" />
       </div>
       <div className="mt-4 md:mt-0 md:w-1/2">
         <h3 className="text-gray-800 font-semibold mb-2">FEATURED POST</h3>
@@ -33,7 +41,7 @@ const Featured: React.FC<FeaturedProps> = ({ featured }) => {
         </p>
         <p className="text-gray-700 mb-6">{summary}</p>
         <Link to={`/Post/${_id}`}>
-          <Button text="Read More" />
+          <Button text="Read More" link={`/Post/${_id}`} />
         </Link>
       </div>
     </div>
