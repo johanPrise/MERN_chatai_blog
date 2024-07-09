@@ -224,60 +224,46 @@ app.get('/', async (req, res) => {
  * @return {Promise<string>} A promise that resolves to the generated response.
  * @throws {Error} If the response format from the API is invalid.
  */
-// const generateResponse = async (messages) => {
-//   const client = await Client.connect("Qwen/Qwen2-72B-Instruct");
-//   const result = await client.predict("/model_chat_1", {
-//     query: messages[messages.length - 1].content,
-//     history: messages.map(msg => [msg.content, msg.sender]),
-//     system: prompt
-//   });
-
-//   // Log de la réponse brute pour débogage
-//   console.log("Raw result from API:", result.data);
-
-//   // Vérifiez si la réponse contient les données attendues
-//   if (!result || !result.data) {
-//     throw new Error("Invalid response format from API");
-//   }
-
-//     const responseArray = result.data[1];
-//     const lastInteraction = responseArray[responseArray.length - 1];
-//     const aiResponse = lastInteraction[1]; // Prendre la deuxième phrase du dernier élément
-
-//   return aiResponse;
-// };
-
-
 const generateResponse = async (messages) => {
-  try {
-    const client = await Client.connect("Qwen/Qwen1.5-110B-Chat-demo");
-    
-    // Prendre le dernier message de l'utilisateur
-    const lastUserMessage = messages[messages.length - 1].content;
+  const models = [
+    "Qwen/Qwen2-72B-Instruct",
+    "Qwen/Qwen1.5-110B-Chat-demo"
+  ];
 
-    // Préparer l'historique des messages
-    const history = messages.slice(0, -1).map(msg => [msg.content, msg.sender]);
+  for (const model of models) {
+    try {
+      const client = await Client.connect(model);
+      
+      // Prendre le dernier message de l'utilisateur
+      const lastUserMessage = messages[messages.length - 1].content;
+      // Préparer l'historique des messages
+      const history = messages.slice(0, -1).map(msg => [msg.content, msg.sender]);
+      
+      const result = await client.predict("/model_chat", {
+        query: lastUserMessage,
+        history: history,
+        system: process.env.VITE_QWEN_PROMPT
+      });
 
-    const result = await client.predict("/model_chat", {
-      query: lastUserMessage,
-      history: history,
-      system: process.env.VITE_QWEN_PROMPT
-    });
+      console.log(`Raw result from API (${model}):`, result.data);
+      
+      if (!result || !result.data) {
+        throw new Error("Invalid response format from API");
+      }
 
-    console.log("Raw result from API:", result.data);
-
-    if (!result || !result.data) {
-      throw new Error("Invalid response format from API");
+      // Extraire la réponse du modèle
+      // Nous supposons que la réponse est le dernier élément du tableau result.data[1]
+      const aiResponse = result.data[1][result.data[1].length - 1][1];
+      return aiResponse;
+    } catch (error) {
+      console.error(`Error generating response with ${model}:`, error);
+      // Si c'est le dernier modèle dans la liste, relancez l'erreur
+      if (model === models[models.length - 1]) {
+        throw error;
+      }
+      // Sinon, continuez avec le prochain modèle
+      console.log(`Trying next model...`);
     }
-
-    // Extraire la réponse du modèle
-    // Nous supposons que la réponse est le dernier élément du tableau result.data[1]
-    const aiResponse = result.data[1][result.data[1].length - 1][1];
-
-    return aiResponse;
-  } catch (error) {
-    console.error("Error generating response:", error);
-    throw error;
   }
 };
 const isProduction = process.env.NODE_ENV === 'production';
