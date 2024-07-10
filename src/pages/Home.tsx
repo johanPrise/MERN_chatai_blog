@@ -33,14 +33,14 @@ export default function Home() {
       setCurrentPage(page);
     }
   };
-  useEffect(() => {
-    fetch('https://mern-backend-neon.vercel.app/post')
-      .then(response => response.json())
-      .then(posts => {
-        setPosts(posts);
-        setFeaturedPosts(posts.filter(post => post.featured));
-      });
-  }, []);
+useEffect(() => {
+  fetch('https://mern-backend-neon.vercel.app/post')
+    .then(response => response.json())
+    .then(posts => {
+      setPosts(posts);
+      setFeaturedPosts(posts.filter(post => post.featured === true));
+    });
+}, []);
   
   useEffect(() => {
     fetch("https://mern-backend-neon.vercel.app/category").then((response) => {
@@ -54,15 +54,16 @@ export default function Home() {
    *
    * @return {PostType | null} The last featured post, or null if there are no featured posts.
    */
-  const getLastFeaturedPost = () => {
-    if (featuredPosts.length === 0) return null;
-    return featuredPosts[featuredPosts.length - 1];
-  };
+const getRandomFeaturedPost = () => {
+  if (featuredPosts.length === 0) return null;
+  const randomIndex = Math.floor(Math.random() * featuredPosts.length);
+  return featuredPosts[randomIndex];
+};
   
   return (
     <div className="dark:bg-gray-900 format format-sm sm:format-base lg:format-lg format-blue dark:format-invert antialiased p-4">
       <header className="blog-header mb-4 bg-stone-200">
-        <Featured featured={getLastFeaturedPost()} />
+        <Featured featured={getRandomFeaturedPost()} />
       </header>
       <div className="posts p-6 grid">
         <h1 className="text-4xl font-bold mb-4">All Posts</h1>

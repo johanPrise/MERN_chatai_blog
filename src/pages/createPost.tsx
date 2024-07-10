@@ -79,7 +79,11 @@ const handleImageUpload = async (ev: FormEvent) => {
 
     const handleSubmit = async(ev:FormEvent) => {
   ev.preventDefault();
-
+        // Validation côté client
+    if (!title.trim() || !summary.trim() || !content.trim() || !selectedCategory || !coverUrl) {
+      alert('Please fill in all required fields (Title, Summary, Content, Category, and Cover Image)');
+      return;
+    }
   try {
     const postData = {
       title,
@@ -204,6 +208,7 @@ const handleImageUpload = async (ev: FormEvent) => {
 <input 
   type="file" 
                         onChange={handleImageUpload}
+                        required
         accept="image/*"/>
           <ReactQuill
             value={content}
@@ -220,7 +225,8 @@ const handleImageUpload = async (ev: FormEvent) => {
               title="category"
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full rounded-lg border-gray-200 p-4 text-sm shadow-sm"
+                            className="w-full rounded-lg border-gray-200 p-4 text-sm shadow-sm"
+                            required
             >
               <option value="">Select a category</option>
               {categories.map((category) => (
@@ -235,7 +241,8 @@ const handleImageUpload = async (ev: FormEvent) => {
               type="checkbox"
               checked={featured}
               onChange={(e) => setFeatured(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-lime-600 focus:ring-indigo-500"
+                            className="h-4 w-4 rounded border-gray-300 text-lime-600 focus:ring-indigo-500"
+                            
             />
             <label className="ml-2 block text-sm text-gray-900">
               Featured Post
@@ -244,7 +251,7 @@ const handleImageUpload = async (ev: FormEvent) => {
           <button
             type="submit"
             disabled={isUploading}
-            className="block w-full rounded-lg bg-lime-600 px-5 py-3 text-sm font-medium text-white"
+                        className="block w-full rounded-lg bg-lime-600 px-5 py-3 text-sm font-medium text-white"
           >
             {isUploading ? 'Uploading...' : 'Create your post'}
           </button>
