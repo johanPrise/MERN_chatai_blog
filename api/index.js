@@ -708,7 +708,10 @@ app.delete('/post/:id', async (req, res) => {
       }
     }
     
+    // Supprimer tous les commentaires associés au post
+    await CommentModel.deleteMany({ post: id });
     await PostModel.findByIdAndDelete(id);
+
     res.json({ message: 'Post deleted successfully' });
   });
 });
