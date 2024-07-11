@@ -67,7 +67,6 @@ const upload = multer({
 
 
 const MONGO_URI = env.VITE_MONGO_URI || env.MONGODB_URI;
-const prompt = env.VITE_QWEN_PROMPT;
 let PORT;
 if (env.VITE_API_PORT === "") {
   PORT = 4200;
@@ -89,13 +88,7 @@ function getFilePath(importMetaUrl) {
   }
 }
 
-const extractToken = (req, res, next) => {
-  const token = req.cookies.token || req.headers['authorization']?.split(' ')[1];
-  if (token) {
-    req.userToken = token;
-  }
-  next();
-};
+
 
 //Importer le package nodemailer pour envoyer les emails 
 import nodemailer from 'nodemailer'
