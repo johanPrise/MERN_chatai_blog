@@ -39,7 +39,7 @@ function App() {
             <Route path="/login_page" element={<Login />} />
             <Route path="/forgot_password" element={<ForgotPassword />} />
                       <Route path="/reset-password/:resetToken" element={<ResetPassword />} />
-                      <Rpute path="/edit-username" element={<EditUsername/>} />
+                      <Route path="/edit-username" element={<EditUsername/>} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/edit_page/:id" element={<EditPost />} />
           </Routes>
