@@ -15,6 +15,7 @@ import DeleteCategories from "./pages/DelCategory.tsx";
 import ForgotPassword from "./pages/ForgotPassword.tsx"
 import ResetPassword from "./pages/ResetPassword.tsx";
 import AdminDashboard from "./pages/AdminDashboard.tsx";
+import EditUsername from "./pages/ChangeUsername.tsx";
 
 /**
  * Renders the main application component with various routes and components.
@@ -37,7 +38,8 @@ function App() {
             <Route path="/register_page" element={<Register />} />
             <Route path="/login_page" element={<Login />} />
             <Route path="/forgot_password" element={<ForgotPassword />} />
-            <Route path="/reset-password/:resetToken" element={<ResetPassword />} />
+                      <Route path="/reset-password/:resetToken" element={<ResetPassword />} />
+                      <Rpute path="//edit-username" element={<EditUsername/>} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/edit_page/:id" element={<EditPost />} />
           </Routes>
