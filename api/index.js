@@ -123,8 +123,8 @@ const transporter = nodemailer.createTransport({
   port: 465,
   secure: true, // Utilisation du service Gmail
   auth: {
-    user: 'prisojohan2@gmail.com', // Votre adresse email
-    pass: 'faxm gmtm zqfu beqo' // Votre mot de passe (vous devrez le remplacer)
+    user: 'iwomirecovery@gmail.com', // Votre adresse email
+    pass: 'yxqn mmah lyju fojw' // Votre mot de passe (vous devrez le remplacer)
   }
 });
 
