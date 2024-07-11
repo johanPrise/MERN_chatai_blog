@@ -918,6 +918,45 @@ app.post("/reject-author", authMiddleware, adminMiddleware, async (req, res) => 
     res.status(500).json({ message: 'Server error' });
   }
 });
+// Endpoint pour supprimer le compte
+app.delete('/delete-account', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    await UserModel.findByIdAndDelete(userId);
+    res.clearCookie('token').json({ message: 'Account deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting account:', error);
+    res.status(500).json({ message: 'Failed to delete account' });
+  }
+});
+
+// Endpoint pour modifier le nom d'utilisateur
+app.put('/edit-username', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { newUsername } = req.body;
+
+    if (!newUsername) {
+      return res.status(400).json({ message: 'New username is required' });
+    }
+
+    const existingUser = await UserModel.findOne({ username: newUsername });
+    if (existingUser) {
+      return res.status(400).json({ message: 'Username already taken' });
+    }
+
+    const updatedUser = await UserModel.findByIdAndUpdate(
+      userId,
+      { username: newUsername },
+      { new: true }
+    );
+
+    res.json({ message: 'Username updated successfully', user: updatedUser });
+  } catch (error) {
+    console.error('Error updating username:', error);
+    res.status(500).json({ message: 'Failed to update username' });
+  }
+});
 if (env.NODE_ENV !== 'production'){
   const PORT = process.env.PORT || 4200;
   app.listen(PORT, () => {
