@@ -57,14 +57,12 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 dotenv.config();
 // Utiliser le middleware cookie-parser pour parser les cookies entrants
 app.use(cookieParser());
-import timeout from 'connect-timeout';
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 5 * 1024 * 1024, // limite la taille du fichier à 5MB
   },
 });
-app.use(timeout('300s')); // Timeout de 5 minutes
 
 const MONGO_URI = env.VITE_MONGO_URI || env.MONGODB_URI;
 let PORT;
@@ -209,7 +207,6 @@ app.get('/check-author-admin', authMiddleware, authorMiddleware, (req, res) => {
 app.get('/', async (req, res) => {
     res.send("bONJOUR? je marche t'inquiète" )
 })
-app.use(timeout('300s')); // Timeout de 5 minutes
 /**
  * Generates a response from the API based on the provided messages.
  *
