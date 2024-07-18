@@ -64,7 +64,7 @@ const upload = multer({
     fileSize: 5 * 1024 * 1024, // limite la taille du fichier à 5MB
   },
 });
-
+app.use(timeout('300s')); // Timeout de 5 minutes
 
 const MONGO_URI = env.VITE_MONGO_URI || env.MONGODB_URI;
 let PORT;
@@ -217,7 +217,7 @@ app.get('/', async (req, res) => {
  * @return {Promise<string>} A promise that resolves to the generated response.
  * @throws {Error} If the response format from the API is invalid.
  */
-const generateResponse = async (messages) => {
+async function generateResponse(messages) {
   const models = [
     "Qwen/Qwen2-72B-Instruct",
     "Qwen/Qwen1.5-110B-Chat-demo"
@@ -227,9 +227,7 @@ const generateResponse = async (messages) => {
     try {
       const client = await Client.connect(model);
       
-      // Prendre le dernier message de l'utilisateur
       const lastUserMessage = messages[messages.length - 1].content;
-      // Préparer l'historique des messages
       const history = messages.slice(0, -1).map(msg => [msg.content, msg.sender]);
       
       const result = await client.predict("/model_chat", {
@@ -238,27 +236,28 @@ const generateResponse = async (messages) => {
         system: process.env.VITE_QWEN_PROMPT
       });
 
-      console.log(`Raw result from API (${model}):`, result.data);
-      
       if (!result || !result.data) {
         throw new Error("Invalid response format from API");
       }
 
-      // Extraire la réponse du modèle
-      // Nous supposons que la réponse est le dernier élément du tableau result.data[1]
       const aiResponse = result.data[1][result.data[1].length - 1][1];
-      return aiResponse;
+      
+      // Yield the response in chunks
+      const chunkSize = 10; // Adjust this value as needed
+      for (let i = 0; i < aiResponse.length; i += chunkSize) {
+        yield aiResponse.slice(i, i + chunkSize);
+      }
+      
+      return; // Exit after successful response
     } catch (error) {
       console.error(`Error generating response with ${model}:`, error);
-      // Si c'est le dernier modèle dans la liste, relancez l'erreur
       if (model === models[models.length - 1]) {
         throw error;
       }
-      // Sinon, continuez avec le prochain modèle
       console.log(`Trying next model...`);
     }
   }
-};
+}
 const isProduction = process.env.NODE_ENV === 'production';
 
 // Fonction pour uploader un fichier

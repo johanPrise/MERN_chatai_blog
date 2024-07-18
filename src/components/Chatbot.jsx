@@ -41,38 +41,46 @@ const Chatbot = () => {
      *
      * @return {Promise<void>} A Promise that resolves when the function completes.
      */
-    const handleSend = async () => {
-        if (input.trim() !== "") {
-            setMessages([...messages, { text: input, sender: "user" }]);
-            setInput("");
-            setIsThinking(true);
+const handleSend = async () => {
+  if (input.trim() !== "") {
+    setMessages([...messages, { text: input, sender: "user" }]);
+    setInput("");
+    setIsThinking(true);
 
-            try {
-                const response = await fetch("https://mern-backend-neon.vercel.app/send", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({ input, sessionId }),
-                });
+    try {
+      const response = await fetch("https://mern-backend-neon.vercel.app/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ input, sessionId }),
+      });
 
-                const data = await response.json();
+      if (response.ok) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let accumulatedResponse = "";
 
-                if (response.ok) {
-                    setMessages((prevMessages) => [
-                        ...prevMessages,
-                        { text: formatMessage(data.response), sender: "model" },
-                    ]);
-                } else {
-                    console.error("Error:", data.error);
-                }
-            } catch (error) {
-                console.error("Error:", error);
-            } finally {
-                setIsThinking(false);
-            }
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value);
+          accumulatedResponse += chunk;
+          setMessages((prevMessages) => [
+            ...prevMessages.slice(0, -1),
+            { text: formatMessage(accumulatedResponse), sender: "model" },
+          ]);
         }
-    };
+      } else {
+        console.error("Error:", await response.text());
+      }
+    } catch (error) {
+      console.error("Error:", error);
+    } finally {
+      setIsThinking(false);
+    }
+  }
+};
 
     /**
      * Handles the keydown event and triggers the handleSend function if the key pressed is "Enter".
@@ -134,7 +142,7 @@ const Chatbot = () => {
                             ))}
                             {isThinking && (
                                 <div className="mb-2 p-2 rounded bg-gray-200 text-black">
-                                    <div className="animate-pulse">...</div>
+                                    <div className="animate-pulse">Thinking For you please Wait</div>
                                 </div>
                             )}
                             <div ref={messagesEndRef} />
