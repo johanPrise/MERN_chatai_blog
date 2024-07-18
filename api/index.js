@@ -64,7 +64,6 @@ const upload = multer({
     fileSize: 5 * 1024 * 1024, // limite la taille du fichier à 5MB
   },
 });
-app.use(timeout('300s')); // Timeout de 5 minutes
 
 const MONGO_URI = env.VITE_MONGO_URI || env.MONGODB_URI;
 let PORT;
