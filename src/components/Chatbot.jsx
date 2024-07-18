@@ -134,7 +134,7 @@ const Chatbot = () => {
                             ))}
                             {isThinking && (
                                 <div className="mb-2 p-2 rounded bg-gray-200 text-black">
-                                    <div className="animate-pulse">...</div>
+                                    <div className="animate-pulse">Loading... </div>
                                 </div>
                             )}
                             <div ref={messagesEndRef} />
