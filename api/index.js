@@ -217,7 +217,7 @@ app.get('/', async (req, res) => {
  * @return {Promise<string>} A promise that resolves to the generated response.
  * @throws {Error} If the response format from the API is invalid.
  */
-async function generateResponse(messages) {
+async function* generateResponse(messages) {
   const models = [
     "Qwen/Qwen2-72B-Instruct",
     "Qwen/Qwen1.5-110B-Chat-demo"
