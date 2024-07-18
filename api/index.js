@@ -57,7 +57,7 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 dotenv.config();
 // Utiliser le middleware cookie-parser pour parser les cookies entrants
 app.use(cookieParser());
-
+import timeout from 'connect-timeout';
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
@@ -209,7 +209,7 @@ app.get('/check-author-admin', authMiddleware, authorMiddleware, (req, res) => {
 app.get('/', async (req, res) => {
     res.send("bONJOUR? je marche t'inquiète" )
 })
-
+app.use(timeout('300s')); // Timeout de 5 minutes
 /**
  * Generates a response from the API based on the provided messages.
  *
@@ -217,7 +217,7 @@ app.get('/', async (req, res) => {
  * @return {Promise<string>} A promise that resolves to the generated response.
  * @throws {Error} If the response format from the API is invalid.
  */
-async function generateResponse(messages) {
+async function* generateResponse(messages) {
   const models = [
     "Qwen/Qwen2-72B-Instruct",
     "Qwen/Qwen1.5-110B-Chat-demo"
