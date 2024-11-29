@@ -58,6 +58,18 @@ dotenv.config();
 // Utiliser le middleware cookie-parser pour parser les cookies entrants
 app.use(cookieParser());
 
+// Ajouter cette configuration pour les cookies
+app.use((req, res, next) => {
+  res.cookie('options', {
+    sameSite: 'none',
+    secure: true,
+    httpOnly: true,
+    path: '/',
+    domain: '.vercel.app' // Ajustez selon votre domaine de déploiement
+  });
+  next();
+});
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
