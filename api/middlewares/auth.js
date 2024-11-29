@@ -10,23 +10,27 @@ export const authMiddleware = async (req, res, next) => {
     return res.status(401).json({ message: 'Authentication required' });
   }
 
-  try {
-    const decoded = jwt.verify(token, secret);
-    const user = await UserModel.findById(decoded.id);
-    if (!user) {
-      return res.status(401).json({ message: 'User not found' });
+  jwt.verify(token, secret, {}, async (err, info) => {
+    if (err) {
+      return res.status(401).json({ message: "Unauthorized: Invalid token" });
     }
-    req.user = {
-      id: user._id,
-      username: user.username,
-      role: user.role,
-      isAuthorized: user.isAuthorized
-    };
-    next();
-  } catch (error) {
-    console.error('Auth error:', error);
-    res.status(401).json({ message: 'Invalid or expired token' });
-  }
+    try {
+      const user = await UserModel.findById(info.id);
+      if (!user) {
+        return res.status(401).json({ message: 'User not found' });
+      }
+      req.user = {
+        id: user._id,
+        username: user.username,
+        role: user.role,
+        isAuthorized: user.isAuthorized
+      };
+      next();
+    } catch (error) {
+      console.error('Auth error:', error);
+      res.status(401).json({ message: 'Error finding user' });
+    }
+  });
 };
 
 export const authorMiddleware = (req, res, next) => {
