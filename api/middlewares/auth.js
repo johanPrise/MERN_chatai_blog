@@ -12,6 +12,15 @@ const verifyToken = (token) => {
   });
 };
 
+const cookieOptions = {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'none',
+  path: '/',
+  domain: process.env.NODE_ENV === 'production' ? '.vercel.app' : 'localhost',
+  maxAge: 15 * 24 * 60 * 60 * 1000 // 15 jours
+};
+
 export const authMiddleware = async (req, res, next) => {
   try {
     const { token } = req.cookies;
@@ -24,24 +33,14 @@ export const authMiddleware = async (req, res, next) => {
     const user = await UserModel.findById(info.id);
     
     if (!user) {
-      res.clearCookie('token', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'none',
-        path: '/'
-      });
+      res.clearCookie('token', cookieOptions);
       return res.status(401).json({ message: 'User not found' });
     }
 
     // Rafraîchir le token
     const newToken = jwt.sign({ id: user._id }, secret, { expiresIn: '15d' });
-    res.cookie('token', newToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none',
-      path: '/',
-      maxAge: 15 * 24 * 60 * 60 * 1000 // 15 jours
-    });
+    
+    res.cookie('token', newToken, cookieOptions);
 
     // Inclure l'email dans les informations utilisateur
     req.user = {
@@ -55,12 +54,7 @@ export const authMiddleware = async (req, res, next) => {
     next();
   } catch (error) {
     console.error('Auth error:', error);
-    res.clearCookie('token', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none',
-      path: '/'
-    });
+    res.clearCookie('token', cookieOptions);
     res.status(401).json({ message: 'Invalid or expired token' });
   }
 };

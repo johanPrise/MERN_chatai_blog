@@ -106,19 +106,30 @@ import nodemailer from 'nodemailer'
 const __filename = getFilePath(import.meta.url);
 const __dirname = path.dirname(__filename);
 // Configurer le middleware cors pour autoriser les requêtes cross-origin
-app.use(bodyParser.json());
-const allowedOrigins = ['https://mern-chatai-blog.vercel.app', 'https://mern-chatai-blog.vercel.app/create_post'];
+const allowedOrigins = [
+  'https://mern-chatai-blog.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000'
+];
+
 app.use(cors({
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    // Permettre les requêtes sans origine (comme les appels API mobiles ou Postman)
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      console.log('Origin blocked:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['set-cookie']
 }));
+
+// Configurer cookie-parser avant les routes
+app.use(cookieParser());
 
 // Configurez le transporteur de nodemailer pour envoyer des emails
 const transporter = nodemailer.createTransport({
@@ -477,62 +488,6 @@ app.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
-
-
-// Route pour changer le rôle d'un utilisateur (accessible uniquement par les admins)
-app.post('/change-user-role', authMiddleware, adminMiddleware, async (req, res) => {
-  const { userId, newRole } = req.body;
-
-  if (!userId || !newRole) {
-    return res.status(400).json({ message: 'userId et newRole sont requis' });
-  }
-
-  if (!['user', 'author', 'admin'].includes(newRole)) {
-    return res.status(400).json({ message: 'Rôle invalide' });
-  }
-
-  try {
-    const user = await UserModel.findById(userId);
-
-    if (!user) {
-      return res.status(404).json({ message: 'Utilisateur non trouvé' });
-    }
-
-    // Vérifier si l'utilisateur essaie de changer son propre rôle
-    if (user._id.toString() === req.user.id.toString() && user.role === 'admin' && newRole !== 'admin') {
-      return res.status(403).json({ message: 'Vous ne pouvez pas rétrograder votre propre rôle d\'administrateur' });
-    }
-
-    // Vérifier s'il reste au moins un administrateur
-    if (user.role === 'admin' && newRole !== 'admin') {
-      const adminCount = await UserModel.countDocuments({ role: 'admin' });
-      if (adminCount <= 1) {
-        return res.status(403).json({ message: 'Impossible de rétrograder le dernier administrateur' });
-    }
-  }
-
-    user.role = newRole;
-    await user.save();
-
-    // Journaliser le changement de rôle
-    console.log(`L'utilisateur ${req.user.username} a changé le rôle de ${user.username} en ${newRole}`);
-
-    res.json({ 
-      message: 'Rôle de l\'utilisateur mis à jour avec succès',
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        role: user.role
-      }
-    });
-
-  } catch (error) {
-    console.error('Erreur lors du changement de rôle :', error);
-    res.status(500).json({ message: 'Erreur serveur lors du changement de rôle de l\'utilisateur' });
-  }
-});
-
 // Définir une route pour la mise à jour d'un post existant
 app.put('/post/:id', async (req, res) => {
      try {
@@ -638,6 +593,7 @@ app.post('/comment/:CommentId/dislike', authMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+
 // Définir une route pour récupérer les 20 derniers posts
 app.get('/post', async (req,res) => {
   res.json(
@@ -669,7 +625,6 @@ app.post('/uploads', authMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Error uploading image' });
   }
 });
-
 
 // Définir une route pour servir les fichiers statiques du répertoire "uploads/"
 if (!isProduction) {
@@ -902,6 +857,7 @@ app.delete('/comment/:commentId', authMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+
 // Route pour refuser un auteur (accessible uniquement par les admins)
 app.post("/reject-author", authMiddleware, adminMiddleware, async (req, res) => {
   try {
@@ -922,6 +878,7 @@ app.post("/reject-author", authMiddleware, adminMiddleware, async (req, res) => 
     res.status(500).json({ message: 'Server error' });
   }
 });
+
 // Endpoint pour supprimer le compte
 app.delete('/delete-account', authMiddleware, async (req, res) => {
   try {
@@ -961,6 +918,7 @@ app.put('/edit-username', authMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Failed to update username' });
   }
 });
+
 if (env.NODE_ENV !== 'production'){
   const PORT = process.env.PORT || 4200;
   app.listen(PORT, () => {
