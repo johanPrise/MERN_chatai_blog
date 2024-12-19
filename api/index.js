@@ -102,20 +102,19 @@ const allowedOrigins = [
 ];
 
 app.use(cors({
-  origin: function (origin, callback) {
-    // Permettre les requêtes sans origine (comme les appels API mobiles ou Postman)
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.log('Origin blocked:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-  exposedHeaders: ['set-cookie']
-}));
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.log('Origin blocked:', origin);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['Set-Cookie']
+  }));
 
 // Configurer cookie-parser avant les routes
 app.use(cookieParser());
@@ -362,18 +361,25 @@ app.post("/login", async (req, res) => {
     const passOk = userDoc && bcrypt.compareSync(password, userDoc.password);
     
     if (passOk) {
-      jwt.sign({ username, id: userDoc._id, role: userDoc.role }, secret, {}, (err, token) => {
-        if (err) throw err;
-        res.cookie("token", token, cookieOptions).json({
-          id: userDoc._id,
-          username,
-          role: userDoc.role
-        });
+      const token = jwt.sign(
+        { username, id: userDoc._id, role: userDoc.role }, 
+        secret, 
+        { expiresIn: '15d' }
+      );
+      
+      res.cookie("token", token, {
+        ...cookieOptions,
+        secure: true,
+        sameSite: 'none'
+      }).json({
+        id: userDoc._id,
+        username,
+        role: userDoc.role
       });
     } else {
       res.status(400).json("wrong credentials");
     }
-  });
+});
 
 // Définir une route pour récupérer les informations de profil de l'utilisateur connecté
 app.get("/profile", (req, res) => {

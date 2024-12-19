@@ -14,11 +14,12 @@ const verifyToken = (token) => {
 
 export const cookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: true, // Toujours true pour HTTPS
+    sameSite: 'none', // Nécessaire pour les requêtes cross-origin
     path: '/',
-    domain: process.env.NODE_ENV === 'production' ? '.vercel.app' : undefined
-  };
+    domain: process.env.NODE_ENV === 'production' ? '.vercel.app' : 'localhost',
+    maxAge: 15 * 24 * 60 * 60 * 1000 // 15 jours
+};
 
 export const authMiddleware = async (req, res, next) => {
   try {
