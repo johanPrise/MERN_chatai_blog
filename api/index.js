@@ -38,7 +38,7 @@ import ConversationModel from './models/Conversation.js';
 import CommentModel from './models/Comments.js';
 // Importer le modèle de données CategoryModel
 import CategoryModel from './models/categories.js';
-import { authMiddleware, authorMiddleware, adminMiddleware } from './middlewares/auth.js';
+import { authMiddleware, authorMiddleware, adminMiddleware, cookieOptions } from './middlewares/auth.js';
 
 // Générer un sel pour le hachage des mots de passe avec bcrypt
 const salt = bcrypt.genSaltSync(10);
@@ -58,17 +58,6 @@ dotenv.config();
 // Utiliser le middleware cookie-parser pour parser les cookies entrants
 app.use(cookieParser());
 
-// Ajouter cette configuration pour les cookies
-app.use((req, res, next) => {
-  res.cookie('options', {
-    sameSite: 'none',
-    secure: true,
-    httpOnly: true,
-    path: '/',
-    domain: '.vercel.app' // Ajustez selon votre domaine de déploiement
-  });
-  next();
-});
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -123,8 +112,8 @@ app.use(cors({
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   exposedHeaders: ['set-cookie']
 }));
 
@@ -368,23 +357,23 @@ app.post("/register/", async (req, res) => {
 
 // Définir une route pour l'authentification d'un utilisateur
 app.post("/login", async (req, res) => {
-  const { username, password } = req.body;
-  const userDoc = await UserModel.findOne({ username });
-  const passOk = bcrypt.compareSync(password, userDoc.password);
-  if (passOk) {
-    // logged in
-    jwt.sign({ username, id: userDoc._id, role: userDoc.role }, secret, {}, (err, token) => {
-  if (err) throw err;
-  res.cookie("token", token, {}).json({
-    id: userDoc._id,
-    username,
-    role: userDoc.role
+    const { username, password } = req.body;
+    const userDoc = await UserModel.findOne({ username });
+    const passOk = userDoc && bcrypt.compareSync(password, userDoc.password);
+    
+    if (passOk) {
+      jwt.sign({ username, id: userDoc._id, role: userDoc.role }, secret, {}, (err, token) => {
+        if (err) throw err;
+        res.cookie("token", token, cookieOptions).json({
+          id: userDoc._id,
+          username,
+          role: userDoc.role
+        });
+      });
+    } else {
+      res.status(400).json("wrong credentials");
+    }
   });
-});
-  } else {
-    res.status(400).json("wrong credentials");
-  }
-});
 
 // Définir une route pour récupérer les informations de profil de l'utilisateur connecté
 app.get("/profile", (req, res) => {

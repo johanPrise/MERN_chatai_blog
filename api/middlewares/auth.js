@@ -12,14 +12,13 @@ const verifyToken = (token) => {
   });
 };
 
-const cookieOptions = {
-  httpOnly: true,
-  secure: true,
-  sameSite: 'none',
-  path: '/',
-  domain: process.env.NODE_ENV === 'production' ? '.vercel.app' : 'localhost',
-  maxAge: 15 * 24 * 60 * 60 * 1000 // 15 jours
-};
+export const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    path: '/',
+    domain: process.env.NODE_ENV === 'production' ? '.vercel.app' : undefined
+  };
 
 export const authMiddleware = async (req, res, next) => {
   try {
@@ -72,3 +71,4 @@ export const adminMiddleware = (req, res, next) => {
   }
   next();
 };
+
