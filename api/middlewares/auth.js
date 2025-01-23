@@ -42,3 +42,18 @@ export const cookieOptions = {
       res.status(401).json({ message: 'Invalid or expired token' });
     }
   };
+
+export const authorMiddleware = (req, res, next) => {
+  if (!req.user?.isAuthorized) {
+    return res.status(403).json({ message: 'Author access required' });
+  }
+  next();
+};
+
+export const adminMiddleware = (req, res, next) => {
+  if (req.user?.role !== 'admin') {
+    return res.status(403).json({ message: 'Admin access required' });
+  }
+  next();
+};
+
