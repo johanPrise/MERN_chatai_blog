@@ -25,12 +25,19 @@ export const UserContextProvider = ({ children }) => {
 
   const checkAuth = async () => {
     try {
-      const response = await fetch("https://mern-backend-neon.vercel.app/profile", {
-        credentials: "include"
+      const response = await fetch("https://mern-backend-neon.vercel.app/verify-session", {
+        credentials: "include",
       });
-      if (response.ok) {
-        const userInfo = await response.json();
-        setUserInfo(userInfo);
+      
+      const data = await response.json();
+      
+      if (response.ok && data.authenticated) {
+        setUserInfo({
+          id: data.user.id,
+          username: data.user.username,
+          role: data.user.role,
+          isAuthorized: data.user.isAuthorized
+        });
       } else {
         setUserInfo(null);
       }
@@ -42,6 +49,10 @@ export const UserContextProvider = ({ children }) => {
 
   useEffect(() => {
     checkAuth();
+    
+    // Rafraîchissement périodique de la session
+    const interval = setInterval(checkAuth, 15 * 60 * 1000); // Toutes les 15 minutes
+    return () => clearInterval(interval);
   }, []);
 
   return (

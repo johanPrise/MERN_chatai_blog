@@ -102,19 +102,20 @@ const allowedOrigins = [
 ];
 
 app.use(cors({
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        console.log('Origin blocked:', origin);
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
+    origin: allowedOrigins,
     credentials: true,
+    exposedHeaders: ['Set-Cookie'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    exposedHeaders: ['Set-Cookie']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie']
   }));
+
+
+  app.get('/verify-session', authMiddleware, (req, res) => {
+    res.json({ 
+      authenticated: true,
+      user: req.user 
+    });
+  });
 
 // Configurer cookie-parser avant les routes
 app.use(cookieParser());
@@ -366,11 +367,11 @@ app.post("/login", async (req, res) => {
         secret, 
         { expiresIn: '15d' }
       );
-      
+  
       res.cookie("token", token, {
         ...cookieOptions,
-        secure: true,
-        sameSite: 'none'
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
       }).json({
         id: userDoc._id,
         username,
@@ -379,7 +380,7 @@ app.post("/login", async (req, res) => {
     } else {
       res.status(400).json("wrong credentials");
     }
-});
+  });
 
 // Définir une route pour récupérer les informations de profil de l'utilisateur connecté
 app.get("/profile", (req, res) => {
