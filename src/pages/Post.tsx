@@ -202,6 +202,8 @@ const handleReply = async (parentId, content) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          "Authorization": `Bearer ${localStorage.getItem('token')}` // Backup optionnel
+
         },
         body: JSON.stringify({
           content: newComment,
