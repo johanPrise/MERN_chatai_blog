@@ -6,30 +6,14 @@ const secret = "bj3behrj2o3ierbhj3j2no";
 
 export const getCookieOptions = (userAgent) => {
     const isProduction = process.env.NODE_ENV === 'production';
-    const isChrome = userAgent?.includes('Chrome') && !userAgent?.includes('Firefox');
-  
-    // Options de base
-    const baseOptions = {
-      httpOnly: true,
-      path: '/',
-      maxAge: 15 * 24 * 60 * 60 * 1000 // 15 jours
-    };
-  
-    if (isProduction) {
-      // Configuration production pour tous les navigateurs
-      return {
-        ...baseOptions,
-        secure: true,
-        sameSite: 'none',
-        domain: '.vercel.app'
-      };
-    }
-  
-    // Configuration développement
+    
     return {
-      ...baseOptions,
-      secure: false,
-      sameSite: isChrome ? 'none' : 'lax' // Adapté pour Chrome en local
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      domain: isProduction ? '.vercel.app' : undefined, // Point important devant le domaine
+      maxAge: 15 * 24 * 60 * 60 * 1000,
+      path: '/'
     };
   };
 

@@ -101,19 +101,24 @@ const allowedOrigins = [
   'http://localhost:3000'
 ];
 
+// Middleware CORS doit être en premier
 app.use(cors({
     origin: (origin, callback) => {
-        if (allowedOrigins.includes(origin) || !origin) {
-          callback(null, true);
-        } else {
-          callback(new Error('Blocked by CORS'));
-        }
-      },
-          credentials: true,
-    exposedHeaders: ['Set-Cookie'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie']
+      if (allowedOrigins.includes(origin) || !origin) {
+        callback(null, true);
+      } else {
+        callback(new Error('Blocked by CORS'));
+      }
+    },
+    credentials: true,
+    exposedHeaders: ['Set-Cookie']
   }));
+
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
+    next();
+  });
 
 
   app.get('/verify-session', authMiddleware, (req, res) => {
@@ -363,23 +368,30 @@ app.post("/register/", async (req, res) => {
 
 // Définir une route pour l'authentification d'un utilisateur
 app.post("/login", async (req, res) => {
-    const { username, password } = req.body;
-    const userDoc = await UserModel.findOne({ username });
-    const passOk = userDoc && bcrypt.compareSync(password, userDoc.password);
-    const userAgent = req.headers['user-agent'];
-    const options = getCookieOptions(userAgent);
-    
-    if (passOk) {
+    try {
+      const { username, password } = req.body;
+      const userDoc = await UserModel.findOne({ username });
+      
+      if (!userDoc || !bcrypt.compareSync(password, userDoc.password)) {
+        return res.status(401).json("wrong credentials");
+      }
+  
       const token = jwt.sign(
         { username, id: userDoc._id, role: userDoc.role }, 
         secret, 
         { expiresIn: '15d' }
       );
   
-      res.cookie("token", token, options);
-
-    } else {
-      res.status(400).json("wrong credentials");
+      res.cookie("token", token, getCookieOptions(req.headers['user-agent']))
+         .json({
+           id: userDoc._id,
+           username,
+           role: userDoc.role
+         });
+  
+    } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).json({ message: 'Server error' });
     }
   });
 
