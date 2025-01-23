@@ -38,7 +38,7 @@ import ConversationModel from './models/Conversation.js';
 import CommentModel from './models/Comments.js';
 // Importer le modèle de données CategoryModel
 import CategoryModel from './models/categories.js';
-import { authMiddleware, authorMiddleware, adminMiddleware, cookieOptions } from './middlewares/auth.js';
+import { authMiddleware, authorMiddleware, adminMiddleware, getCookieOptions } from './middlewares/auth.js';
 
 // Générer un sel pour le hachage des mots de passe avec bcrypt
 const salt = bcrypt.genSaltSync(10);
@@ -102,8 +102,14 @@ const allowedOrigins = [
 ];
 
 app.use(cors({
-    origin: allowedOrigins,
-    credentials: true,
+    origin: (origin, callback) => {
+        if (allowedOrigins.includes(origin) || !origin) {
+          callback(null, true);
+        } else {
+          callback(new Error('Blocked by CORS'));
+        }
+      },
+          credentials: true,
     exposedHeaders: ['Set-Cookie'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie']
@@ -360,6 +366,8 @@ app.post("/login", async (req, res) => {
     const { username, password } = req.body;
     const userDoc = await UserModel.findOne({ username });
     const passOk = userDoc && bcrypt.compareSync(password, userDoc.password);
+    const userAgent = req.headers['user-agent'];
+    const options = getCookieOptions(userAgent);
     
     if (passOk) {
       const token = jwt.sign(
@@ -368,15 +376,8 @@ app.post("/login", async (req, res) => {
         { expiresIn: '15d' }
       );
   
-      res.cookie("token", token, {
-        ...cookieOptions,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
-      }).json({
-        id: userDoc._id,
-        username,
-        role: userDoc.role
-      });
+      res.cookie("token", token, options);
+
     } else {
       res.status(400).json("wrong credentials");
     }

@@ -21,7 +21,7 @@ export const getCookieOptions = (userAgent) => {
         ...baseOptions,
         secure: true,
         sameSite: 'none',
-        domain: '.vercel.com'
+        domain: '.vercel.app'
       };
     }
   

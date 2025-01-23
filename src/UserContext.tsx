@@ -27,6 +27,9 @@ export const UserContextProvider = ({ children }) => {
     try {
       const response = await fetch("https://mern-backend-neon.vercel.app/verify-session", {
         credentials: "include",
+        headers: {
+            "User-Agent": navigator.userAgent // Envoi du User-Agent
+          }
       });
       
       const data = await response.json();
