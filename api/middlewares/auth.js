@@ -3,12 +3,43 @@ import UserModel from '../models/User.js';
 
 const secret = "bj3behrj2o3ierbhj3j2no";
 
+
+export const getCookieOptions = (userAgent) => {
+    const isProduction = process.env.NODE_ENV === 'production';
+    const isChrome = userAgent?.includes('Chrome') && !userAgent?.includes('Firefox');
+  
+    // Options de base
+    const baseOptions = {
+      httpOnly: true,
+      path: '/',
+      maxAge: 15 * 24 * 60 * 60 * 1000 // 15 jours
+    };
+  
+    if (isProduction) {
+      // Configuration production pour tous les navigateurs
+      return {
+        ...baseOptions,
+        secure: true,
+        sameSite: 'none',
+        domain: '.vercel.com'
+      };
+    }
+  
+    // Configuration développement
+    return {
+      ...baseOptions,
+      secure: false,
+      sameSite: isChrome ? 'none' : 'lax' // Adapté pour Chrome en local
+    };
+  };
+
 export const cookieOptions = {
     httpOnly: true,
-    path: '/',
+    secure: true,
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 15 * 24 * 60 * 60 * 1000
+    domain: process.env.NODE_ENV === 'production' 
+      ? 'mern-chatai-blog.vercel.app' // ← Votre domaine exact
+      : undefined
   };
   
   export const authMiddleware = async (req, res, next) => {
