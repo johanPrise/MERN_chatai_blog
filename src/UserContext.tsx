@@ -12,6 +12,9 @@ interface UserContextType {
   checkAuth: () => Promise<void>;
 }
 
+
+
+
 // Création du contexte avec une valeur par défaut typée explicitement
 const UserContextScheme = createContext<UserContextType>({
   userInfo: null,
@@ -21,7 +24,28 @@ const UserContextScheme = createContext<UserContextType>({
 
 export const UserContextProvider = ({ children }: { children: ReactNode }) => {
   const [userInfo, setUserInfo] = useState<UserInfo>(null);
-
+  useEffect(() => {
+    const verifySession = async () => {
+      try {
+        const res = await fetch('https://mern-backend-neon.vercel.app/verify-session', {
+          credentials: 'include',
+        });
+        
+        if (res.ok) {
+          const userData = await res.json();
+          setUserInfo(userData);
+        }
+      } catch (error) {
+        console.error('Session verification failed:', error);
+      }
+    };
+  
+    // Vérifier la session au montage ET après chaque navigation
+    const interval = setInterval(verifySession, 3000); // Toutes les 3 secondes
+    verifySession(); // Appel initial
+    
+    return () => clearInterval(interval);
+  }, []);
   const checkAuth = async () => {
     // ... votre implémentation existante
   };

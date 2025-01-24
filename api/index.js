@@ -142,8 +142,9 @@ const allowedOrigins = [
 
   app.get('/verify-session', authMiddleware, (req, res) => {
     res.json({
-      id: req.user._id,
-      username: req.user.username
+      id: req.user.id,
+      username: req.user.username,
+      role: req.user.role
     });
   });
 
@@ -417,8 +418,9 @@ app.post("/login", async (req, res) => {
         httpOnly: true,
         secure: true,
         sameSite: 'none',
-        domain: '.vercel.app'
-      }).json({ id: userDoc._id, username: userDoc.username });
+        domain: '.vercel.app', // Important pour les sous-domaines
+        maxAge: 15 * 24 * 60 * 60 * 1000 // 15 jours
+      }).json(userDoc);
   
     } catch (error) {
       console.error('Erreur login:', error);

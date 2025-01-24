@@ -25,18 +25,24 @@ function Login(): JSX.Element {
      */
     const login = async (ev: FormEvent) => {
         ev.preventDefault();
-        const response = await fetch("https://mern-backend-neon.vercel.app/login", {
+        try {
+          const response = await fetch("https://mern-backend-neon.vercel.app/login", {
             method: "POST",
             body: JSON.stringify({ username, password }),
             headers: { "Content-Type": "application/json" },
             credentials: "include",
-        });
-        if (response.ok) {
-            const userInfo = await response.json();
-            setUserInfo(userInfo);
-            setRedirect(true);
+          });
+          
+          if (response.ok) {
+            const userData = await response.json();
+            setUserInfo(userData);
+            await checkAuth(); // Force la vérification immédiate
+            navigate('/', { replace: true });
+          }
+        } catch (error) {
+          console.error('Login error:', error);
         }
-    };
+      };
 
     if (redirect) {
         return <Navigate to="/" />;
