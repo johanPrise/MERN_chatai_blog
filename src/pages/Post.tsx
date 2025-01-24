@@ -38,7 +38,7 @@ const PostPage = () => {
   const [userLiked, setUserLiked] = useState(false);
   const [userDisliked, setUserDisliked] = useState(false);
   const [confirmModalOnConfirm, setConfirmModalOnConfirm] = useState(() => () => {});
-  const { userInfo } = useContext(UserContext);
+  const { userInfo } = UserContext(); // Appel comme fonction
   const { id } = useParams();
 
 const fetchComments = () => {

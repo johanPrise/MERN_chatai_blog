@@ -16,7 +16,7 @@ function AdminDashboard() {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('username');
   const [order, setOrder] = useState('asc');
-  const { userInfo } = useContext(UserContext);
+  const { userInfo } = UserContext(); // Appel comme fonction
 
   useEffect(() => {
     checkAdminStatus();

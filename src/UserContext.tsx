@@ -1,40 +1,29 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, ReactNode, Dispatch, SetStateAction } from "react";
 
-type User = { id: string; username: string } | null;
+export type UserInfo = { 
+  id: string; 
+  username: string;
+  role?: string;
+} | null;
 
 interface UserContextType {
-  user: User;
-  setUserInfo: React.Dispatch<React.SetStateAction<User>>; // Renommez setUser en setUserInfo
+  userInfo: UserInfo;
+  setUserInfo: Dispatch<SetStateAction<UserInfo>>;
   checkAuth: () => Promise<void>;
 }
 
+// Création du contexte avec une valeur par défaut typée explicitement
 const UserContextScheme = createContext<UserContextType>({
-  user: null,
-  setUserInfo: () => {}, // Gardez le nom existant
-  checkAuth: async () => {},
-});
+  userInfo: null,
+  setUserInfo: () => {}, // Fonction vide mais typée correctement
+  checkAuth: async () => {}
+} as UserContextType); // Assertion de type pour satisfaire TypeScript
 
-export const UserContextProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User>(null);
-
-  // Renommez la fonction interne
-  const setUserInfo: UserContextType['setUserInfo'] = setUser;
+export const UserContextProvider = ({ children }: { children: ReactNode }) => {
+  const [userInfo, setUserInfo] = useState<UserInfo>(null);
 
   const checkAuth = async () => {
-    try {
-      const response = await fetch('https://mern-backend-neon.vercel.app/verify-session', {
-        credentials: 'include',
-      });
-      
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
-      } else {
-        setUser(null);
-      }
-    } catch (error) {
-      setUser(null);
-    }
+    // ... votre implémentation existante
   };
 
   useEffect(() => {
@@ -42,11 +31,13 @@ export const UserContextProvider = ({ children }: { children: React.ReactNode })
   }, []);
 
   return (
-    <UserContextScheme.Provider value={{ user, setUserInfo, checkAuth }}>
+    <UserContextScheme.Provider value={{ userInfo, setUserInfo, checkAuth }}>
       {children}
     </UserContextScheme.Provider>
   );
 };
 
-// Exportez le contexte directement
-export const UserContext = UserContextScheme;
+// Export du contexte avec typage explicite
+export const UserContext = (): UserContextType => {
+  return useContext(UserContextScheme);
+};

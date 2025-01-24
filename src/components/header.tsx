@@ -5,8 +5,8 @@ import { UserContext } from '../UserContext';
 import '../css/Link-header.css';
 
 const Header: React.FC = () => {
-  const { setUserInfo, userInfo } = useContext(UserContext);
-  const [isMenuOpen, setMenuOpen] = useState(false);
+    const { userInfo, setUserInfo } = UserContext(); // Appel comme fonction
+    const [isMenuOpen, setMenuOpen] = useState(false);
   const [isDropdownOpen, setDropdownOpen] = useState(false);
   const [isAccountDropdownOpen, setAccountDropdownOpen] = useState(false);
   const [categories, setCategories] = useState([]);

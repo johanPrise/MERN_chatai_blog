@@ -15,7 +15,7 @@ function Login(): JSX.Element {
     const [username, setUsername] = useState<string>("");
     const [password, setPassword] = useState<string>("");
     const [redirect, setRedirect] = useState<boolean>(false);
-    const { setUserInfo } = useContext(UserContext);
+    const { setUserInfo } = UserContext(); // Appel comme fonction
 
     /**
      * Asynchronously logs in the user by sending a POST request to the login API endpoint with the provided username and password.
