@@ -101,30 +101,20 @@ const allowedOrigins = [
   'http://localhost:3000'
 ];
 
-// Middleware CORS doit être en premier
 app.use(cors({
-    origin: (origin, callback) => {
-      if (allowedOrigins.includes(origin) || !origin) {
-        callback(null, true);
-      } else {
-        callback(new Error('Blocked by CORS'));
-      }
-    },
+    origin: allowedOrigins,
     credentials: true,
     exposedHeaders: ['Set-Cookie']
   }));
+  
 
-  app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
-    next();
-  });
+
 
 
   app.get('/verify-session', authMiddleware, (req, res) => {
-    res.json({ 
-      authenticated: true,
-      user: req.user 
+    res.json({
+      id: req.user._id,
+      username: req.user.username
     });
   });
 
@@ -370,28 +360,23 @@ app.post("/register/", async (req, res) => {
 app.post("/login", async (req, res) => {
     try {
       const { username, password } = req.body;
-      const userDoc = await UserModel.findOne({ username });
-      
-      if (!userDoc || !bcrypt.compareSync(password, userDoc.password)) {
-        return res.status(401).json("wrong credentials");
+      const user = await UserModel.findOne({ username });
+  
+      if (!user || !bcrypt.compareSync(password, user.password)) {
+        return res.status(401).json("Identifiants invalides");
       }
   
       const token = jwt.sign(
-        { username, id: userDoc._id, role: userDoc.role }, 
-        secret, 
+        { id: user._id, username: user.username },
+        secret,
         { expiresIn: '15d' }
       );
   
-      res.cookie("token", token, getCookieOptions(req.headers['user-agent']))
-         .json({
-           id: userDoc._id,
-           username,
-           role: userDoc.role
-         });
-  
+      res.cookie('token', token, cookieOptions)
+         .json({ id: user._id, username: user.username });
+         
     } catch (error) {
-      console.error('Login error:', error);
-      res.status(500).json({ message: 'Server error' });
+      res.status(500).json("Erreur serveur");
     }
   });
 
