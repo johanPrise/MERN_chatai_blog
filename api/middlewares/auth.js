@@ -5,12 +5,13 @@ const secret = "bj3behrj2o3ierbhj3j2no";
 
 
 export const cookieOptions = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-  maxAge: 15 * 24 * 60 * 60 * 1000, // 15 jours
-  path: '/'
-};
+    httpOnly: true,
+    secure: true, // Doit être TRUE en production
+    sameSite: 'none', // Forcer à 'none' pour Vercel
+    domain: '.vercel.app', // Domaine parent commun
+    path: '/',
+    maxAge: 15 * 24 * 60 * 60 * 1000
+  };
 
 export const authMiddleware = async (req, res, next) => {
   const token = req.cookies.token;
