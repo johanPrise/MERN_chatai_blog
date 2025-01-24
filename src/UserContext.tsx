@@ -7,7 +7,7 @@ interface UserContextType {
   checkAuth: () => Promise<void>;
 }
 
-const UserContext = createContext<UserContextType>({
+const UserContext_0 = createContext<UserContextType>({
   user: null,
   checkAuth: async () => {},
 });
@@ -37,10 +37,10 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   return (
-    <UserContext.Provider value={{ user, checkAuth }}>
+    <UserContext_0.Provider value={{ user, checkAuth }}>
       {children}
-    </UserContext.Provider>
+    </UserContext_0.Provider>
   );
 };
 
-export const useUser = () => useContext(UserContext);
+export const UserContext = () => useContext(UserContext_0);
