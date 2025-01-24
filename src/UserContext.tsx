@@ -3,19 +3,21 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 type User = { id: string; username: string } | null;
 
 interface UserContextType {
-  user: User;
-  checkAuth: () => Promise<void>;
-}
+    user: User;
+    setUser: React.Dispatch<React.SetStateAction<User>>;
+    checkAuth: () => Promise<void>;
+  }
 
 // Création du contexte
 const UserContextScheme = createContext<UserContextType>({
-  user: null,
-  checkAuth: async () => {},
-});
+    user: null,
+    setUser: () => {},
+    checkAuth: async () => {},
+  });
 
 // Export du Provider avec le bon nom
 export const UserContextProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User>(null);
+    const [user, setUser] = useState<User>(null);
 
   const checkAuth = async () => {
     try {
@@ -38,10 +40,10 @@ export const UserContextProvider = ({ children }: { children: React.ReactNode })
     checkAuth();
   }, []);
 
-  return (
-    <UserContextScheme.Provider value={{ user, checkAuth }}>
-      {children}
-    </UserContextScheme.Provider>
+  return (    
+  <UserContextScheme.Provider value={{ user, setUser, checkAuth }}>
+    {children}
+  </UserContextScheme.Provider>
   );
 };
 
