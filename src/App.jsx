@@ -6,7 +6,7 @@ import { Routes, Route } from "react-router-dom";
 import CreatePost from "./pages/createPost";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
-import { UserContextProvider } from "./UserContext.tsx";
+import { UserProvider } from "./UserContext.tsx";
 import Header from "./components/header.tsx"
 import EditPost from "./pages/EditPost";
 import Chatbot from './components/Chatbot';
@@ -25,7 +25,7 @@ import EditUsername from "./pages/ChangeUsername.tsx";
 function App() {
   return (
     <>
-      <UserContextProvider>
+      <UserProvider>
         <div className="font-sans font-semibold bg-[#F8F7F4] dark:bg-blue-900 ">
           <Header />
           <Routes>
@@ -45,7 +45,7 @@ function App() {
           </Routes>
           <Chatbot /> {/* Ajout du composant Chatbot */}
         </div>
-      </UserContextProvider>
+      </UserProvider>
     </>
   );
 }
