@@ -3,21 +3,22 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 type User = { id: string; username: string } | null;
 
 interface UserContextType {
-    user: User;
-    setUser: React.Dispatch<React.SetStateAction<User>>;
-    checkAuth: () => Promise<void>;
-  }
+  user: User;
+  setUserInfo: React.Dispatch<React.SetStateAction<User>>; // Renommez setUser en setUserInfo
+  checkAuth: () => Promise<void>;
+}
 
-// Création du contexte
 const UserContextScheme = createContext<UserContextType>({
-    user: null,
-    setUser: () => {},
-    checkAuth: async () => {},
-  });
+  user: null,
+  setUserInfo: () => {}, // Gardez le nom existant
+  checkAuth: async () => {},
+});
 
-// Export du Provider avec le bon nom
 export const UserContextProvider = ({ children }: { children: React.ReactNode }) => {
-    const [user, setUser] = useState<User>(null);
+  const [user, setUser] = useState<User>(null);
+
+  // Renommez la fonction interne
+  const setUserInfo: UserContextType['setUserInfo'] = setUser;
 
   const checkAuth = async () => {
     try {
@@ -40,12 +41,12 @@ export const UserContextProvider = ({ children }: { children: React.ReactNode })
     checkAuth();
   }, []);
 
-  return (    
-  <UserContextScheme.Provider value={{ user, setUser, checkAuth }}>
-    {children}
-  </UserContextScheme.Provider>
+  return (
+    <UserContextScheme.Provider value={{ user, setUserInfo, checkAuth }}>
+      {children}
+    </UserContextScheme.Provider>
   );
 };
 
-// Export du hook personnalisé
-export const UserContext = () => useContext(UserContextScheme);
+// Exportez le contexte directement
+export const UserContext = UserContextScheme;
