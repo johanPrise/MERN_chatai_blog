@@ -7,12 +7,14 @@ interface UserContextType {
   checkAuth: () => Promise<void>;
 }
 
-const UserContext_0 = createContext<UserContextType>({
+// Création du contexte
+const UserContextScheme = createContext<UserContextType>({
   user: null,
   checkAuth: async () => {},
 });
 
-export const UserProvider = ({ children }: { children: React.ReactNode }) => {
+// Export du Provider avec le bon nom
+export const UserContextProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User>(null);
 
   const checkAuth = async () => {
@@ -37,10 +39,11 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   return (
-    <UserContext_0.Provider value={{ user, checkAuth }}>
+    <UserContextScheme.Provider value={{ user, checkAuth }}>
       {children}
-    </UserContext_0.Provider>
+    </UserContextScheme.Provider>
   );
 };
 
-export const UserContext = () => useContext(UserContext_0);
+// Export du hook personnalisé
+export const UserContext = () => useContext(UserContextScheme);
