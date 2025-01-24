@@ -96,13 +96,22 @@ const __filename = getFilePath(import.meta.url);
 const __dirname = path.dirname(__filename);
 // Configurer le middleware cors pour autoriser les requêtes cross-origin
 const allowedOrigins = [
-  'https://mern-chatai-blog.vercel.app',
-  'http://localhost:5173',
-  'http://localhost:3000'
-];
-
-app.use(cors({
-    origin: function (origin, callback) {
+    'https://mern-chatai-blog.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:3000'
+  ];
+  
+  // Gestion globale des OPTIONS
+  app.options('*', cors({
+    origin: allowedOrigins,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  }));
+  
+  // Middleware CORS principal
+  app.use(cors({
+    origin: (origin, callback) => {
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -111,13 +120,23 @@ app.use(cors({
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Set-Cookie']
   }));
   
-  // Ajouter un middleware manuel pour les headers
+  // Headers manuels - AJOUTEZ CES LIGNES
   app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
     res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Expose-Headers', 'Set-Cookie');
+    res.header('Access-Control-Expose-Headers', 'Set-Cookie, Authorization');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 
+      'Content-Type, Authorization, X-Requested-With, Set-Cookie');
+    
+    // Gestion spéciale pour les requêtes OPTIONS
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
+    
     next();
   });
 
@@ -367,26 +386,43 @@ app.post("/register/", async (req, res) => {
 });
 
 // Définir une route pour l'authentification d'un utilisateur
+// Dans index.js
 app.post("/login", async (req, res) => {
     try {
       const { username, password } = req.body;
-      const user = await UserModel.findOne({ username });
+      
+      if (!username || !password) {
+        return res.status(400).json("Username et password requis");
+      }
   
-      if (!user || !bcrypt.compareSync(password, user.password)) {
+      const userDoc = await UserModel.findOne({ username }).select('+password');
+      
+      if (!userDoc) {
+        return res.status(401).json("Identifiants invalides");
+      }
+  
+      const passOk = bcrypt.compareSync(password, userDoc.password);
+      
+      if (!passOk) {
         return res.status(401).json("Identifiants invalides");
       }
   
       const token = jwt.sign(
-        { id: user._id, username: user.username },
-        secret,
+        { id: userDoc._id, username: userDoc.username },
+        process.env.JWT_SECRET,
         { expiresIn: '15d' }
       );
   
-      res.cookie('token', token, cookieOptions)
-         .json({ id: user._id, username: user.username });
-         
+      res.cookie("token", token, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+        domain: '.vercel.app'
+      }).json({ id: userDoc._id, username: userDoc.username });
+  
     } catch (error) {
-      res.status(500).json("Erreur serveur");
+      console.error('Erreur login:', error);
+      res.status(500).json("Erreur serveur interne");
     }
   });
 
