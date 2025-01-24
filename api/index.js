@@ -38,7 +38,7 @@ import ConversationModel from './models/Conversation.js';
 import CommentModel from './models/Comments.js';
 // Importer le modèle de données CategoryModel
 import CategoryModel from './models/categories.js';
-import { authMiddleware, authorMiddleware, adminMiddleware, getCookieOptions } from './middlewares/auth.js';
+import { authMiddleware, authorMiddleware, adminMiddleware } from './middlewares/auth.js';
 
 // Générer un sel pour le hachage des mots de passe avec bcrypt
 const salt = bcrypt.genSaltSync(10);
