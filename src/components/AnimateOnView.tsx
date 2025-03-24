@@ -1,8 +1,16 @@
+"use client"
+
 // Fichier ES6 TSX
-import React, { useRef, useState, useEffect } from 'react';
+import React from "react"
+import { useRef, useState, useEffect } from "react"
 
 interface AnimateOnViewProps {
-  children: React.ReactNode;
+  children: React.ReactNode
+  animation?: "fade" | "slide-up" | "slide-down" | "slide-left" | "slide-right" | "zoom" | "bounce"
+  duration?: number
+  delay?: number
+  threshold?: number
+  className?: string
 }
 
 /**
@@ -11,42 +19,88 @@ interface AnimateOnViewProps {
  * @param {AnimateOnViewProps} children - The children components to animate.
  * @return {JSX.Element} The animated component.
  */
-const AnimateOnView: React.FC<AnimateOnViewProps> = ({ children }) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const [inView, setInView] = useState(false);
+const AnimateOnView: React.FC<AnimateOnViewProps> = ({
+  children,
+  animation = "fade",
+  duration = 500,
+  delay = 0,
+  threshold = 0.1,
+  className = "",
+}) => {
+  const ref = useRef<HTMLDivElement>(null)
+  const [inView, setInView] = useState(false)
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          setInView(true);
-          observer.disconnect();
+          setInView(true)
+          observer.disconnect()
         }
       },
-      { threshold: 0.5 }
-    );
+      { threshold },
+    )
 
     if (ref.current) {
-      observer.observe(ref.current);
+      observer.observe(ref.current)
     }
 
     return () => {
       if (ref.current) {
-        observer.unobserve(ref.current);
+        observer.unobserve(ref.current)
       }
-    };
-  }, []);
+    }
+  }, [threshold])
+
+  const getAnimationClass = () => {
+    if (!inView) {
+      switch (animation) {
+        case "fade":
+          return "opacity-0"
+        case "slide-up":
+          return "opacity-0 translate-y-10"
+        case "slide-down":
+          return "opacity-0 -translate-y-10"
+        case "slide-left":
+          return "opacity-0 translate-x-10"
+        case "slide-right":
+          return "opacity-0 -translate-x-10"
+        case "zoom":
+          return "opacity-0 scale-95"
+        case "bounce":
+          return "opacity-0 -translate-y-4"
+        default:
+          return "opacity-0"
+      }
+    }
+    return ""
+  }
 
   return (
     <div
       ref={ref}
-      className={`transition-transform duration-500 ${
-        inView ? 'animate-slideDown' : '-translate-y-10 opacity-0'
-      }`}
+      className={`transition-all ${className}`}
+      style={{
+        transitionDuration: `${duration}ms`,
+        transitionDelay: `${delay}ms`,
+        transitionTimingFunction: animation === "bounce" ? "cubic-bezier(0.4, 0, 0.2, 1)" : "ease-out",
+      }}
+      data-animate={animation}
+      data-in-view={inView}
     >
-      {children}
+      <div
+        className={`${getAnimationClass()} transition-all`}
+        style={{
+          transitionDuration: `${duration}ms`,
+          transitionDelay: `${delay}ms`,
+          transitionTimingFunction: animation === "bounce" ? "cubic-bezier(0.4, 0, 0.2, 1)" : "ease-out",
+        }}
+      >
+        {children}
+      </div>
     </div>
-  );
-};
+  )
+}
 
-export default AnimateOnView;
+export default AnimateOnView
+

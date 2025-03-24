@@ -16,7 +16,12 @@
   margin-bottom: 0.5rem;
 }
 
-.prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.prose h5,
+.prose h6 {
   margin-top: 1.5rem;
   margin-bottom: 0.5rem;
 }
@@ -25,3 +30,4 @@
   margin-top: 0.5rem;
   margin-bottom: 1rem;
 }
+

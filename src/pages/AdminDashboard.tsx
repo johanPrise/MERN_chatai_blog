@@ -1,98 +1,99 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { UserContext } from '../UserContext';
+"use client"
+
+import { useState, useEffect } from "react"
+import { UserContext } from "../UserContext"
+import React from "react"
 interface User {
-  _id: string;
-  username: string;
-  email: string;
-  role: 'user' | 'author' | 'admin';
+  _id: string
+  username: string
+  email: string
+  role: "user" | "author" | "admin"
 }
 function AdminDashboard() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [search, setSearch] = useState('');
-  const [sort, setSort] = useState('username');
-  const [order, setOrder] = useState('asc');
-  const { userInfo } = UserContext(); // Appel comme fonction
+  const [users, setUsers] = useState<User[]>([])
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [search, setSearch] = useState("")
+  const [sort, setSort] = useState("username")
+  const [order, setOrder] = useState("asc")
+  const { userInfo } = UserContext() // Appel comme fonction
 
   useEffect(() => {
-    checkAdminStatus();
-  }, [userInfo]);
+    checkAdminStatus()
+  }, [userInfo])
 
   useEffect(() => {
     if (isAdmin) {
-      fetchUsers();
+      fetchUsers()
     }
-  }, [isAdmin, page, search, sort, order]);
+  }, [isAdmin, page, search, sort, order])
 
   const checkAdminStatus = async () => {
     try {
-      const response = await fetch('https://mern-backend-neon.vercel.app/check-admin', {
-        credentials: 'include',
-      });
-      const data = await response.json();
-      setIsAdmin(data.isAdmin);
+      const response = await fetch("https://mern-backend-neon.vercel.app/check-admin", {
+        credentials: "include",
+      })
+      const data = await response.json()
+      setIsAdmin(data.isAdmin)
     } catch (error) {
-      console.error('Error checking admin status:', error);
-      setIsAdmin(false);
+      console.error("Error checking admin status:", error)
+      setIsAdmin(false)
     }
-  };
+  }
 
   const fetchUsers = async () => {
-    setIsLoading(true);
+    setIsLoading(true)
     try {
-      const response = await fetch(`https://mern-backend-neon.vercel.app/users?page=${page}&search=${search}&sort=${sort}&order=${order}`, {
-        credentials: 'include',
-      });
-      const data = await response.json();
-      setUsers(data.users);
-      setTotalPages(data.totalPages);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      setError('Failed to fetch users. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-const handleRoleChange = async (userId: string, newRole: 'user' | 'author' | 'admin') => {
-  setIsLoading(true);
-  setError(null);
-
-  try {
-    const response = await fetch('https://mern-backend-neon.vercel.app/change-user-role', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ userId, newRole }),
-      credentials: 'include',
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Une erreur est survenue lors du changement de rôle');
-    }
-
-    setUsers(prevUsers => 
-      prevUsers.map(user => 
-        user._id === userId ? { ...user, role: newRole } : user
+      const response = await fetch(
+        `https://mern-backend-neon.vercel.app/users?page=${page}&search=${search}&sort=${sort}&order=${order}`,
+        {
+          credentials: "include",
+        },
       )
-    );
-
-    console.log(data.message);
-
-  } catch (error) {
-    console.error('Erreur lors du changement de rôle:', error);
-    setError(error instanceof Error ? error.message : 'Une erreur inconnue est survenue');
-  } finally {
-    setIsLoading(false);
+      const data = await response.json()
+      setUsers(data.users)
+      setTotalPages(data.totalPages)
+    } catch (error) {
+      console.error("Error fetching users:", error)
+      setError("Failed to fetch users. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
   }
-};
+
+  const handleRoleChange = async (userId: string, newRole: "user" | "author" | "admin") => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch("https://mern-backend-neon.vercel.app/change-user-role", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId, newRole }),
+        credentials: "include",
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || "Une erreur est survenue lors du changement de rôle")
+      }
+
+      setUsers((prevUsers) => prevUsers.map((user) => (user._id === userId ? { ...user, role: newRole } : user)))
+
+      console.log(data.message)
+    } catch (error) {
+      console.error("Erreur lors du changement de rôle:", error)
+      setError(error instanceof Error ? error.message : "Une erreur inconnue est survenue")
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   if (!userInfo || !isAdmin) {
     return (
@@ -104,14 +105,14 @@ const handleRoleChange = async (userId: string, newRole: 'user' | 'author' | 'ad
           </p>
         </div>
       </div>
-    );
+    )
   }
 
   return (
     <div className="mx-auto max-w-screen-xl px-4 py-16 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-4xl">
         <h1 className="text-center text-3xl font-bold text-indigo-600 mb-8">Tableau de Bord Administrateur</h1>
-        
+
         <div className="mb-6 flex justify-between items-center">
           <input
             type="text"
@@ -121,20 +122,16 @@ const handleRoleChange = async (userId: string, newRole: 'user' | 'author' | 'ad
             className="px-4 py-2 border rounded-md w-64"
           />
           <div>
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value)}
-              className="px-4 py-2 border rounded-md mr-2"
-            >
+            <select value={sort} onChange={(e) => setSort(e.target.value)} className="px-4 py-2 border rounded-md mr-2">
               <option value="username">Nom d'utilisateur</option>
               <option value="email">Email</option>
               <option value="role">Rôle</option>
             </select>
             <button
-              onClick={() => setOrder(order === 'asc' ? 'desc' : 'asc')}
+              onClick={() => setOrder(order === "asc" ? "desc" : "asc")}
               className="px-4 py-2 bg-gray-200 rounded-md"
             >
-              {order === 'asc' ? '↑' : '↓'}
+              {order === "asc" ? "↑" : "↓"}
             </button>
           </div>
         </div>
@@ -163,7 +160,7 @@ const handleRoleChange = async (userId: string, newRole: 'user' | 'author' | 'ad
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {users.map((user:User) => (
+                {users.map((user: User) => (
                   <tr key={user._id}>
                     <td className="px-6 py-4 whitespace-nowrap">{user.username}</td>
                     <td className="px-6 py-4 whitespace-nowrap">{user.email}</td>
@@ -171,7 +168,7 @@ const handleRoleChange = async (userId: string, newRole: 'user' | 'author' | 'ad
                     <td className="px-6 py-4 whitespace-nowrap">
                       <select
                         value={user.role}
-                        onChange={(e) => handleRoleChange(user._id, e.target.value)}
+                        onChange={(e) => handleRoleChange(user._id, e.target.value as "user" | "author" | "admin")}
                         className="px-2 py-1 border rounded-md"
                       >
                         <option value="user">Utilisateur</option>
@@ -207,7 +204,8 @@ const handleRoleChange = async (userId: string, newRole: 'user' | 'author' | 'ad
         </div>
       </div>
     </div>
-  );
+  )
 }
 
-export default AdminDashboard;
+export default AdminDashboard
+

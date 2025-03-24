@@ -1,17 +1,21 @@
-import React, { useState } from 'react';
-import { FaAngleLeft, FaAngleRight, FaAngleDoubleLeft, FaAngleDoubleRight } from 'react-icons/fa';
+"use client"
+
+import React from "react"
+import { useState } from "react"
+import { Button } from "./ui/button"
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
 
 type PaginationProps = {
-  currentPage: number;
-  totalPages: number;
-  onPageChange: (page: number) => void;
-  pageSize?: number;
-  totalItems?: number;
-  showFirstLast?: boolean;
-  showPageSize?: boolean;
-  pageSizeOptions?: number[];
-  onPageSizeChange?: (pageSize: number) => void;
-};
+  currentPage: number
+  totalPages: number
+  onPageChange: (page: number) => void
+  pageSize?: number
+  totalItems?: number
+  showFirstLast?: boolean
+  showPageSize?: boolean
+  pageSizeOptions?: number[]
+  onPageSizeChange?: (pageSize: number) => void
+}
 
 const Pagination: React.FC<PaginationProps> = ({
   currentPage,
@@ -19,107 +23,134 @@ const Pagination: React.FC<PaginationProps> = ({
   onPageChange,
   pageSize = 10,
   totalItems,
-  showFirstLast = true,
-  showPageSize = true,
+  showFirstLast = false,
+  showPageSize = false,
   pageSizeOptions = [10, 20, 50, 100],
   onPageSizeChange,
 }) => {
-  const [inputPage, setInputPage] = useState(currentPage.toString());
+  const [inputPage, setInputPage] = useState(currentPage.toString())
 
   const handlePageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInputPage(e.target.value);
-  };
+    setInputPage(e.target.value)
+  }
 
   const handlePageInputBlur = () => {
-    const page = Math.max(1, Math.min(parseInt(inputPage) || 1, totalPages));
-    setInputPage(page.toString());
-    onPageChange(page);
-  };
+    const page = Math.max(1, Math.min(Number.parseInt(inputPage) || 1, totalPages))
+    setInputPage(page.toString())
+    onPageChange(page)
+  }
+
+  const handlePageInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handlePageInputBlur()
+    }
+  }
 
   const renderPageNumbers = () => {
-    const pageNumbers = [];
-    const maxVisiblePages = 5;
-    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    const pageNumbers: React.ReactElement[] = []
+    const maxVisiblePages = 5
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2))
+    const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1)
 
     if (endPage - startPage + 1 < maxVisiblePages) {
-      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+      startPage = Math.max(1, endPage - maxVisiblePages + 1)
     }
 
     for (let i = startPage; i <= endPage; i++) {
       pageNumbers.push(
-        <button
+        <Button
           key={i}
           onClick={() => onPageChange(i)}
-          className={`px-3 py-1 rounded ${
-            i === currentPage ? 'bg-green-500 text-white' : 'bg-stone-200 text-gray-700 hover:bg-stone-300'
-          }`}
+          variant={i === currentPage ? "default" : "outline"}
+          size="sm"
+          className="w-9 h-9 p-0"
         >
           {i}
-        </button>
-      );
+        </Button>,
+      )
     }
-    return pageNumbers;
-  };
+    return pageNumbers
+  }
+
+  if (totalPages <= 1) return null
 
   return (
-    <div className="flex flex-col items-center space-y-2 mt-4">
+    <div className="flex flex-col items-center space-y-4">
       <div className="flex items-center space-x-2">
         {showFirstLast && (
-          <button
+          <Button
             onClick={() => onPageChange(1)}
             disabled={currentPage === 1}
-            className="p-1 rounded bg-stone-200 text-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            variant="outline"
+            size="icon"
+            className="h-9 w-9"
+            aria-label="First page"
           >
-            <FaAngleDoubleLeft className="h-4 w-4" />
-          </button>
+            <ChevronsLeft className="h-4 w-4" />
+          </Button>
         )}
-        <button
+        <Button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="p-1 rounded bg-stone-200 text-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          variant="outline"
+          size="icon"
+          className="h-9 w-9"
+          aria-label="Previous page"
         >
-          <FaAngleLeft className="h-4 w-4" />
-        </button>
-        {renderPageNumbers()}
-        <button
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+
+        <div className="flex items-center space-x-2">{renderPageNumbers()}</div>
+
+        <Button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="p-1 rounded bg-stone-200 text-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          variant="outline"
+          size="icon"
+          className="h-9 w-9"
+          aria-label="Next page"
         >
-          <FaAngleRight className="h-4 w-4" />
-        </button>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
         {showFirstLast && (
-          <button
+          <Button
             onClick={() => onPageChange(totalPages)}
             disabled={currentPage === totalPages}
-            className="p-1 rounded bg-stone-200 text-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            variant="outline"
+            size="icon"
+            className="h-9 w-9"
+            aria-label="Last page"
           >
-            <FaAngleDoubleRight className="h-4 w-4" />
-          </button>
+            <ChevronsRight className="h-4 w-4" />
+          </Button>
         )}
       </div>
-      <div className="flex items-center space-x-2 text-sm">
+
+      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
         <span>Page</span>
-        <input
-          type="number"
-          value={inputPage}
-          onChange={handlePageInputChange}
-          onBlur={handlePageInputBlur}
-          className="w-12 p-1 rounded border border-gray-300 text-center"
-          min={1}
-          max={totalPages}
-        />
-        <span>sur {totalPages}</span>
-        {totalItems && <span>| Total: {totalItems} éléments</span>}
+        <div className="flex items-center">
+          <input
+            type="number"
+            value={inputPage}
+            onChange={handlePageInputChange}
+            onBlur={handlePageInputBlur}
+            onKeyDown={handlePageInputKeyDown}
+            className="w-12 h-8 rounded-md border border-input bg-transparent px-3 py-1 text-sm text-center"
+            min={1}
+            max={totalPages}
+          />
+          <span className="ml-1">of {totalPages}</span>
+        </div>
+        {totalItems && <span className="ml-2">({totalItems} items)</span>}
       </div>
+
       {showPageSize && onPageSizeChange && (
         <div className="flex items-center space-x-2 text-sm">
-          <span>Afficher</span>
+          <span>Show</span>
           <select
             value={pageSize}
             onChange={(e) => onPageSizeChange(Number(e.target.value))}
-            className="p-1 rounded border border-gray-300"
+            className="h-8 rounded-md border border-input bg-transparent px-3 py-1 text-sm"
           >
             {pageSizeOptions.map((size) => (
               <option key={size} value={size}>
@@ -127,11 +158,12 @@ const Pagination: React.FC<PaginationProps> = ({
               </option>
             ))}
           </select>
-          <span>par page</span>
+          <span>per page</span>
         </div>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default Pagination;
+export default Pagination
+

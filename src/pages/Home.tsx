@@ -1,103 +1,128 @@
-import React, { useEffect, useState } from "react";
-import Featured from "../components/Featured";
-import Post from "../components/Post";
-import CategoryCard, { CategoryCard2 } from "../components/category";
-import AnimateOnView from "../components/AnimateOnView";
-import "../css/App.css"; // Assurez-vous que ce fichier contient le CSS personnalisé défini ci-dessus
-import Pagination from "../components/pagination";
-import { PostType } from "../components/Post";
-interface HomeProps {
-  featuredPosts: PostType[];
-}
-/**
- * Renders the Home component, which displays a list of posts and categories.
- *
- * @return {JSX.Element} The rendered Home component.
- */
+"use client"
+
+import { useEffect, useState } from "react"
+import Featured from "../components/Featured"
+import Post from "../components/Post"
+import { CategoryCard2 } from "../components/category"
+import AnimateOnView from "../components/AnimateOnView"
+import Pagination from "../components/pagination"
+import { Container } from "../components/ui/container"
+import { H1, H2 } from "../components/ui/typography"
+import React from "react"
+
 export default function Home() {
-  const [currentPage, setCurrentPage] = useState(1);
-  const postsPerPage = 6;
-  const [posts, setPosts] = useState([]);
-  const totalPages = Math.ceil(posts.length / postsPerPage);
-  const [categories, setCategories] = useState([]);
-  const [featuredPosts, setFeaturedPosts] = useState([]); // Ajout du state featuredPosts
-  
-  /**
-   * A description of the entire function.
-   *
-   * @param {number} page - description of parameter
-   * @return {void} description of return value
-   */
+  const [currentPage, setCurrentPage] = useState(1)
+  const postsPerPage = 6
+  const [posts, setPosts] = useState([])
+  const totalPages = Math.ceil(posts.length / postsPerPage)
+  const [categories, setCategories] = useState([])
+  const [featuredPosts, setFeaturedPosts] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+
   const handlePageChange = (page: number) => {
     if (page > 0 && page <= totalPages) {
-      setCurrentPage(page);
+      setCurrentPage(page)
+      window.scrollTo({ top: 0, behavior: "smooth" })
     }
-  };
-useEffect(() => {
-  fetch('https://mern-backend-neon.vercel.app/post')
-    .then(response => response.json())
-    .then(posts => {
-      setPosts(posts);
-      setFeaturedPosts(posts.filter(post => post.featured === true));
-    });
-}, []);
-  
+  }
+
   useEffect(() => {
-    fetch("https://mern-backend-neon.vercel.app/category").then((response) => {
-      response.json().then((categories) => {
-        setCategories(categories);
-      });
-    });
-  }, []);
-  /**
-   * Returns the last featured post from the featuredPosts array.
-   *
-   * @return {PostType | null} The last featured post, or null if there are no featured posts.
-   */
-const getRandomFeaturedPost = () => {
-  if (featuredPosts.length === 0) return null;
-  const randomIndex = Math.floor(Math.random() * featuredPosts.length);
-  return featuredPosts[randomIndex];
-};
-  
+    const fetchData = async () => {
+      setIsLoading(true)
+      try {
+        const postsResponse = await fetch("https://mern-backend-neon.vercel.app/post")
+        const postsData = await postsResponse.json()
+        setPosts(postsData)
+        setFeaturedPosts(postsData.filter((post) => post.featured === true))
+
+        const categoriesResponse = await fetch("https://mern-backend-neon.vercel.app/category")
+        const categoriesData = await categoriesResponse.json()
+        setCategories(categoriesData)
+      } catch (error) {
+        console.error("Error fetching data:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+
+  const getRandomFeaturedPost = () => {
+    if (featuredPosts.length === 0) return null
+    const randomIndex = Math.floor(Math.random() * featuredPosts.length)
+    return featuredPosts[randomIndex]
+  }
+
   return (
-    <div className="dark:bg-gray-900 format format-sm sm:format-base lg:format-lg format-blue dark:format-invert antialiased p-4">
-      <header className="blog-header mb-4 bg-stone-200">
-        <Featured featured={getRandomFeaturedPost()} />
-      </header>
-      <div className="posts p-6 grid">
-        <h1 className="text-4xl font-bold mb-4">All Posts</h1>
-        <div className="grid gap-4 gap-y-[2.75rem] grid-cols-1 sm:grid-cols-2 md:grid-cols-3 ">
-          {posts.length === 0 && (
-            <div className="newtons-cradle flex mx-auto mt-8">
-              <div className="newtons-cradle__dot"></div>
-              <div className="newtons-cradle__dot"></div>
-              <div className="newtons-cradle__dot"></div>
-              <div className="newtons-cradle__dot"></div>
+    <main className="pb-16">
+      <section className="py-8">
+        <Container>
+          <AnimateOnView animation="fade">
+            <Featured featured={getRandomFeaturedPost()} />
+          </AnimateOnView>
+        </Container>
+      </section>
+
+      <section className="py-8">
+        <Container>
+          <div className="flex items-center justify-between mb-8">
+            <AnimateOnView animation="slide-right">
+              <H1 className="text-3xl md:text-4xl font-bold">Latest Articles</H1>
+            </AnimateOnView>
+            <AnimateOnView animation="slide-left">
+              <div className="hidden md:block h-1 w-32 bg-gradient-to-r from-primary-300 to-primary-500 rounded-full"></div>
+            </AnimateOnView>
+          </div>
+
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="rounded-lg border bg-card animate-pulse">
+                  <div className="h-48 bg-muted rounded-t-lg"></div>
+                  <div className="p-4">
+                    <div className="h-4 bg-muted rounded w-1/4 mb-2"></div>
+                    <div className="h-6 bg-muted rounded w-3/4 mb-4"></div>
+                    <div className="h-4 bg-muted rounded w-full mb-2"></div>
+                    <div className="h-4 bg-muted rounded w-2/3"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {posts.slice((currentPage - 1) * postsPerPage, currentPage * postsPerPage).map((post, index) => (
+                <AnimateOnView key={post._id} animation="slide-up" delay={index * 100}>
+                  <Post post={post} />
+                </AnimateOnView>
+              ))}
             </div>
           )}
-          {posts.slice((currentPage - 1) * postsPerPage, currentPage * postsPerPage).map(post => (
-            <AnimateOnView key={post._id}>
-              <Post post={post} />
-            </AnimateOnView>
-          ))}
-        </div>
-      </div>
-      <div className="pagination flex justify-center mb-8">
- <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={handlePageChange}
-        />
-      </div>
-      <div className="Categories-container">
-        <h2 className="text-2xl font-bold mb-4">All Categories</h2>
-        <div className="flex flex-wrap gap-2">
-          {categories.map((category) => (
-    <CategoryCard2 key={category._id} category={category} />
-  ))}
-        </div>
-      </div>
-    </div>
-  );
+
+          <div className="mt-12 flex justify-center">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              showFirstLast={true}
+            />
+          </div>
+        </Container>
+      </section>
+
+      <section className="py-8 bg-muted/30">
+        <Container>
+          <AnimateOnView animation="slide-up">
+            <H2 className="text-2xl md:text-3xl font-bold mb-6">Browse by Category</H2>
+            <div className="flex flex-wrap gap-3">
+              {categories.map((category) => (
+                <CategoryCard2 key={category._id} category={category} />
+              ))}
+            </div>
+          </AnimateOnView>
+        </Container>
+      </section>
+    </main>
+  )
 }
+

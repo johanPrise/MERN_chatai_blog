@@ -17,7 +17,7 @@
     @apply transform scale-90;
   }
 
-    .button-class_2 {
+  .button-class_2 {
     @apply relative inline-block m-3 p-3 text-center text-lg leading-5 tracking-wide text-[#0e253c] bg-transparent cursor-pointer transition ease-out duration-500 border-2 border-[#b91c1c] rounded-lg;
   }
 
@@ -30,3 +30,4 @@
     @apply transform scale-90;
   }
 }
+

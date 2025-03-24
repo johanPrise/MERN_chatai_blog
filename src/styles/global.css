@@ -1,0 +1,185 @@
+:root {
+    /* Palette de couleurs - Mode clair */
+    --color-primary: #3b82f6;
+    --color-primary-rgb: 59, 130, 246;
+    --color-primary-light: #60a5fa;
+    --color-primary-dark: #2563eb;
+  
+    --color-secondary: #10b981;
+    --color-secondary-rgb: 16, 185, 129;
+  
+    --color-accent: #f59e0b;
+    --color-accent-rgb: 245, 158, 11;
+  
+    --color-background: #ffffff;
+    --color-surface: #f9fafb;
+    --color-card: #ffffff;
+  
+    --color-text: #1f2937;
+    --color-text-secondary: #6b7280;
+    --color-text-disabled: #9ca3af;
+  
+    --color-error: #ef4444;
+    --color-success: #10b981;
+    --color-warning: #f59e0b;
+    --color-info: #3b82f6;
+  
+    --color-divider: #e5e7eb;
+  
+    /* Typographie */
+    --font-primary: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-secondary: "Merriweather", Georgia, serif;
+    --font-mono: "JetBrains Mono", "Courier New", monospace;
+  
+    --font-weight-light: 300;
+    --font-weight-regular: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+  
+    /* Espacement */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    --spacing-2xl: 3rem;
+    --spacing-3xl: 4rem;
+  
+    /* Bordures */
+    --border-radius-sm: 0.25rem;
+    --border-radius-md: 0.5rem;
+    --border-radius-lg: 1rem;
+    --border-radius-full: 9999px;
+  
+    /* Ombres */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  
+    /* Transitions */
+    --transition-fast: 150ms;
+    --transition-normal: 300ms;
+    --transition-slow: 500ms;
+    --transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
+  
+    /* Z-index */
+    --z-background: -10;
+    --z-default: 1;
+    --z-tooltip: 10;
+    --z-fixed: 100;
+    --z-modal: 1000;
+  }
+  
+  /* Mode sombre */
+  [data-theme="dark"] {
+    --color-primary: #60a5fa;
+    --color-primary-rgb: 96, 165, 250;
+    --color-primary-light: #93c5fd;
+    --color-primary-dark: #3b82f6;
+  
+    --color-secondary: #34d399;
+    --color-secondary-rgb: 52, 211, 153;
+  
+    --color-accent: #fbbf24;
+    --color-accent-rgb: 251, 191, 36;
+  
+    --color-background: #1f2937;
+    --color-surface: #111827;
+    --color-card: #374151;
+  
+    --color-text: #f9fafb;
+    --color-text-secondary: #d1d5db;
+    --color-text-disabled: #6b7280;
+  
+    --color-divider: #4b5563;
+  
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.15);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.16);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.15);
+  }
+  
+  /* Reset de base */
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  body {
+    font-family: var(--font-primary);
+    color: var(--color-text);
+    background-color: var(--color-background);
+    line-height: 1.5;
+    transition: background-color var(--transition-normal) var(--transition-timing);
+  }
+  
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-primary);
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.2;
+    margin-bottom: var(--spacing-md);
+  }
+  
+  a {
+    color: var(--color-primary);
+    text-decoration: none;
+    transition: color var(--transition-fast) var(--transition-timing);
+  }
+  
+  a:hover {
+    color: var(--color-primary-dark);
+  }
+  
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+  
+  button,
+  input,
+  select,
+  textarea {
+    font-family: inherit;
+  }
+  
+  /* Utilitaires */
+  .container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 var(--spacing-md);
+  }
+  
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+  
+  /* Animation de fade-in */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  
+  .fade-in {
+    animation: fadeIn var(--transition-normal) var(--transition-timing);
+  }
+  
+  

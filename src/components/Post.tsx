@@ -1,93 +1,183 @@
-import React, {useState, useEffect} from "react";
-import "../css/Post.css";
-import { Link } from "react-router-dom";
-// Importation de la fonction formatISO9075
-import { formatISO9075 } from "date-fns";
-// Importation de la fonction htmlToText
-import { htmlToText } from "html-to-text";
+import { Link } from "react-router-dom"
+import { formatISO9075 } from "date-fns"
+import { htmlToText } from "html-to-text"
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card"
+import { Badge } from "./ui/badge"
+import { formatDate, getImageUrl, getOptimizedImageUrl } from "../lib/utils"
+import { CalendarIcon, User2 } from "lucide-react"
+import React from "react"
+
 type PostType = {
-  _id: string;
-  title: string;
-  summary: string;
-  cover: string;
-  author: { username: string };
-  createdAt: string | Date;
-  content: string;
-  category: { // Ajout du champ category
-    _id: string;
-    name: string;
-    description?:string
-  };
-};
+  _id: string
+  title: string
+  summary: string
+  cover: string
+  author: { username: string }
+  createdAt: string | Date
+  content: string
+  category: {
+    _id: string
+    name: string
+    description?: string
+  }
+}
 
+export interface PostProps {
+  post: PostType
+  variant?: "default" | "featured" | "compact"
+}
 
-/**
- * Renders an author badge component with the given author name.
- *
- * @param {string} author - The name of the author to display in the badge.
- * @return {JSX.Element} A React component representing the author badge.
- */
-const AuthorBadge = ({ author }) => {
-  return (
-    <div className="inline-flex items-center px-2 py-1 rounded-full bg-gray-200 text-gray-700 text-xs transition-all duration-300 ease-out hover:bg-green-500 hover:text-white hover:scale-105">
-      {author}
-    </div>
-  );
-};
-
-/**
- * Renders a post component with the given post data.
- *
- * @param {PostType} post - The post data to render.
- * @return {JSX.Element} A React component representing the post.
- */
-export default function Post({ post }: { post: PostType }) {
-  const { _id, title, summary, cover, author, createdAt, content, category } = post;
+export default function Post({ post, variant = "default" }: PostProps) {
+  const { _id, title, summary, cover, author, createdAt, category } = post
 
   // Convert HTML content to plain text
-  const plainTextContent = htmlToText(content, {
+  const plainTextContent = htmlToText(post.content, {
     wordwrap: 130,
     limits: { maxInputLength: 500 },
-  });
-const getImageUrl = (path) => {
-  if (path.startsWith('http')) {
-    return path; // Already a full URL
-  }
-  return `/uploads/${path}`;
-    };
-    const getOptimizedImageUrl = (url, width = 800) => {
-  return `${url}?width=${width}&quality=80&format=webp`;
-};
-  return (
-    <article className="overflow-hidden rounded-lg shadow transition hover:shadow-lg">
-<img
-  alt=""
-              src={getOptimizedImageUrl(getImageUrl(cover))}
-              className="h-56 w-full object-cover"
-/>
+  })
 
-      <div className="bg-white p-4 sm:p-6">
-        <time dateTime={formatISO9075(new Date(createdAt))} className="block text-xs text-gray-500">
-          {new Date(createdAt).toLocaleString("default", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-          })}
-        </time>
-
-        <Link to={`/Post/${_id}`}>
-          <h3 className="mt-0.5 text-lg text-gray-900">{title}</h3>
+  if (variant === "compact") {
+    return (
+      <Card className="overflow-hidden h-full flex flex-col">
+        <Link to={`/Post/${_id}`} className="relative block aspect-[16/9] overflow-hidden">
+          <img
+            alt={title}
+            src={getOptimizedImageUrl(getImageUrl(cover)) || "/placeholder.svg"}
+            className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+            loading="lazy"
+            decoding="async"
+          />
         </Link>
+        <CardHeader className="p-4 pb-2">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+            <time dateTime={formatISO9075(new Date(createdAt))}>
+              <CalendarIcon className="h-3 w-3 inline mr-1" />
+              {formatDate(createdAt)}
+            </time>
+            <span className="inline-flex items-center">
+              <User2 className="h-3 w-3 inline mr-1" />
+              {author.username}
+            </span>
+          </div>
+          <CardTitle className="text-lg">
+            <Link
+              to={`/Post/${_id}`}
+              className="hover:text-primary transition-colors"
+              aria-label={`Read full post: ${title}`}
+            >
+              {title}
+            </Link>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 pt-0 flex-grow">
+          <p className="line-clamp-2 text-sm text-muted-foreground">{summary}</p>
+        </CardContent>
+        <CardFooter className="p-4 pt-0">
+          <Link to={`/category/${category._id}`}>
+            <Badge variant="outline" className="hover:bg-primary-50 hover:text-primary-700 transition-colors">
+              {category.name}
+            </Badge>
+          </Link>
+        </CardFooter>
+      </Card>
+    )
+  }
 
-        <p className="mt-2 line-clamp-3 text-sm/relaxed text-gray-500">
-          {summary}
-        </p>
-
-        <div className="mt-2 flex items-center">
-          <AuthorBadge author={author.username} />
+  if (variant === "featured") {
+    return (
+      <Card className="overflow-hidden border-0 shadow-none bg-transparent">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+          <Link to={`/Post/${_id}`} className="relative block overflow-hidden rounded-xl">
+            <img
+              alt={title}
+              src={getOptimizedImageUrl(getImageUrl(cover)) || "/placeholder.svg"}
+              className="h-full w-full object-cover aspect-[16/10] transition-transform duration-300 hover:scale-105"
+              loading="lazy"
+              decoding="async"
+            />
+          </Link>
+          <div className="flex flex-col">
+            <Badge variant="outline" className="self-start mb-3 bg-primary-50 text-primary-700 border-primary-200">
+              Featured
+            </Badge>
+            <h2 className="text-2xl md:text-3xl font-bold mb-3">
+              <Link
+                to={`/Post/${_id}`}
+                className="hover:text-primary transition-colors"
+                aria-label={`Read full post: ${title}`}
+              >
+                {title}
+              </Link>
+            </h2>
+            <div className="flex items-center gap-3 text-sm text-muted-foreground mb-3">
+              <time dateTime={formatISO9075(new Date(createdAt))}>
+                <CalendarIcon className="h-4 w-4 inline mr-1" />
+                {formatDate(createdAt)}
+              </time>
+              <span className="inline-flex items-center">
+                <User2 className="h-4 w-4 inline mr-1" />
+                {author.username}
+              </span>
+            </div>
+            <p className="text-muted-foreground mb-4">{summary}</p>
+            <Link to={`/Post/${_id}`} className="text-primary font-medium hover:underline self-start">
+              Read more →
+            </Link>
+          </div>
         </div>
-      </div>
-    </article>
-  );
+      </Card>
+    )
+  }
+
+  // Default variant
+  return (
+    <Card className="overflow-hidden h-full flex flex-col">
+      <Link to={`/Post/${_id}`} className="relative block overflow-hidden">
+        <img
+          alt={title}
+          src={getOptimizedImageUrl(getImageUrl(cover)) || "/placeholder.svg"}
+          className="h-56 w-full object-cover transition-transform duration-300 hover:scale-105"
+          loading="lazy"
+          decoding="async"
+        />
+      </Link>
+      <CardHeader className="p-4 pb-2">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+          <time dateTime={formatISO9075(new Date(createdAt))}>
+            <CalendarIcon className="h-3 w-3 inline mr-1" />
+            {formatDate(createdAt)}
+          </time>
+          <span className="inline-flex items-center">
+            <User2 className="h-3 w-3 inline mr-1" />
+            {author.username}
+          </span>
+        </div>
+        <CardTitle className="text-xl">
+          <Link
+            to={`/Post/${_id}`}
+            className="hover:text-primary transition-colors"
+            aria-label={`Read full post: ${title}`}
+          >
+            {title}
+          </Link>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-4 pt-0 flex-grow">
+        <p className="line-clamp-3 text-muted-foreground">{summary}</p>
+      </CardContent>
+      <CardFooter className="p-4 pt-0 flex justify-between items-center">
+        <Link to={`/category/${category._id}`}>
+          <Badge variant="outline" className="hover:bg-primary-50 hover:text-primary-700 transition-colors">
+            {category.name}
+          </Badge>
+        </Link>
+        <Link to={`/Post/${_id}`} className="text-primary text-sm font-medium hover:underline">
+          Read more →
+        </Link>
+      </CardFooter>
+    </Card>
+  )
 }
-export type { PostType };
+
+export type { PostType }
+

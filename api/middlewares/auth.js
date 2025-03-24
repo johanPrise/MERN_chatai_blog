@@ -1,49 +1,64 @@
 import jwt from 'jsonwebtoken';
 import UserModel from '../models/User.js';
 
-const secret = "bj3behrj2o3ierbhj3j2no";
+const secret = "bj3behrj2o3ierbhj3j2no"; // Consider moving this to environment variables
 
-
-export const cookieOptions = {
-    httpOnly: true,
-    secure: true, // Doit être TRUE en production
-    sameSite: 'none', // Forcer à 'none' pour Vercel
-    domain: '.vercel.app', // Domaine parent commun
-    path: '/',
-    maxAge: 15 * 24 * 60 * 60 * 1000
-  };
-
-export const authMiddleware = async (req, res, next) => {
-  const token = req.cookies.token;
+// Middleware to check if user is authenticated
+export const authMiddleware = (req, res, next) => {
+  const { token } = req.cookies;
   
-  if (!token) return res.status(401).json({ message: 'Non authentifié' });
-
+  if (!token) {
+    return res.status(401).json({ message: "Authentication required" });
+  }
+  
   try {
     const decoded = jwt.verify(token, secret);
-    const user = await UserModel.findById(decoded.id).select('-password');
-    
-    if (!user) throw new Error('Utilisateur introuvable');
-    
-    req.user = user;
+    req.user = {
+      id: decoded.id,
+      username: decoded.username,
+      role: decoded.role
+    };
     next();
   } catch (err) {
-    res.clearCookie('token', cookieOptions);
-    res.status(401).json({ message: 'Session expirée' });
+    return res.status(401).json({ message: "Invalid or expired token" });
   }
 };
 
-
-export const authorMiddleware = (req, res, next) => {
-  if (!req.user?.isAuthorized) {
-    return res.status(403).json({ message: 'Author access required' });
+// Middleware to check if user is an author or admin
+export const authorMiddleware = async (req, res, next) => {
+  try {
+    const user = await UserModel.findById(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    if (user.role !== 'author' && user.role !== 'admin') {
+      return res.status(403).json({ message: "Author or admin privileges required" });
+    }
+    
+    req.user.role = user.role; // Update role in request
+    next();
+  } catch (err) {
+    return res.status(500).json({ message: "Server error" });
   }
-  next();
 };
 
-export const adminMiddleware = (req, res, next) => {
-  if (req.user?.role !== 'admin') {
-    return res.status(403).json({ message: 'Admin access required' });
+// Middleware to check if user is an admin
+export const adminMiddleware = async (req, res, next) => {
+  try {
+    const user = await UserModel.findById(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    
+    if (user.role !== 'admin') {
+      return res.status(403).json({ message: "Admin privileges required" });
+    }
+    
+    next();
+  } catch (err) {
+    return res.status(500).json({ message: "Server error" });
   }
-  next();
 };
-

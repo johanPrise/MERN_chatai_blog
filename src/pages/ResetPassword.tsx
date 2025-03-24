@@ -1,36 +1,39 @@
-import React, { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+"use client"
+
+import { useState } from "react"
+import { useParams, useNavigate } from "react-router-dom"
+import React from "react"
 
 const ResetPassword = () => {
-  const { resetToken } = useParams();
-  const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
-  const navigate = useNavigate();
+  const { resetToken } = useParams()
+  const [password, setPassword] = useState("")
+  const [message, setMessage] = useState("")
+  const navigate = useNavigate()
 
   const handleResetPassword = async (e) => {
-    e.preventDefault();
+    e.preventDefault()
     try {
       const response = await fetch(`https://mern-backend-neon.vercel.app/reset-password/${resetToken}`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ password }),
-      });
-      const data = await response.json();
+      })
+      const data = await response.json()
       if (response.ok) {
-        setMessage(data.message);
+        setMessage(data.message)
         // Rediriger vers la page de connexion après le succès
         setTimeout(() => {
-          navigate("/login_page");
-        }, 3000);
+          navigate("/login_page")
+        }, 3000)
       } else {
-        setMessage(data.message);
+        setMessage(data.message)
       }
     } catch (error) {
-      setMessage("Server error");
+      setMessage("Server error")
     }
-  };
+  }
 
   return (
     <div className="bg-gray-100 flex items-center justify-center h-screen">
@@ -38,7 +41,9 @@ const ResetPassword = () => {
         <h2 className="text-2xl font-bold mb-6 text-center">Reset Password</h2>
         <form onSubmit={handleResetPassword}>
           <div className="mb-4">
-            <label htmlFor="password" className="block text-gray-700">New Password:</label>
+            <label htmlFor="password" className="block text-gray-700">
+              New Password:
+            </label>
             <input
               type="password"
               id="password"
@@ -56,7 +61,8 @@ const ResetPassword = () => {
         {message && <p className="mt-4 text-center text-red-500">{message}</p>}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default ResetPassword;
+export default ResetPassword
+

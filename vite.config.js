@@ -28,9 +28,9 @@ export default defineConfig(({ command, mode }) => {
     server: {
       proxy: {
         '/api': {
-          target:'https://mern-backend-neon.vercel.app/',
-              changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, '')
+          target: 'http://localhost:4200',
+          changeOrigin: true,
+          secure: false
         }
       }
     },

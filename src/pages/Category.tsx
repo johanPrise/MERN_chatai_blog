@@ -1,17 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import Post from '../components/Post';
-import CategoryCard2 from '../components/category';
-import '../css/categoryPage.css';
-import AnimateOnView from '../components/AnimateOnView';
-import Pagination from '../components/pagination';
+"use client"
+
+import  React from "react"
+import { useState, useEffect } from "react"
+import { useParams } from "react-router-dom"
+import Post, {PostProps, PostType} from "../components/Post"
+import CategoryCard2 from "../components/category"
+import "../css/categoryPage.css"
+import AnimateOnView from "../components/AnimateOnView"
+import Pagination from "../components/pagination"
 
 interface CategoryProps {
-  _id: string;
-  name: string;
-  description?: string;
+  _id: string
+  name: string
+  description?: string
 }
-
 
 /**
  * Renders the category page with posts and categories.
@@ -19,19 +21,19 @@ interface CategoryProps {
  * @return {JSX.Element} The category page component.
  */
 const CategoryPage: React.FC = () => {
-  const [posts, setPosts] = useState<PostProps[]>([]);
-  const [category, setCategory] = useState<CategoryProps | null>(null);
-  const [categories, setCategories] = useState<CategoryProps[]>([]);
-  const { categoryId } = useParams();
-  const [currentPage, setCurrentPage] = useState(1);
-  const postsPerPage = 6;
-  const totalPages = Math.ceil(posts.length / postsPerPage);
+  const [posts, setPosts] = useState<PostType[]>([])
+  const [category, setCategory] = useState<CategoryProps | null>(null)
+  const [categories, setCategories] = useState<CategoryProps[]>([])
+  const { categoryId } = useParams()
+  const [currentPage, setCurrentPage] = useState(1)
+  const postsPerPage = 6
+  const totalPages = Math.ceil(posts.length / postsPerPage)
 
   const handlePageChange = (page: number) => {
     if (page > 0 && page <= totalPages) {
-      setCurrentPage(page);
+      setCurrentPage(page)
     }
-  };
+  }
 
   useEffect(() => {
     /**
@@ -42,33 +44,33 @@ const CategoryPage: React.FC = () => {
     const fetchData = async () => {
       try {
         // Fetch category data
-        const categoryResponse = await fetch(`https://mern-backend-neon.vercel.app/category/${categoryId}`);
-        const categoryData = await categoryResponse.json();
-        setCategory(categoryData);
+        const categoryResponse = await fetch(`https://mern-backend-neon.vercel.app/category/${categoryId}`)
+        const categoryData = await categoryResponse.json()
+        setCategory(categoryData)
 
         // Fetch post data
-        const postResponse = await fetch("https://mern-backend-neon.vercel.app/post");
-        const postData = await postResponse.json();
-        setPosts(postData);
+        const postResponse = await fetch("https://mern-backend-neon.vercel.app/post")
+        const postData = await postResponse.json()
+        setPosts(postData)
 
         // Fetch all categories
-        const categoriesResponse = await fetch("https://mern-backend-neon.vercel.app/category");
-        const categoriesData = await categoriesResponse.json();
-        setCategories(categoriesData);
+        const categoriesResponse = await fetch("https://mern-backend-neon.vercel.app/category")
+        const categoriesData = await categoriesResponse.json()
+        setCategories(categoriesData)
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error("Error fetching data:", error)
       }
-    };
+    }
 
-    fetchData();
-  }, [categoryId]);
+    fetchData()
+  }, [categoryId])
 
   if (!category) {
     return (
       <div className="loader mx-auto mt-8">
         <div className="bg-green-500 h-full rounded-full animate-pulse"></div>
       </div>
-    );
+    )
   }
 
   return (
@@ -82,8 +84,17 @@ const CategoryPage: React.FC = () => {
         <nav aria-label="Breadcrumb" className="flex justify-center mb-4">
           <ol className="flex overflow-hidden rounded-md bg-lime-100 text-lime-600">
             <li className="flex items-center">
-              <a href="/" className="flex h-10 items-center gap-1.5 px-4 transition hover:bg-lime-200 hover:text-lime-700">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <a
+                href="/"
+                className="flex h-10 items-center gap-1.5 px-4 transition hover:bg-lime-200 hover:text-lime-700"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -96,7 +107,10 @@ const CategoryPage: React.FC = () => {
             </li>
             <li className="relative flex items-center">
               <span className="absolute inset-y-0 -start-px h-10 w-4 bg-lime-100 [clip-path:_polygon(0_0,_0%_100%,_100%_50%)] rtl:rotate-180"></span>
-              <a href="#" className="flex h-10 items-center bg-white pe-4 ps-8 text-xs font-medium transition hover:text-lime-700">
+              <a
+                href="#"
+                className="flex h-10 items-center bg-white pe-4 ps-8 text-xs font-medium transition hover:text-lime-700"
+              >
                 {category.name}
               </a>
             </li>
@@ -114,22 +128,17 @@ const CategoryPage: React.FC = () => {
             </div>
           )}
           {posts
-            .filter((post) => post.category === category._id)
+            .filter((post) => post.category._id === category._id)
             .slice((currentPage - 1) * postsPerPage, currentPage * postsPerPage)
             .map((post) => (
               <AnimateOnView key={post._id}>
-                <Post post={post}
-                />
+                <Post post={post} />
               </AnimateOnView>
             ))}
         </div>
       </div>
       <div className="pagination flex justify-center mb-8">
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={handlePageChange}
-        />
+        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
       </div>
       <div className="Categories-container">
         <h2 className="text-2xl font-bold mb-4">All Categories</h2>
@@ -140,7 +149,8 @@ const CategoryPage: React.FC = () => {
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default CategoryPage;
+export default CategoryPage
+

@@ -1,4 +1,4 @@
-import Stack from '@mui/material/Stack';
+import Stack from "@mui/material/Stack"
 
 /**
  * Renders a green button component with the provided button properties.
@@ -9,14 +9,15 @@ import Stack from '@mui/material/Stack';
  * @return {JSX.Element} - The rendered green button component.
  */
 export default function GreenButton(button) {
-    return (
-        <Stack spacing={2} direction="row">
-            <button
-                className="px-4 py-2 rounded-md border border-black bg-green-500 text-white text-sm hover:shadow-[4px_4px_0px_0px_rgba(0,0,0)] transition duration-200"
-                src={button.link}
-            >
-                {button.text}
-            </button>
-        </Stack>
-    );
+  return (
+    <Stack spacing={2} direction="row">
+      <button
+        className="px-4 py-2 rounded-md border border-black bg-green-500 text-white text-sm hover:shadow-[4px_4px_0px_0px_rgba(0,0,0)] transition duration-200"
+        src={button.link}
+      >
+        {button.text}
+      </button>
+    </Stack>
+  )
 }
+

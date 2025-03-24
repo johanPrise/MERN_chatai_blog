@@ -1,23 +1,26 @@
-import React, { useState } from "react";
+"use client"
+
+import  React from "react"
+import { useState } from "react"
 
 function ForgotPassword() {
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState("")
 
   async function handleSubmit(ev: React.FormEvent<HTMLFormElement>) {
-    ev.preventDefault();
+    ev.preventDefault()
     const response = await fetch("https://mern-backend-neon.vercel.app/forgot-password", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ email }),
-    });
+    })
 
     if (response.ok) {
-      alert("Un email avec les instructions pour réinitialiser votre mot de passe a été envoyé.");
+      alert("Un email avec les instructions pour réinitialiser votre mot de passe a été envoyé.")
     } else {
-      const error = await response.json();
-      alert(error.message);
+      const error = await response.json()
+      alert(error.message)
     }
   }
 
@@ -59,7 +62,8 @@ function ForgotPassword() {
         </form>
       </div>
     </div>
-  );
+  )
 }
 
-export default ForgotPassword;
+export default ForgotPassword
+
