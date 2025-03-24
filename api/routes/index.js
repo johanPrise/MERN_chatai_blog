@@ -1,9 +1,6 @@
 import healthRoutes from './health.js';
-import authRoutes from './auth.routes.js';
-import postRoutes from './post.routes.js';
-import commentRoutes from './comment.routes.js';
-import categoryRoutes from './category.routes.js';
-import userRoutes from './user.routes.js';
+import authUserRoutes from './auth-user.routes.js';
+import contentRoutes from './content.routes.js';
 import aiRoutes from './ai.routes.js';
 import uploadRoutes from './upload.routes.js';
 
@@ -21,11 +18,8 @@ const configureRoutes = (app) => {
   });
 
   // Configure all route modules
-  authRoutes(app);
-  postRoutes(app);
-  commentRoutes(app);
-  categoryRoutes(app);
-  userRoutes(app);
+  authUserRoutes(app);
+  contentRoutes(app);
   aiRoutes(app);
   uploadRoutes(app);
   
