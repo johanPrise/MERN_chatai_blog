@@ -1,6 +1,5 @@
 import { authMiddleware } from '../middlewares/auth.js';
-import { authController } from '../controllers/auth.controller.js';
-import { userController } from '../controllers/user.controller.js';
+import { authUserController } from '../controllers/auth-user.controller.js';
 
 /**
  * Routes combinées pour l'authentification et les opérations utilisateur
@@ -9,20 +8,20 @@ import { userController } from '../controllers/user.controller.js';
  */
 const authUserRoutes = (app) => {
   // Routes d'authentification
-  app.post('/auth/register', authController.register);
-  app.post('/auth/login', authController.login);
-  app.post('/auth/forgot-password', authController.forgotPassword);
-  app.post('/auth/reset-password', authController.resetPassword);
-  app.post('/auth/logout', authController.logout);
-  app.get('/auth/verify-email/:token', authController.verifyEmail);
+  app.post('/auth/register', authUserController.register);
+  app.post('/auth/login', authUserController.login);
+  app.post('/auth/forgot-password', authUserController.forgotPassword);
+  app.post('/auth/reset-password', authUserController.resetPassword);
+  app.post('/auth/logout', authUserController.logout);
+  app.get('/auth/verify-email/:token', authUserController.verifyEmail);
 
   // Routes utilisateur (protégées par authMiddleware)
-  app.get('/users/profile', authMiddleware, userController.getProfile);
-  app.put('/users/profile', authMiddleware, userController.updateProfile);
-  app.get('/users/:id', userController.getUserById);
-  app.get('/users', authMiddleware, userController.getAllUsers);
-  app.delete('/users/:id', authMiddleware, userController.deleteUser);
-  app.put('/users/change-password', authMiddleware, userController.changePassword);
+  app.get('/users/profile', authMiddleware, authUserController.getProfile);
+  app.put('/users/profile', authMiddleware, authUserController.updateProfile);
+  app.get('/users/:id', authUserController.getUserById);
+  app.get('/users', authMiddleware, authUserController.getAllUsers);
+  app.delete('/users/:id', authMiddleware, authUserController.deleteUser);
+  app.put('/users/change-password', authMiddleware, authUserController.changePassword);
 };
 
 export default authUserRoutes;

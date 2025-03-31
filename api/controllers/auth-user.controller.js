@@ -130,6 +130,46 @@ export const authUserController = {
     }
   },
   
+  logout: async (req, res) => {
+    try {
+      // Since JWT is stateless, the client should handle token deletion
+      // Server can't invalidate tokens, but we can acknowledge the logout
+      res.status(200).json({ message: 'Logged out successfully' });
+      
+      // If using refresh tokens, you would delete them here
+      // await RefreshToken.findOneAndDelete({ user: req.user.id });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  },
+  
+  verifyEmail: async (req, res) => {
+    try {
+      const { token } = req.params;
+      
+      // Verify token and find user
+      const user = await User.findOne({ 
+        emailVerificationToken: token,
+        emailVerificationExpires: { $gt: Date.now() }
+      });
+      
+      if (!user) {
+        return res.status(400).json({ message: 'Invalid or expired verification token' });
+      }
+      
+      // Update user verification status
+      user.isEmailVerified = true;
+      user.emailVerificationToken = undefined;
+      user.emailVerificationExpires = undefined;
+      
+      await user.save();
+      
+      res.status(200).json({ message: 'Email verified successfully' });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  },
+  
   // User methods
   getProfile: async (req, res) => {
     try {
@@ -139,6 +179,50 @@ export const authUserController = {
       }
       
       res.status(200).json(user);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  },
+  
+  getUserById: async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const user = await User.findById(id).select('-password');
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      res.status(200).json(user);
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  },
+  
+  getAllUsers: async (req, res) => {
+    try {
+      // Pagination parameters
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const skip = (page - 1) * limit;
+      
+      // Query users with pagination
+      const users = await User.find()
+        .select('-password')
+        .skip(skip)
+        .limit(limit);
+      
+      // Get total count for pagination
+      const total = await User.countDocuments();
+      
+      res.status(200).json({
+        users,
+        pagination: {
+          total,
+          page,
+          pages: Math.ceil(total / limit)
+        }
+      });
     } catch (error) {
       res.status(500).json({ message: error.message });
     }
@@ -186,6 +270,25 @@ export const authUserController = {
       await user.save();
       
       res.status(200).json({ message: 'Password updated successfully' });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  },
+  
+  deleteUser: async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Only admin users should be able to delete other users
+      // Implement additional authorization checks here if needed
+      
+      const deletedUser = await User.findByIdAndDelete(id);
+      
+      if (!deletedUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      res.status(200).json({ message: 'User deleted successfully' });
     } catch (error) {
       res.status(500).json({ message: error.message });
     }
