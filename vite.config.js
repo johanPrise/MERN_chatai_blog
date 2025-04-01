@@ -38,5 +38,6 @@ export default defineConfig(({ command, mode }) => {
         __APP_ENV__: JSON.stringify(env.APP_ENV),
         __MONGO_URI__: JSON.stringify(env.VITE_MONGO_URI),
     },
+    base: '/MERN_chatai_blog/', // Remplacez 'nom_du_depot' par le nom de votre dépôt GitHub
   }
 });
