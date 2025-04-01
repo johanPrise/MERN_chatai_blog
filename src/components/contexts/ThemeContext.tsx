@@ -1,6 +1,6 @@
 "use client"
 
-import  React from "react"
+import React from "react"
 import { createContext, useState, useEffect, useContext, type ReactNode } from "react"
 
 type Theme = "light" | "dark"
@@ -10,22 +10,51 @@ interface ThemeContextType {
   toggleTheme: () => void
 }
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
+// Create context with a meaningful default value
+const ThemeContext = createContext<ThemeContextType>({
+  theme: "light",
+  toggleTheme: () => {
+    console.warn("ThemeProvider not found")
+  }
+})
 
 interface ThemeProviderProps {
   children: ReactNode
 }
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-  const [theme, setTheme] = useState<Theme>(() => {
-    const savedTheme = localStorage.getItem("theme") as Theme | null
-    return savedTheme || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
-  })
-
+  // Use a safer initialization approach that works with SSR
+  const [theme, setTheme] = useState<Theme>("light")
+  const [isInitialized, setIsInitialized] = useState(false)
+  
+  // Initialize theme after component mounts (safe for SSR)
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme)
-    localStorage.setItem("theme", theme)
-  }, [theme])
+    // Only run once on mount
+    if (!isInitialized) {
+      try {
+        const savedTheme = localStorage.getItem("theme") as Theme | null
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
+        const initialTheme = savedTheme || (prefersDark ? "dark" : "light")
+        setTheme(initialTheme)
+      } catch (error) {
+        // Fallback in case of localStorage errors
+        console.error("Error accessing localStorage:", error)
+      }
+      setIsInitialized(true)
+    }
+  }, [isInitialized])
+
+  // Update document and save theme when it changes
+  useEffect(() => {
+    if (isInitialized) {
+      document.documentElement.setAttribute("data-theme", theme)
+      try {
+        localStorage.setItem("theme", theme)
+      } catch (error) {
+        console.error("Error saving theme to localStorage:", error)
+      }
+    }
+  }, [theme, isInitialized])
 
   const toggleTheme = () => {
     setTheme((prevTheme) => (prevTheme === "light" ? "dark" : "light"))
@@ -35,10 +64,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 }
 
 export const useTheme = (): ThemeContextType => {
-  const context = useContext(ThemeContext)
-  if (context === undefined) {
-    throw new Error("useTheme must be used within a ThemeProvider")
-  }
-  return context
+  return useContext(ThemeContext)
 }
 

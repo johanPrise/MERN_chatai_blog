@@ -11,8 +11,8 @@ import {
   type SetStateAction,
 } from "react"
 
-// URL de base de l'API
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://mern-backend-neon.vercel.app";
+// URL de base de l'API - using Vite's environment variable pattern
+const API_BASE_URL = import.meta.env.VITE_API_URL || "https://mern-backend-neon.vercel.app";
 
 export type UserInfo = {
   id: string
