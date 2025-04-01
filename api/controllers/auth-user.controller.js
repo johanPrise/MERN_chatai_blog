@@ -1,4 +1,4 @@
-import { User } from '../models/User.js';
+import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { sendResetPasswordEmail } from '../services/email.service.js';
