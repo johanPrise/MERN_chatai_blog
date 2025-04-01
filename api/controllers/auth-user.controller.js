@@ -1,7 +1,7 @@
 import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
-import { sendResetPasswordEmail } from '../services/email.service.js';
+import { emailService } from '../services/email.service.js';
 import crypto from 'crypto';
 
 export const authUserController = {
@@ -94,8 +94,11 @@ export const authUserController = {
       
       await user.save();
       
+      // Generate reset URL
+      const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password/${resetToken}`;
+      
       // Send email
-      await sendResetPasswordEmail(user.email, resetToken);
+      await emailService.sendPasswordResetEmail(user.email, resetUrl);
       
       res.status(200).json({ message: 'Password reset email sent' });
     } catch (error) {
