@@ -77,6 +77,19 @@ export const authUserController = {
     }
   },
   
+  logout: async (req, res) => {
+    try {
+      // Since JWT is stateless, the client should handle token deletion
+      // Server can't invalidate tokens, but we can acknowledge the logout
+      res.status(200).json({ message: 'Logged out successfully' });
+      
+      // If using refresh tokens, you would delete them here
+      // await RefreshToken.findOneAndDelete({ user: req.user.id });
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
+  },
+  
   forgotPassword: async (req, res) => {
     try {
       const { email } = req.body;
