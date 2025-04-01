@@ -1,6 +1,6 @@
-import { Post } from '../models/Post.js';
-import { Comment } from '../models/Comments.js';
-import { Category } from '../models/categories.js';
+import Post  from '../models/Post.js';
+import  Comment  from '../models/Comments.js';
+import Category from '../models/categories.js';
 
 export const contentController = {
   // Post methods
