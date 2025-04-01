@@ -6,21 +6,16 @@ import { BrowserRouter } from "react-router-dom"
 import { DevSupport } from "@react-buddy/ide-toolbox"
 import { ComponentPreviews, useInitial } from "./dev/index.js"
 import { UserContextProvider } from "./UserContext"
-import { ThemeProvider, createTheme } from "@mui/material/styles"
+import { ThemeProvider } from "@emotion/react"
 
 // Define the theme
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#1976d2',
-    },
-    secondary: {
-      main: '#dc004e',
-    },
-    // Add more color configurations as needed
+const theme = {
+  colors: {
+    primary: '#1976d2',
+    secondary: '#dc004e',
   },
   // Add more theme configurations as needed
-});
+};
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
