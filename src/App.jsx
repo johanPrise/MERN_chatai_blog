@@ -6,7 +6,6 @@ import { Routes, Route } from "react-router-dom"
 import CreatePost from "./pages/createPost"
 import Register from "./pages/Register"
 import Login from "./pages/Login"
-import { UserContextProvider } from "./UserContext.tsx"
 import Header from "./components/header.tsx"
 import EditPost from "./pages/EditPost"
 import Chatbot from "./components/Chatbot"
@@ -24,30 +23,25 @@ import EditUsername from "./pages/ChangeUsername.tsx"
  */
 function App() {
   return (
-    <>
-      <UserContextProvider>
-        <div className="font-sans font-semibold bg-[#F8F7F4] dark:bg-blue-900 ">
-          <Header />
-          <Routes>
-            <Route index element={<Home />} />
-            <Route path="/category/:categoryId" element={<CategoryPage />} />
-            <Route path="/deleteCategory" element={<DeleteCategories />} />
-            <Route path="/create_category" element={<CreateCategory />} />{" "}
-            {/* Ajout de la route pour la création de catégorie */}
-            <Route path="/Post/:id" element={<PostPage />} />
-            <Route path="/create_post" element={<CreatePost />} />
-            <Route path="/register_page" element={<Register />} />
-            <Route path="/login_page" element={<Login />} />
-            <Route path="/forgot_password" element={<ForgotPassword />} />
-            <Route path="/reset-password/:resetToken" element={<ResetPassword />} />
-            <Route path="/edit-username" element={<EditUsername />} />
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/edit_page/:id" element={<EditPost />} />
-          </Routes>
-          <Chatbot /> {/* Ajout du composant Chatbot */}
-        </div>
-      </UserContextProvider>
-    </>
+    <div className="font-sans font-semibold bg-[#F8F7F4] dark:bg-blue-900 ">
+      <Header />
+      <Routes>
+        <Route index element={<Home />} />
+        <Route path="/category/:categoryId" element={<CategoryPage />} />
+        <Route path="/deleteCategory" element={<DeleteCategories />} />
+        <Route path="/create_category" element={<CreateCategory />} />
+        <Route path="/Post/:id" element={<PostPage />} />
+        <Route path="/create_post" element={<CreatePost />} />
+        <Route path="/register_page" element={<Register />} />
+        <Route path="/login_page" element={<Login />} />
+        <Route path="/forgot_password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:resetToken" element={<ResetPassword />} />
+        <Route path="/edit-username" element={<EditUsername />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/edit_page/:id" element={<EditPost />} />
+      </Routes>
+      <Chatbot />
+    </div>
   )
 }
 
