@@ -43,36 +43,9 @@ const configureCors = (app) => {
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
   }));
 
-  // Main CORS middleware
   app.use(cors({
-    origin: function(origin, callback) {
-      // Allow requests with no origin (like mobile apps, curl requests)
-      if (!origin) return callback(null, true);
-      
-      // Check if origin is in allowlist or matches pattern
-      const isAllowed = allowedOrigins.some(allowedOrigin => {
-        // Handle exact matches
-        if (allowedOrigin === origin) return true;
-        
-        // Handle wildcard matches
-        if (allowedOrigin.includes('*')) {
-          const pattern = new RegExp(allowedOrigin.replace('*', '.*'));
-          return pattern.test(origin);
-        }
-        
-        return false;
-      });
-      
-      if (isAllowed) {
-        callback(null, true);
-      } else {
-        console.log(`CORS blocked request from: ${origin}`);
-        callback(new Error(`Origin ${origin} not allowed by CORS`));
-      }
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Set-Cookie']
+    origin: '*',
+    credentials: true
   }));
 
   // Manual headers
