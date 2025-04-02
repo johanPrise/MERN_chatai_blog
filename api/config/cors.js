@@ -4,7 +4,8 @@ const configureCors = (app) => {
   const allowedOrigins = [
     'https://mern-chatai-blog.vercel.app',
     'http://localhost:5173',
-    'http://localhost:3000'
+    'http://localhost:3000',
+    'https://iwomi-blog.netlify.app/',
   ];
 
   // Handle OPTIONS requests globally
