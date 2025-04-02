@@ -28,7 +28,7 @@ function Login(): JSX.Element {
   const login = async (ev: FormEvent) => {
     ev.preventDefault()
     try {
-      const response = await fetch("https://mern-backend-neon.vercel.app/login", {
+      const response = await fetch("https://mern-backend-neon.vercel.app/auth/login", {
         method: "POST",
         body: JSON.stringify({ username, password }),
         headers: { "Content-Type": "application/json" },
@@ -121,7 +121,7 @@ function Login(): JSX.Element {
 export default Login
 async function checkAuth(): Promise<void> {
     try {
-        const response = await fetch("https://mern-backend-neon.vercel.app/profile", {
+        const response = await fetch("https://mern-backend-neon.vercel.app/users/profile", {
             credentials: "include",
         });
         if (!response.ok) {

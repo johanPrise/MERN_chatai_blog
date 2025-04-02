@@ -269,7 +269,7 @@ const PostPage = () => {
     const fetchData = async () => {
       setIsLoading(true)
       try {
-        const response = await fetch(`https://mern-backend-neon.vercel.app/post/${id}`)
+        const response = await fetch(`https://mern-backend-neon.vercel.app/posts/${id}`)
         const postData = await response.json()
         setPostInfo(postData)
         setLikes(postData.likes?.length || 0)
@@ -313,7 +313,7 @@ const PostPage = () => {
       return
     }
     try {
-      const response = await fetch(`https://mern-backend-neon.vercel.app/post/${id}/like`, {
+      const response = await fetch(`https://mern-backend-neon.vercel.app/posts/${id}/like`, {
         method: "POST",
         credentials: "include",
       })
@@ -335,7 +335,7 @@ const PostPage = () => {
       return
     }
     try {
-      const response = await fetch(`https://mern-backend-neon.vercel.app/post/${id}/dislike`, {
+      const response = await fetch(`https://mern-backend-neon.vercel.app/posts/${id}/dislike`, {
         method: "POST",
         credentials: "include",
       })
@@ -537,7 +537,7 @@ const PostPage = () => {
       })
 
       if (confirmDeletion) {
-        const response = await fetch(`https://mern-backend-neon.vercel.app/post/${postId}`, {
+        const response = await fetch(`https://mern-backend-neon.vercel.app/posts/${postId}`, {
           method: "DELETE",
           credentials: "include",
         })

@@ -18,6 +18,7 @@ const contentRoutes = (app) => {
   // Routes des catégories
   app.get('/categories', contentController.getAllCategories);
   app.get('/categories/:id', contentController.getCategoryById);
+  app.get('/category/:id', contentController.getCategoryById);
   app.post('/categories', authMiddleware, contentController.createCategory);
   app.put('/categories/:id', authMiddleware, contentController.updateCategory);
   app.delete('/categories/:id', authMiddleware, contentController.deleteCategory);

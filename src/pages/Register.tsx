@@ -13,7 +13,7 @@ function Register() {
 
   async function register(ev: React.FormEvent<HTMLFormElement>) {
     ev.preventDefault()
-    const response = await fetch("https://mern-backend-neon.vercel.app/register/", {
+    const response = await fetch("https://mern-backend-neon.vercel.app/auth/register/", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

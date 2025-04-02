@@ -48,7 +48,7 @@ const CreateCategory: React.FC = () => {
     ev.preventDefault()
 
     try {
-      const response = await fetch("https://mern-backend-neon.vercel.app/category", {
+      const response = await fetch("https://mern-backend-neon.vercel.app/categories", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

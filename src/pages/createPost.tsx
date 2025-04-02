@@ -125,7 +125,7 @@ const CreatePost: React.FC = () => {
 
   useEffect(() => {
     const fetchCategories = async () => {
-      const res = await fetch("https://mern-backend-neon.vercel.app/category")
+      const res = await fetch("https://mern-backend-neon.vercel.app/categories")
       const data = await res.json()
       setCategories(data)
     }

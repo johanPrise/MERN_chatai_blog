@@ -42,7 +42,7 @@ const DeleteCategories: React.FC = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch("https://mern-backend-neon.vercel.app/category")
+        const response = await fetch("https://mern-backend-neon.vercel.app/categories")
         const data = await response.json()
         setCategories(data)
       } catch (error) {
@@ -67,7 +67,7 @@ const DeleteCategories: React.FC = () => {
     try {
       await Promise.all(
         selectedCategories.map(async (categoryId) => {
-          const response = await fetch(`api/categories/${categoryId}`, {
+          const response = await fetch(`https://mern-backend-neon.vercel.app/categories/${categoryId}`, {
             method: "DELETE",
             credentials: "include", // Ajoutez cette ligne
           })

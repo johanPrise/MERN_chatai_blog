@@ -13,7 +13,7 @@ const ResetPassword = () => {
   const handleResetPassword = async (e) => {
     e.preventDefault()
     try {
-      const response = await fetch(`https://mern-backend-neon.vercel.app/reset-password/${resetToken}`, {
+      const response = await fetch(`https://mern-backend-neon.vercel.app/auth/reset-password/${resetToken}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

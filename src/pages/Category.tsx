@@ -44,12 +44,12 @@ const CategoryPage: React.FC = () => {
     const fetchData = async () => {
       try {
         // Fetch category data
-        const categoryResponse = await fetch(`https://mern-backend-neon.vercel.app/category/${categoryId}`)
+        const categoryResponse = await fetch(`https://mern-backend-neon.vercel.app/categories/${categoryId}`)
         const categoryData = await categoryResponse.json()
         setCategory(categoryData)
 
         // Fetch post data
-        const postResponse = await fetch("https://mern-backend-neon.vercel.app/post")
+        const postResponse = await fetch("https://mern-backend-neon.vercel.app/posts")
         const postData = await postResponse.json()
         setPosts(postData)
 

@@ -18,7 +18,7 @@ const EditPost: React.FC = () => {
   useEffect(() => {
     const fetchPostData = async () => {
       try {
-        const response = await fetch(`https://mern-backend-neon.vercel.app/post/${id}`)
+        const response = await fetch(`https://mern-backend-neon.vercel.app/posts/${id}`)
         const postInfo = await response.json()
         setTitle(postInfo.title)
         setSummary(postInfo.summary)
@@ -34,7 +34,7 @@ const EditPost: React.FC = () => {
   const updatePost = async (ev: FormEvent) => {
     ev.preventDefault()
     try {
-      const response = await fetch(`https://mern-backend-neon.vercel.app/post/${id}`, {
+      const response = await fetch(`https://mern-backend-neon.vercel.app/posts/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

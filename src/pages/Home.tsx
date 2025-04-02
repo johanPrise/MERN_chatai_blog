@@ -30,12 +30,12 @@ export default function Home() {
     const fetchData = async () => {
       setIsLoading(true)
       try {
-        const postsResponse = await fetch("https://mern-backend-neon.vercel.app/post")
+        const postsResponse = await fetch("https://mern-backend-neon.vercel.app/posts")
         const postsData = await postsResponse.json()
         setPosts(postsData)
         setFeaturedPosts(postsData.filter((post) => post.featured === true))
 
-        const categoriesResponse = await fetch("https://mern-backend-neon.vercel.app/category")
+        const categoriesResponse = await fetch("https://mern-backend-neon.vercel.app/categories")
         const categoriesData = await categoriesResponse.json()
         setCategories(categoriesData)
       } catch (error) {
