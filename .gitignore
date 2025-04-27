@@ -7,14 +7,34 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
+/.pnp
+.pnp.js
+
+# Build outputs
 dist
 dist-ssr
+build
 *.local
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+env.js
+
+# Testing
+/coverage
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
 .idea
 .DS_Store
 *.suo
@@ -22,6 +42,20 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-.env
-env.js
+
+# Temporary files
+.temp
+.tmp
+.cache
+
+# Debug
+.debug
+
+# Misc
 .qodo
+.vercel
+.netlify
+
+# Uploads directory (except the .gitkeep file)
+/api/uploads/*
+!/api/uploads/.gitkeep
