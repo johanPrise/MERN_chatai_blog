@@ -1,26 +1,12 @@
 import { Link } from "react-router-dom"
 import { formatISO9075 } from "date-fns"
-import { htmlToText } from "html-to-text"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card"
 import { Badge } from "./ui/badge"
 import { formatDate, getImageUrl, getOptimizedImageUrl } from "../lib/utils"
 import { CalendarIcon, User2 } from "lucide-react"
+import { Post as PostType } from '../types/PostType'
 import React from "react"
 
-type PostType = {
-  _id: string
-  title: string
-  summary: string
-  cover: string
-  author: { username: string }
-  createdAt: string | Date
-  content: string
-  category: {
-    _id: string
-    name: string
-    description?: string
-  }
-}
 
 export interface PostProps {
   post: PostType
@@ -29,12 +15,6 @@ export interface PostProps {
 
 export default function Post({ post, variant = "default" }: PostProps) {
   const { _id, title, summary, cover, author, createdAt, category } = post
-
-  // Convert HTML content to plain text
-  const plainTextContent = htmlToText(post.content, {
-    wordwrap: 130,
-    limits: { maxInputLength: 500 },
-  })
 
   if (variant === "compact") {
     return (
@@ -73,11 +53,17 @@ export default function Post({ post, variant = "default" }: PostProps) {
           <p className="line-clamp-2 text-sm text-muted-foreground">{summary}</p>
         </CardContent>
         <CardFooter className="p-4 pt-0">
-          <Link to={`/category/${category._id}`}>
-            <Badge variant="outline" className="hover:bg-primary-50 hover:text-primary-700 transition-colors">
-              {category.name}
+          {category ? (
+            <Link to={`/category/${category._id}`}>
+              <Badge variant="outline" className="hover:bg-primary-50 hover:text-primary-700 transition-colors">
+                {category.name}
+              </Badge>
+            </Link>
+          ) : (
+            <Badge variant="outline">
+              Uncategorized
             </Badge>
-          </Link>
+          )}
         </CardFooter>
       </Card>
     )
@@ -166,11 +152,17 @@ export default function Post({ post, variant = "default" }: PostProps) {
         <p className="line-clamp-3 text-muted-foreground">{summary}</p>
       </CardContent>
       <CardFooter className="p-4 pt-0 flex justify-between items-center">
-        <Link to={`/category/${category._id}`}>
-          <Badge variant="outline" className="hover:bg-primary-50 hover:text-primary-700 transition-colors">
-            {category.name}
+        {category ? (
+          <Link to={`/category/${category._id}`}>
+            <Badge variant="outline" className="hover:bg-primary-50 hover:text-primary-700 transition-colors">
+              {category.name}
+            </Badge>
+          </Link>
+        ) : (
+          <Badge variant="outline">
+            Uncategorized
           </Badge>
-        </Link>
+        )}
         <Link to={`/Post/${_id}`} className="text-primary text-sm font-medium hover:underline">
           Read more →
         </Link>

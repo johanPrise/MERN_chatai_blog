@@ -3,15 +3,9 @@
 // Fichier ES6 TSX
 import React from "react"
 import { useRef, useState, useEffect } from "react"
+import { AnimateOnViewProps } from "../types/AnimateOnViewProps"
 
-interface AnimateOnViewProps {
-  children: React.ReactNode
-  animation?: "fade" | "slide-up" | "slide-down" | "slide-left" | "slide-right" | "zoom" | "bounce"
-  duration?: number
-  delay?: number
-  threshold?: number
-  className?: string
-}
+
 
 /**
  * Function that animates the children when they come into view.

@@ -29,3 +29,14 @@ export function getOptimizedImageUrl(url: string, width = 800): string {
   return `${url}?width=${width}&quality=80&format=webp`
 }
 
+// Fonction utilitaire pour obtenir la couleur en fonction du rôle
+  export const getRoleColor = (role: string): string => {
+    switch (role) {
+      case "admin":
+        return "bg-red-100 text-red-800"
+      case "author":
+        return "bg-blue-100 text-blue-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }

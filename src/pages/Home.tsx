@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import React, { useEffect, useState, useCallback } from "react"
 import Featured from "../components/Featured"
 import Post from "../components/Post"
 import { CategoryCard2 } from "../components/category"
@@ -8,17 +8,53 @@ import AnimateOnView from "../components/AnimateOnView"
 import Pagination from "../components/pagination"
 import { Container } from "../components/ui/container"
 import { H1, H2 } from "../components/ui/typography"
-import React from "react"
+import { AlertCircle, RefreshCw } from "lucide-react"
+import { PostType } from "../types/PostType"
+import { CategoryProps } from "../types/CategoryProps"
+import { FetchStatus } from "../types/FetchStatus"
+
+// API configuration
+const API_BASE_URL = "https://mern-backend-neon.vercel.app"
+const API_ENDPOINTS = {
+  posts: `${API_BASE_URL}/posts`,
+  categories: `${API_BASE_URL}/categories`
+}
+
+// Interface for fetch state
+interface FetchState {
+  posts: {
+    status: FetchStatus
+    error: string | null
+  }
+  categories: {
+    status: FetchStatus
+    error: string | null
+  }
+}
 
 export default function Home() {
-  const [currentPage, setCurrentPage] = useState(1)
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState<number>(1)
   const postsPerPage = 6
-  const [posts, setPosts] = useState([])
-  const totalPages = Math.ceil(posts.length / postsPerPage)
-  const [categories, setCategories] = useState([])
-  const [featuredPosts, setFeaturedPosts] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
 
+  // Data state
+  const [posts, setPosts] = useState<PostType[]>([])
+  const [categories, setCategories] = useState<CategoryProps[]>([])
+  const [featuredPosts, setFeaturedPosts] = useState<PostType[]>([])
+
+  // UI state
+  const [fetchState, setFetchState] = useState<FetchState>({
+    posts: { status: "idle", error: null },
+    categories: { status: "idle", error: null }
+  })
+
+  // Derived state
+  const totalPages = Math.ceil(posts.length / postsPerPage)
+
+  /**
+   * Handle page change for pagination
+   * @param page - The page number to navigate to
+   */
   const handlePageChange = (page: number) => {
     if (page > 0 && page <= totalPages) {
       setCurrentPage(page)
@@ -26,36 +62,145 @@ export default function Home() {
     }
   }
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true)
-      try {
-        const postsResponse = await fetch("https://mern-backend-neon.vercel.app/posts")
-        const postsData = await postsResponse.json()
-        setPosts(postsData)
-        setFeaturedPosts(postsData.filter((post) => post.featured === true))
+  /**
+   * Fetch posts from the API
+   */
+  const fetchPosts = useCallback(async () => {
+    // Update fetch state to loading
+    setFetchState(prev => ({
+      ...prev,
+      posts: { status: "loading", error: null }
+    }))
 
-        const categoriesResponse = await fetch("https://mern-backend-neon.vercel.app/categories")
-        const categoriesData = await categoriesResponse.json()
-        setCategories(categoriesData)
-      } catch (error) {
-        console.error("Error fetching data:", error)
-      } finally {
-        setIsLoading(false)
+    try {
+      const response = await fetch(API_ENDPOINTS.posts)
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch posts: ${response.status}`)
       }
-    }
 
-    fetchData()
+      const data = await response.json()
+
+      // Update posts state
+      setPosts(data)
+
+      // Filter featured posts
+      const featured = data.filter((post: any) => post.featured === true)
+      setFeaturedPosts(featured)
+
+      // Update fetch state to success
+      setFetchState(prev => ({
+        ...prev,
+        posts: { status: "success", error: null }
+      }))
+    } catch (error) {
+      console.error("Error fetching posts:", error)
+
+      // Update fetch state to error
+      setFetchState(prev => ({
+        ...prev,
+        posts: {
+          status: "error",
+          error: error instanceof Error ? error.message : "Failed to fetch posts"
+        }
+      }))
+    }
   }, [])
 
-  const getRandomFeaturedPost = () => {
+  /**
+   * Fetch categories from the API
+   */
+  const fetchCategories = useCallback(async () => {
+    // Update fetch state to loading
+    setFetchState(prev => ({
+      ...prev,
+      categories: { status: "loading", error: null }
+    }))
+
+    try {
+      const response = await fetch(API_ENDPOINTS.categories)
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch categories: ${response.status}`)
+      }
+
+      const data = await response.json()
+
+      // Update categories state
+      setCategories(data)
+
+      // Update fetch state to success
+      setFetchState(prev => ({
+        ...prev,
+        categories: { status: "success", error: null }
+      }))
+    } catch (error) {
+      console.error("Error fetching categories:", error)
+
+      // Update fetch state to error
+      setFetchState(prev => ({
+        ...prev,
+        categories: {
+          status: "error",
+          error: error instanceof Error ? error.message : "Failed to fetch categories"
+        }
+      }))
+    }
+  }, [])
+
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchPosts()
+    fetchCategories()
+  }, [fetchPosts, fetchCategories])
+
+  /**
+   * Get a random featured post for the hero section
+   * @returns A random featured post or null if none available
+   */
+  const getRandomFeaturedPost = useCallback(() => {
     if (featuredPosts.length === 0) return null
     const randomIndex = Math.floor(Math.random() * featuredPosts.length)
     return featuredPosts[randomIndex]
+  }, [featuredPosts])
+
+  /**
+   * Render error message for data fetching errors
+   */
+  const renderErrorMessage = () => {
+    const postsError = fetchState.posts.error
+    const categoriesError = fetchState.categories.error
+
+    if (!postsError && !categoriesError) return null
+
+    return (
+      <div className="my-8 p-4 bg-red-50 border border-red-200 rounded-lg">
+        <div className="flex items-start">
+          <AlertCircle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
+          <div>
+            <h3 className="text-red-800 font-medium">Error loading content</h3>
+            <p className="text-red-700 text-sm mt-1">
+              {postsError || categoriesError}
+            </p>
+            <button
+              onClick={() => {
+                if (postsError) fetchPosts()
+                if (categoriesError) fetchCategories()
+              }}
+              className="mt-2 flex items-center text-sm text-red-600 hover:text-red-800"
+            >
+              <RefreshCw className="h-3 w-3 mr-1" />
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
     <main className="pb-16">
+      {/* Featured post section */}
       <section className="py-8">
         <Container>
           <AnimateOnView animation="fade">
@@ -64,8 +209,10 @@ export default function Home() {
         </Container>
       </section>
 
+      {/* Latest articles section */}
       <section className="py-8">
         <Container>
+          {/* Section header */}
           <div className="flex items-center justify-between mb-8">
             <AnimateOnView animation="slide-right">
               <H1 className="text-3xl md:text-4xl font-bold">Latest Articles</H1>
@@ -75,7 +222,11 @@ export default function Home() {
             </AnimateOnView>
           </div>
 
-          {isLoading ? (
+          {/* Error message */}
+          {fetchState.posts.error && renderErrorMessage()}
+
+          {/* Loading state or content */}
+          {fetchState.posts.status === "loading" ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {Array.from({ length: 6 }).map((_, index) => (
                 <div key={index} className="rounded-lg border bg-card animate-pulse">
@@ -89,36 +240,61 @@ export default function Home() {
                 </div>
               ))}
             </div>
-          ) : (
+          ) : fetchState.posts.status === "success" && posts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {posts.slice((currentPage - 1) * postsPerPage, currentPage * postsPerPage).map((post, index) => (
-                <AnimateOnView key={post._id} animation="slide-up" delay={index * 100}>
-                  <Post post={post} />
-                </AnimateOnView>
-              ))}
+              {posts
+                .slice((currentPage - 1) * postsPerPage, currentPage * postsPerPage)
+                .map((post, index) => (
+                  <AnimateOnView key={post._id} animation="slide-up" delay={index * 100}>
+                    <Post post={post} />
+                  </AnimateOnView>
+                ))}
+            </div>
+          ) : fetchState.posts.status === "success" && posts.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500">No posts available at the moment.</p>
+            </div>
+          ) : null}
+
+          {/* Pagination */}
+          {posts.length > postsPerPage && (
+            <div className="mt-12 flex justify-center">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                showFirstLast={true}
+              />
             </div>
           )}
-
-          <div className="mt-12 flex justify-center">
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-              showFirstLast={true}
-            />
-          </div>
         </Container>
       </section>
 
+      {/* Categories section */}
       <section className="py-8 bg-muted/30">
         <Container>
           <AnimateOnView animation="slide-up">
             <H2 className="text-2xl md:text-3xl font-bold mb-6">Browse by Category</H2>
-            <div className="flex flex-wrap gap-3">
-              {categories.map((category) => (
-                <CategoryCard2 key={category._id} category={category} />
-              ))}
-            </div>
+
+            {/* Error message */}
+            {fetchState.categories.error && renderErrorMessage()}
+
+            {/* Loading state or content */}
+            {fetchState.categories.status === "loading" ? (
+              <div className="flex flex-wrap gap-3">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <div key={index} className="h-10 w-24 bg-muted rounded-full animate-pulse"></div>
+                ))}
+              </div>
+            ) : fetchState.categories.status === "success" && categories.length > 0 ? (
+              <div className="flex flex-wrap gap-3">
+                {categories.map((category) => (
+                  <CategoryCard2 key={category._id} category={category} />
+                ))}
+              </div>
+            ) : fetchState.categories.status === "success" && categories.length === 0 ? (
+              <p className="text-gray-500">No categories available.</p>
+            ) : null}
           </AnimateOnView>
         </Container>
       </section>

@@ -2,15 +2,14 @@
 
 import ReactQuill from "react-quill"
 import React from "react"
+import { EditorProps } from "../types/EditorProps"
+
+
 
 /**
  * Editor component for text editing with specified modules and formats.
- *
- * @param {any} value - The current value of the editor.
- * @param {Function} onChange - The function to be called when the editor content changes.
- * @return {JSX.Element} The React element representing the Editor component.
  */
-export default function Editor({ value, onChange }) {
+export default function Editor({ value, onChange, className = "" }: EditorProps): React.ReactElement {
   const modules = {
     toolbar: [
       [{ header: [1, 2, false] }],
@@ -41,7 +40,7 @@ export default function Editor({ value, onChange }) {
       modules={modules}
       formats={formats}
       onChange={onChange}
-      className="h-64 p-2 border-lime-700"
+      className={`h-64 p-2 border-lime-700 ${className}`}
     />
   )
 }

@@ -6,10 +6,9 @@ import AnimateOnView from "./AnimateOnView"
 import { formatDate, getImageUrl, getOptimizedImageUrl } from "../lib/utils"
 import { CalendarIcon, User2 } from "lucide-react"
 import { Badge } from "./ui/badge"
+import { FeaturedProps } from "../types/FeaturedProps"
 
-interface FeaturedProps {
-  featured: PostType | null
-}
+
 
 const Featured: React.FC<FeaturedProps> = ({ featured }) => {
   if (!featured) return null

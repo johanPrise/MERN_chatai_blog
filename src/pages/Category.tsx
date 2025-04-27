@@ -1,77 +1,196 @@
 "use client"
 
-import  React from "react"
-import { useState, useEffect } from "react"
-import { useParams } from "react-router-dom"
-import Post, {PostProps, PostType} from "../components/Post"
+import React, { useState, useEffect, useCallback, useMemo } from "react"
+import { useParams, Link } from "react-router-dom"
+import Post from "../components/Post"
 import CategoryCard2 from "../components/category"
 import "../css/categoryPage.css"
 import AnimateOnView from "../components/AnimateOnView"
 import Pagination from "../components/pagination"
+import { CategoryProps } from "../types/CategoryProps"
+import { FetchStatus} from "../types/FetchStatus"
+import { Post as PostType } from "../types/PostType"
 
-interface CategoryProps {
-  _id: string
-  name: string
-  description?: string
+// API URLs
+const API_BASE_URL = "https://mern-backend-neon.vercel.app"
+const API_ENDPOINTS = {
+  categories: `${API_BASE_URL}/categories`,
+  category: `${API_BASE_URL}/category`,
+  posts: `${API_BASE_URL}/posts`,
 }
 
-/**
- * Renders the category page with posts and categories.
- *
- * @return {JSX.Element} The category page component.
- */
+
 const CategoryPage: React.FC = () => {
+  // State management
   const [posts, setPosts] = useState<PostType[]>([])
   const [category, setCategory] = useState<CategoryProps | null>(null)
   const [categories, setCategories] = useState<CategoryProps[]>([])
-  const { categoryId } = useParams()
+  const [status, setStatus] = useState<{
+    posts: FetchStatus
+    category: FetchStatus
+    categories: FetchStatus
+  }>({
+    posts: "idle",
+    category: "idle",
+    categories: "idle",
+  })
+  const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
+  const { categoryId } = useParams<{ categoryId: string }>()
+
   const postsPerPage = 6
-  const totalPages = Math.ceil(posts.length / postsPerPage)
 
-  const handlePageChange = (page: number) => {
-    if (page > 0 && page <= totalPages) {
-      setCurrentPage(page)
-    }
-  }
+  // Filter posts by current category
+  const filteredPosts = useMemo(() => {
+    if (!category || !posts.length) return []
+    return posts.filter((post) => post.category && post.category._id === category._id)
+  }, [posts, category])
 
+  // Calculate total pages based on filtered posts
+  const totalPages = useMemo(() => {
+    return Math.ceil(filteredPosts.length / postsPerPage)
+  }, [filteredPosts, postsPerPage])
+
+  // Reset to page 1 when category changes
   useEffect(() => {
-    /**
-     * Asynchronously fetches category, post, and category data from the API.
-     *
-     * @return {Promise<void>} A promise that resolves after fetching the data.
-     */
-    const fetchData = async () => {
-      try {
-        // Fetch category data
-        const categoryResponse = await fetch(`https://mern-backend-neon.vercel.app/categories/${categoryId}`)
-        const categoryData = await categoryResponse.json()
-        setCategory(categoryData)
-
-        // Fetch post data
-        const postResponse = await fetch("https://mern-backend-neon.vercel.app/posts")
-        const postData = await postResponse.json()
-        setPosts(postData)
-
-        // Fetch all categories
-        const categoriesResponse = await fetch("https://mern-backend-neon.vercel.app/category")
-        const categoriesData = await categoriesResponse.json()
-        setCategories(categoriesData)
-      } catch (error) {
-        console.error("Error fetching data:", error)
-      }
-    }
-
-    fetchData()
+    setCurrentPage(1)
   }, [categoryId])
 
-  if (!category) {
+  // Handle page change
+  const handlePageChange = useCallback((page: number) => {
+    if (page > 0 && page <= totalPages) {
+      setCurrentPage(page)
+      // Scroll to top of posts section
+      document.querySelector('.posts')?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [totalPages])
+
+  // Fetch category data
+  const fetchCategory = useCallback(async () => {
+    if (!categoryId) return
+
+    setStatus((prev) => ({ ...prev, category: "loading" }))
+    setError(null)
+
+    try {
+      const response = await fetch(`${API_ENDPOINTS.categories}/${categoryId}`)
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch category: ${response.status}`)
+      }
+
+      const data = await response.json()
+      setCategory(data)
+      setStatus((prev) => ({ ...prev, category: "success" }))
+    } catch (error) {
+      console.error("Error fetching category:", error)
+      setStatus((prev) => ({ ...prev, category: "error" }))
+      setError(error instanceof Error ? error.message : "Failed to load category")
+    }
+  }, [categoryId])
+
+  // Fetch posts data
+  const fetchPosts = useCallback(async () => {
+    setStatus((prev) => ({ ...prev, posts: "loading" }))
+
+    try {
+      const response = await fetch(API_ENDPOINTS.posts)
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch posts: ${response.status}`)
+      }
+
+      const data = await response.json()
+      setPosts(data)
+      setStatus((prev) => ({ ...prev, posts: "success" }))
+    } catch (error) {
+      console.error("Error fetching posts:", error)
+      setStatus((prev) => ({ ...prev, posts: "error" }))
+      setError(error instanceof Error ? error.message : "Failed to load posts")
+    }
+  }, [])
+
+  // Fetch all categories
+  const fetchCategories = useCallback(async () => {
+    setStatus((prev) => ({ ...prev, categories: "loading" }))
+
+    try {
+      const response = await fetch(API_ENDPOINTS.category)
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch categories: ${response.status}`)
+      }
+
+      const data = await response.json()
+      setCategories(data)
+      setStatus((prev) => ({ ...prev, categories: "success" }))
+    } catch (error) {
+      console.error("Error fetching categories:", error)
+      setStatus((prev) => ({ ...prev, categories: "error" }))
+    }
+  }, [])
+
+  // Fetch all data when component mounts or categoryId changes
+  useEffect(() => {
+    fetchCategory()
+    fetchPosts()
+    fetchCategories()
+  }, [categoryId, fetchCategory, fetchPosts, fetchCategories])
+
+  // Loading state
+  const isLoading = status.category === "loading" || status.posts === "loading"
+
+  // Show loading indicator while category is loading
+  if (isLoading && !category) {
     return (
-      <div className="loader mx-auto mt-8">
-        <div className="bg-green-500 h-full rounded-full animate-pulse"></div>
+      <div className="flex justify-center items-center min-h-[50vh]">
+        <div className="loader mx-auto mt-8">
+          <div className="bg-green-500 h-full rounded-full animate-pulse"></div>
+        </div>
       </div>
     )
   }
+
+  // Show error state
+  if (error && !category) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] p-4">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative max-w-md" role="alert">
+          <strong className="font-bold">Error: </strong>
+          <span className="block sm:inline">{error}</span>
+        </div>
+        <button
+          onClick={() => {
+            fetchCategory()
+            fetchPosts()
+          }}
+          className="mt-4 px-4 py-2 bg-lime-600 text-white rounded hover:bg-lime-700 transition"
+        >
+          Try Again
+        </button>
+      </div>
+    )
+  }
+
+  // If category not found
+  if (!category) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] p-4">
+        <h1 className="text-2xl font-bold text-gray-700 mb-4">Category Not Found</h1>
+        <p className="text-gray-600 mb-6">The category you're looking for doesn't exist or has been removed.</p>
+        <Link to="/" className="px-4 py-2 bg-lime-600 text-white rounded hover:bg-lime-700 transition">
+          Return to Home
+        </Link>
+      </div>
+    )
+  }
+
+  // Get current posts for pagination
+  const currentPosts = useMemo(() => {
+    const indexOfLastPost = currentPage * postsPerPage
+    const indexOfFirstPost = indexOfLastPost - postsPerPage
+    return filteredPosts.slice(indexOfFirstPost, indexOfLastPost)
+  }, [filteredPosts, currentPage, postsPerPage])
 
   return (
     <div className="dark:bg-gray-900 format format-sm sm:format-base lg:format-lg format-blue dark:format-invert antialiased p-4">
@@ -84,9 +203,10 @@ const CategoryPage: React.FC = () => {
         <nav aria-label="Breadcrumb" className="flex justify-center mb-4">
           <ol className="flex overflow-hidden rounded-md bg-lime-100 text-lime-600">
             <li className="flex items-center">
-              <a
-                href="/"
+              <Link
+                to="/"
                 className="flex h-10 items-center gap-1.5 px-4 transition hover:bg-lime-200 hover:text-lime-700"
+                aria-label="Home"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -94,6 +214,7 @@ const CategoryPage: React.FC = () => {
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
+                  aria-hidden="true"
                 >
                   <path
                     strokeLinecap="round"
@@ -103,50 +224,75 @@ const CategoryPage: React.FC = () => {
                   />
                 </svg>
                 <span className="ms-1.5 text-xs font-medium"> Home </span>
-              </a>
+              </Link>
             </li>
             <li className="relative flex items-center">
-              <span className="absolute inset-y-0 -start-px h-10 w-4 bg-lime-100 [clip-path:_polygon(0_0,_0%_100%,_100%_50%)] rtl:rotate-180"></span>
-              <a
-                href="#"
-                className="flex h-10 items-center bg-white pe-4 ps-8 text-xs font-medium transition hover:text-lime-700"
+              <span
+                className="absolute inset-y-0 -start-px h-10 w-4 bg-lime-100 [clip-path:_polygon(0_0,_0%_100%,_100%_50%)] rtl:rotate-180"
+                aria-hidden="true"
+              ></span>
+              <span
+                className="flex h-10 items-center bg-white pe-4 ps-8 text-xs font-medium transition"
               >
                 {category.name}
-              </a>
+              </span>
             </li>
           </ol>
         </nav>
       </header>
-      <div className="posts p-6 grid">
+
+      <div id="posts" className="posts p-6 grid">
         <div className="grid gap-4 gap-y-[2.75rem] grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-          {posts.length === 0 && (
-            <div className="newtons-cradle flex mx-auto mt-8">
+          {status.posts === "loading" && filteredPosts.length === 0 && (
+            <div className="newtons-cradle flex mx-auto mt-8 col-span-full">
               <div className="newtons-cradle__dot"></div>
               <div className="newtons-cradle__dot"></div>
               <div className="newtons-cradle__dot"></div>
               <div className="newtons-cradle__dot"></div>
             </div>
           )}
-          {posts
-            .filter((post) => post.category._id === category._id)
-            .slice((currentPage - 1) * postsPerPage, currentPage * postsPerPage)
-            .map((post) => (
-              <AnimateOnView key={post._id}>
-                <Post post={post} />
-              </AnimateOnView>
-            ))}
-        </div>
-      </div>
-      <div className="pagination flex justify-center mb-8">
-        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} />
-      </div>
-      <div className="Categories-container">
-        <h2 className="text-2xl font-bold mb-4">All Categories</h2>
-        <div className="flex flex-wrap gap-2">
-          {categories.map((category) => (
-            <CategoryCard2 key={category._id} categoryId={category._id} />
+
+          {status.posts === "success" && filteredPosts.length === 0 && (
+            <div className="text-center col-span-full py-8">
+              <h3 className="text-xl font-semibold text-gray-700 mb-2">No Posts Found</h3>
+              <p className="text-gray-500">There are no posts in this category yet.</p>
+            </div>
+          )}
+
+          {currentPosts.map((post) => (
+            <AnimateOnView key={post._id}>
+              <Post post={post} />
+            </AnimateOnView>
           ))}
         </div>
+      </div>
+
+      {filteredPosts.length > postsPerPage && (
+        <div className="pagination flex justify-center mb-8">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        </div>
+      )}
+
+      <div className="Categories-container">
+        <h2 className="text-2xl font-bold mb-4">All Categories</h2>
+        {status.categories === "loading" && categories.length === 0 ? (
+          <div className="flex justify-center py-4">
+            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-lime-500"></div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {categories.map((cat) => (
+              <CategoryCard2
+                key={cat._id}
+                categoryId={cat._id}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

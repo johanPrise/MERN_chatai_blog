@@ -1,16 +1,25 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { UserContext } from "../UserContext"
 import React from "react"
-interface User {
-  _id: string
-  username: string
-  email: string
-  role: "user" | "author" | "admin"
+import { User as UserType } from "../types/User"
+import { SearchAndSortControls } from "../components/SearchAndSortControls"
+import {UsersTable} from "../components/UsersTable";
+import {Pagination} from "../components/AdminPagination";
+
+// Constantes pour les URL d'API
+const API_BASE_URL = "https://mern-backend-neon.vercel.app"
+const API_ENDPOINTS = {
+  // Utiliser les routes existantes
+  checkAdmin: `${API_BASE_URL}/check-admin`, // Route spécifique pour vérifier le statut admin
+  users: `${API_BASE_URL}/users`,
+  changeRole: `${API_BASE_URL}/change-user-role` // Route pour changer le rôle d'un utilisateur
 }
+
+// Composant principal
 function AdminDashboard() {
-  const [users, setUsers] = useState<User[]>([])
+  const [users, setUsers] = useState<UserType[]>([])
   const [isAdmin, setIsAdmin] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -19,57 +28,73 @@ function AdminDashboard() {
   const [search, setSearch] = useState("")
   const [sort, setSort] = useState("username")
   const [order, setOrder] = useState("asc")
-  const { userInfo } = UserContext() // Appel comme fonction
 
-  useEffect(() => {
-    checkAdminStatus()
-  }, [userInfo])
+  // Utiliser le hook UserContext pour accéder au contexte utilisateur
+  const { userInfo } = UserContext()
 
-  useEffect(() => {
-    if (isAdmin) {
-      fetchUsers()
-    }
-  }, [isAdmin, page, search, sort, order])
-
-  const checkAdminStatus = async () => {
+  // Vérifier le statut d'administrateur en utilisant la route dédiée
+  const checkAdminStatus = useCallback(async () => {
     try {
-      const response = await fetch("https://mern-backend-neon.vercel.app/check-admin", {
+      setIsLoading(true)
+      const response = await fetch(API_ENDPOINTS.checkAdmin, {
         credentials: "include",
       })
+
+      if (!response.ok) {
+        throw new Error("Échec de la vérification du statut d'administrateur")
+      }
+
       const data = await response.json()
+
+      // La route /check-admin renvoie { isAdmin: boolean }
       setIsAdmin(data.isAdmin)
     } catch (error) {
       console.error("Error checking admin status:", error)
       setIsAdmin(false)
+      setError("Impossible de vérifier les privilèges d'administrateur")
+    } finally {
+      setIsLoading(false)
     }
-  }
+  }, [])
 
-  const fetchUsers = async () => {
+  // Récupérer la liste des utilisateurs
+  const fetchUsers = useCallback(async () => {
     setIsLoading(true)
+    setError(null)
+
     try {
-      const response = await fetch(
-        `https://mern-backend-neon.vercel.app/users?page=${page}&search=${search}&sort=${sort}&order=${order}`,
-        {
-          credentials: "include",
-        },
-      )
+      const url = new URL(API_ENDPOINTS.users)
+      url.searchParams.append("page", page.toString())
+      url.searchParams.append("search", search)
+      url.searchParams.append("sort", sort)
+      url.searchParams.append("order", order)
+
+      const response = await fetch(url.toString(), {
+        credentials: "include",
+      })
+
+      if (!response.ok) {
+        throw new Error("Échec de la récupération des utilisateurs")
+      }
+
       const data = await response.json()
       setUsers(data.users)
       setTotalPages(data.totalPages)
     } catch (error) {
       console.error("Error fetching users:", error)
-      setError("Failed to fetch users. Please try again.")
+      setError("Impossible de récupérer la liste des utilisateurs. Veuillez réessayer.")
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [page, search, sort, order])
 
-  const handleRoleChange = async (userId: string, newRole: "user" | "author" | "admin") => {
+  // Changer le rôle d'un utilisateur
+  const handleRoleChange = useCallback(async (userId: string, newRole: "user" | "author" | "admin") => {
     setIsLoading(true)
     setError(null)
 
     try {
-      const response = await fetch("https://mern-backend-neon.vercel.app/change-user-role", {
+      const response = await fetch(API_ENDPOINTS.changeRole, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -84,7 +109,12 @@ function AdminDashboard() {
         throw new Error(data.message || "Une erreur est survenue lors du changement de rôle")
       }
 
-      setUsers((prevUsers) => prevUsers.map((user) => (user._id === userId ? { ...user, role: newRole } : user)))
+      // Mise à jour de l'interface utilisateur avec les données du serveur
+      setUsers((prevUsers) =>
+        prevUsers.map((user) =>
+          user._id === userId ? { ...user, role: newRole } : user
+        )
+      )
 
       console.log(data.message)
     } catch (error) {
@@ -93,8 +123,21 @@ function AdminDashboard() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
 
+  // Vérifier le statut d'administrateur au chargement
+  useEffect(() => {
+    checkAdminStatus()
+  }, [checkAdminStatus])
+
+  // Récupérer les utilisateurs lorsque les filtres changent
+  useEffect(() => {
+    if (isAdmin) {
+      fetchUsers()
+    }
+  }, [isAdmin, fetchUsers])
+
+  // Afficher un message si l'utilisateur n'est pas administrateur
   if (!userInfo || !isAdmin) {
     return (
       <div className="mx-auto max-w-screen-xl px-4 py-16 sm:px-6 lg:px-8">
@@ -113,95 +156,35 @@ function AdminDashboard() {
       <div className="mx-auto max-w-4xl">
         <h1 className="text-center text-3xl font-bold text-indigo-600 mb-8">Tableau de Bord Administrateur</h1>
 
-        <div className="mb-6 flex justify-between items-center">
-          <input
-            type="text"
-            placeholder="Rechercher un utilisateur..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="px-4 py-2 border rounded-md w-64"
-          />
-          <div>
-            <select value={sort} onChange={(e) => setSort(e.target.value)} className="px-4 py-2 border rounded-md mr-2">
-              <option value="username">Nom d'utilisateur</option>
-              <option value="email">Email</option>
-              <option value="role">Rôle</option>
-            </select>
-            <button
-              onClick={() => setOrder(order === "asc" ? "desc" : "asc")}
-              className="px-4 py-2 bg-gray-200 rounded-md"
-            >
-              {order === "asc" ? "↑" : "↓"}
-            </button>
-          </div>
-        </div>
+        <SearchAndSortControls
+          search={search}
+          setSearch={setSearch}
+          sort={sort}
+          setSort={setSort}
+          order={order}
+          setOrder={setOrder}
+        />
 
         {isLoading ? (
-          <p className="text-center">Chargement des utilisateurs...</p>
-        ) : error ? (
-          <p className="text-center text-red-500">{error}</p>
-        ) : (
-          <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Nom d'utilisateur
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Email
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Rôle
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {users.map((user: User) => (
-                  <tr key={user._id}>
-                    <td className="px-6 py-4 whitespace-nowrap">{user.username}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{user.email}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{user.role}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <select
-                        value={user.role}
-                        onChange={(e) => handleRoleChange(user._id, e.target.value as "user" | "author" | "admin")}
-                        className="px-2 py-1 border rounded-md"
-                      >
-                        <option value="user">Utilisateur</option>
-                        <option value="author">Auteur</option>
-                        <option value="admin">Administrateur</option>
-                      </select>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="flex justify-center items-center py-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
           </div>
+        ) : error ? (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+            <strong className="font-bold">Erreur: </strong>
+            <span className="block sm:inline">{error}</span>
+          </div>
+        ) : users.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            Aucun utilisateur trouvé.
+          </div>
+        ) : (
+          <UsersTable users={users} onRoleChange={handleRoleChange} />
         )}
 
-        <div className="mt-6 flex justify-center items-center">
-          <button
-            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-            disabled={page === 1}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-md mr-2 disabled:bg-gray-400"
-          >
-            Précédent
-          </button>
-          <span className="mx-4">
-            Page {page} sur {totalPages}
-          </span>
-          <button
-            onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-            disabled={page === totalPages}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-md ml-2 disabled:bg-gray-400"
-          >
-            Suivant
-          </button>
-        </div>
+        {!isLoading && !error && users.length > 0 && (
+          <Pagination page={page} totalPages={totalPages} setPage={setPage} />
+        )}
       </div>
     </div>
   )

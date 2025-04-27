@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 import { useParams, Link } from "react-router-dom"
 import { UserContext } from "../UserContext"
 import ConfirmationModal from "../components/ConfirmationModal"
@@ -9,64 +9,93 @@ import { Button } from "../components/ui/button"
 import { Badge } from "../components/ui/badge"
 import { H1, H2, P } from "../components/ui/typography"
 import { formatDate } from "../lib/utils"
-import { CalendarIcon, User2, MessageCircle, Edit, Trash2, Reply, Heart, ThumbsDown } from "lucide-react"
+import {
+  CalendarIcon, User2, MessageCircle, Edit, Trash2,
+  Reply, Heart, ThumbsDown, AlertCircle, CheckCircle
+} from "lucide-react"
 import AnimateOnView from "../components/AnimateOnView"
-import React from "react"
+import { ActionStatus } from "../types/Action"
+import { Post, Comment } from "../types/PostType"
 
-interface Comment {
-  _id: string
-  author: {
-    username: string
-    _id: string
-  }
-  content: string
-  createdAt: string
-  likes: string[]
-  dislikes: string[]
-  replies?: Comment[]
+// Action states
+interface ActionState {
+  status: ActionStatus
+  error: string | null
 }
 
+interface CommentActionStates {
+  [commentId: string]: ActionState
+}
+
+// API configuration
+const API_BASE_URL = "https://mern-backend-neon.vercel.app"
+const API_ENDPOINTS = {
+  posts: `${API_BASE_URL}/posts`,
+  comments: `${API_BASE_URL}/comments`,
+  comment: `${API_BASE_URL}/comment`
+}
+
+
 const PostPage = () => {
-  interface Post {
-    _id: string;
-    cover: string;
-    category?: { name: string } | null;
-    createdAt: string;
-    title: string;
-    summary: string;
-    content: string;
-    likes: string[];
-    dislikes: string[];
-    author: { _id: string; username: string };
-  }
-  
+  // Post and comments state
   const [postInfo, setPostInfo] = useState<Post | null>(null)
   const [comments, setComments] = useState<Comment[]>([])
+
+  // Comment form state
   const [newComment, setNewComment] = useState("")
-  const [replyingTo, setReplyingTo] = useState(null)
-  const [confirmModalIsOpen, setConfirmModalIsOpen] = useState(false)
-  const [editingComment, setEditingComment] = useState(null)
+  const [replyingTo, setReplyingTo] = useState<string | null>(null)
+  const [editingComment, setEditingComment] = useState<string | null>(null)
   const [editedContent, setEditedContent] = useState("")
+
+  // Post interaction state
   const [likes, setLikes] = useState(0)
   const [dislikes, setDislikes] = useState(0)
   const [userLiked, setUserLiked] = useState(false)
   const [userDisliked, setUserDisliked] = useState(false)
-  const [confirmModalOnConfirm, setConfirmModalOnConfirm] = useState(() => () => {})
-  const [isLoading, setIsLoading] = useState(true)
-  const { userInfo } = UserContext()
-  const { id } = useParams()
 
-  const fetchComments = async () => {
+  // UI state
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false)
+  const [commentActionStates, setCommentActionStates] = useState<CommentActionStates>({})
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  // Confirmation modal state
+  const [confirmModalIsOpen, setConfirmModalIsOpen] = useState(false)
+  const [confirmModalOnConfirm, setConfirmModalOnConfirm] = useState(() => () => {})
+
+  // Context and params
+  const { userInfo } = UserContext()
+  const { id } = useParams<{ id: string }>()
+
+  /**
+   * Fetch comments for the current post
+   */
+  const fetchComments = useCallback(async () => {
+    if (!id) return
+
     try {
-      const response = await fetch(`https://mern-backend-neon.vercel.app/comments/${id}`)
+      setErrorMessage(null)
+      const response = await fetch(`${API_ENDPOINTS.comments}/${id}`)
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch comments: ${response.status}`)
+      }
+
       const fetchedComments: Comment[] = await response.json()
       setComments(fetchedComments)
     } catch (error) {
       console.error("Error fetching comments:", error)
+      setErrorMessage(error instanceof Error ? error.message : "Failed to fetch comments")
     }
-  }
+  }, [id])
 
-  const formatContent = (content) => {
+  /**
+   * Format HTML content with enhanced styling
+   * @param content - HTML content to format
+   * @returns Formatted HTML string
+   */
+  const formatContent = (content: string): string => {
     const parser = new DOMParser()
     const doc = parser.parseFromString(content, "text/html")
 
@@ -82,11 +111,11 @@ const PostPage = () => {
 
     // Enhance headings
     doc.querySelectorAll("h1, h2, h3, h4, h5, h6").forEach((heading) => {
-      const element = heading as HTMLElement;
-      element.style.marginTop = "2rem";
-      element.style.marginBottom = "1rem";
-      element.style.fontWeight = "600";
-      element.style.lineHeight = "1.25";
+      const element = heading as HTMLElement
+      element.style.marginTop = "2rem"
+      element.style.marginBottom = "1rem"
+      element.style.fontWeight = "600"
+      element.style.lineHeight = "1.25"
     })
 
     // Enhance paragraphs
@@ -114,61 +143,118 @@ const PostPage = () => {
     return doc.body.innerHTML
   }
 
+  /**
+   * Update comment action state
+   * @param commentId - ID of the comment
+   * @param status - New status
+   * @param error - Error message (if any)
+   */
+  const updateCommentActionState = (commentId: string, status: ActionStatus, error: string | null = null) => {
+    setCommentActionStates(prev => ({
+      ...prev,
+      [commentId]: { status, error }
+    }))
+  }
+
+  /**
+   * Like a comment
+   * @param commentId - ID of the comment to like
+   */
   const handleLikeComment = async (commentId: string) => {
     if (!userInfo) {
-      alert("You must be logged in to like a comment")
+      setErrorMessage("You must be logged in to like a comment")
       return
     }
+
+    updateCommentActionState(commentId, "loading")
+
     try {
-      const response = await fetch(`https://mern-backend-neon.vercel.app/comment/${commentId}/like`, {
+      const response = await fetch(`${API_ENDPOINTS.comment}/${commentId}/like`, {
         method: "POST",
         credentials: "include",
       })
-      if (response.ok) {
-        const data = await response.json()
-        setComments(
-          comments.map((comment) =>
-            comment._id === commentId ? { ...comment, likes: data.likes, dislikes: data.dislikes } : comment,
-          ),
-        )
+
+      if (!response.ok) {
+        throw new Error(`Failed to like comment: ${response.status}`)
       }
+
+      const data = await response.json()
+
+      setComments(
+        comments.map((comment) =>
+          comment._id === commentId ? { ...comment, likes: data.likes, dislikes: data.dislikes } : comment,
+        ),
+      )
+
+      updateCommentActionState(commentId, "success")
+      setSuccessMessage("Comment liked successfully")
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccessMessage(null), 3000)
     } catch (error) {
       console.error("Error liking comment:", error)
+      updateCommentActionState(commentId, "error", error instanceof Error ? error.message : "Failed to like comment")
+      setErrorMessage(error instanceof Error ? error.message : "Failed to like comment")
     }
   }
 
+  /**
+   * Dislike a comment
+   * @param commentId - ID of the comment to dislike
+   */
   const handleDislikeComment = async (commentId: string) => {
     if (!userInfo) {
-      alert("You must be logged in to dislike a comment")
+      setErrorMessage("You must be logged in to dislike a comment")
       return
     }
+
+    updateCommentActionState(commentId, "loading")
+
     try {
-      const response = await fetch(`https://mern-backend-neon.vercel.app/comment/${commentId}/dislike`, {
+      const response = await fetch(`${API_ENDPOINTS.comment}/${commentId}/dislike`, {
         method: "POST",
         credentials: "include",
       })
-      if (response.ok) {
-        const data = await response.json()
-        setComments(
-          comments.map((comment) =>
-            comment._id === commentId ? { ...comment, likes: data.likes, dislikes: data.dislikes } : comment,
-          ),
-        )
+
+      if (!response.ok) {
+        throw new Error(`Failed to dislike comment: ${response.status}`)
       }
+
+      const data = await response.json()
+
+      setComments(
+        comments.map((comment) =>
+          comment._id === commentId ? { ...comment, likes: data.likes, dislikes: data.dislikes } : comment,
+        ),
+      )
+
+      updateCommentActionState(commentId, "success")
     } catch (error) {
       console.error("Error disliking comment:", error)
+      updateCommentActionState(commentId, "error", error instanceof Error ? error.message : "Failed to dislike comment")
+      setErrorMessage(error instanceof Error ? error.message : "Failed to dislike comment")
     }
   }
 
-  const handleEditComment = (commentId) => {
+  /**
+   * Set a comment for editing
+   * @param commentId - ID of the comment to edit
+   */
+  const handleEditComment = (commentId: string) => {
     const comment = comments.find((c) => c._id === commentId)
     setEditingComment(commentId)
     setEditedContent(comment ? comment.content : "")
   }
 
-  const handleUpdateComment = async (commentId) => {
+  /**
+   * Update a comment
+   * @param commentId - ID of the comment to update
+   */
+  const handleUpdateComment = async (commentId: string) => {
+    updateCommentActionState(commentId, "loading")
+
     try {
-      const response = await fetch(`https://mern-backend-neon.vercel.app/comment/${commentId}`, {
+      const response = await fetch(`${API_ENDPOINTS.comment}/${commentId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -176,42 +262,83 @@ const PostPage = () => {
         body: JSON.stringify({ content: editedContent }),
         credentials: "include",
       })
-      if (response.ok) {
-        fetchComments()
-        setEditingComment(null)
-      } else {
-        alert("Failed to update comment")
+
+      if (!response.ok) {
+        throw new Error(`Failed to update comment: ${response.status}`)
       }
+
+      await fetchComments()
+      setEditingComment(null)
+      updateCommentActionState(commentId, "success")
+      setSuccessMessage("Comment updated successfully")
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccessMessage(null), 3000)
     } catch (error) {
       console.error("Error updating comment:", error)
+      updateCommentActionState(commentId, "error", error instanceof Error ? error.message : "Failed to update comment")
+      setErrorMessage(error instanceof Error ? error.message : "Failed to update comment")
     }
   }
 
-  const handleDeleteComment = async (commentId) => {
-    if (window.confirm("Are you sure you want to delete this comment?")) {
+  /**
+   * Delete a comment
+   * @param commentId - ID of the comment to delete
+   */
+  const handleDeleteComment = async (commentId: string) => {
+    // Use the confirmation modal instead of window.confirm
+    setConfirmModalIsOpen(true)
+    setConfirmModalOnConfirm(() => async () => {
+      updateCommentActionState(commentId, "loading")
+
       try {
-        const response = await fetch(`api/comment/${commentId}`, {
+        // Fix the incorrect URL
+        const response = await fetch(`${API_ENDPOINTS.comment}/${commentId}`, {
           method: "DELETE",
           credentials: "include",
         })
-        if (response.ok) {
-          fetchComments()
-        } else {
-          alert("Failed to delete comment")
+
+        if (!response.ok) {
+          throw new Error(`Failed to delete comment: ${response.status}`)
         }
+
+        await fetchComments()
+        updateCommentActionState(commentId, "success")
+        setSuccessMessage("Comment deleted successfully")
+
+        // Clear success message after 3 seconds
+        setTimeout(() => setSuccessMessage(null), 3000)
       } catch (error) {
         console.error("Error deleting comment:", error)
+        updateCommentActionState(commentId, "error", error instanceof Error ? error.message : "Failed to delete comment")
+        setErrorMessage(error instanceof Error ? error.message : "Failed to delete comment")
+      } finally {
+        setConfirmModalIsOpen(false)
       }
-    }
+    })
   }
 
-  const handleReply = async (parentId, content) => {
+  /**
+   * Reply to a comment
+   * @param parentId - ID of the parent comment
+   * @param content - Content of the reply
+   */
+  const handleReply = async (parentId: string, content: string) => {
     if (!userInfo) {
-      alert("You must be logged in to reply")
+      setErrorMessage("You must be logged in to reply")
       return
     }
+
+    if (!content.trim()) {
+      setErrorMessage("Reply cannot be empty")
+      return
+    }
+
+    updateCommentActionState(parentId, "loading")
+    setIsSubmittingComment(true)
+
     try {
-      const response = await fetch("https://mern-backend-neon.vercel.app/comment", {
+      const response = await fetch(API_ENDPOINTS.comment, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -223,22 +350,50 @@ const PostPage = () => {
         }),
         credentials: "include",
       })
-      if (response.ok) {
-        fetchComments()
-        setNewComment("")
-        setReplyingTo(null)
-      } else {
-        alert("Failed to post reply")
+
+      if (!response.ok) {
+        throw new Error(`Failed to post reply: ${response.status}`)
       }
+
+      await fetchComments()
+      setNewComment("")
+      setReplyingTo(null)
+      updateCommentActionState(parentId, "success")
+      setSuccessMessage("Reply posted successfully")
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccessMessage(null), 3000)
     } catch (error) {
       console.error("Error posting reply:", error)
+      updateCommentActionState(parentId, "error", error instanceof Error ? error.message : "Failed to post reply")
+      setErrorMessage(error instanceof Error ? error.message : "Failed to post reply")
+    } finally {
+      setIsSubmittingComment(false)
     }
   }
 
-  const handleCommentSubmit = async (e, parentId = null) => {
+  /**
+   * Submit a new comment
+   * @param e - Form event
+   * @param parentId - ID of the parent comment (if replying)
+   */
+  const handleCommentSubmit = async (e: React.FormEvent, parentId: string | null = null) => {
     e.preventDefault()
+
+    if (!userInfo) {
+      setErrorMessage("You must be logged in to comment")
+      return
+    }
+
+    if (!newComment.trim()) {
+      setErrorMessage("Comment cannot be empty")
+      return
+    }
+
+    setIsSubmittingComment(true)
+
     try {
-      const response = await fetch("https://mern-backend-neon.vercel.app/comment", {
+      const response = await fetch(API_ENDPOINTS.comment, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -251,17 +406,24 @@ const PostPage = () => {
         }),
         credentials: "include",
       })
-      if (response.ok) {
-        setNewComment("")
-        setReplyingTo(null)
-        fetchComments()
-      } else {
+
+      if (!response.ok) {
         const data = await response.json()
-        alert(data.message || "Failed to post comment")
+        throw new Error(data.message || "Failed to post comment")
       }
+
+      setNewComment("")
+      setReplyingTo(null)
+      await fetchComments()
+      setSuccessMessage("Comment posted successfully")
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccessMessage(null), 3000)
     } catch (error) {
       console.error("Error posting comment:", error)
-      alert("An error occurred while posting your comment")
+      setErrorMessage(error instanceof Error ? error.message : "An error occurred while posting your comment")
+    } finally {
+      setIsSubmittingComment(false)
     }
   }
 
@@ -351,7 +513,11 @@ const PostPage = () => {
     }
   }
 
-  const scrollToComment = (commentId) => {
+  /**
+   * Scroll to a specific comment and highlight it
+   * @param commentId - ID of the comment to scroll to
+   */
+  const scrollToComment = (commentId: string): void => {
     const element = document.getElementById(`comment-${commentId}`)
     if (element) {
       element.scrollIntoView({ behavior: "smooth" })
@@ -362,8 +528,14 @@ const PostPage = () => {
     }
   }
 
-  const renderComments = (comments, depth = 0, parentId = null) => {
-    return comments.map((comment) => (
+  /**
+   * Render comments recursively with proper indentation
+   * @param comments - Array of comments to render
+   * @param depth - Current depth level for indentation
+   * @param parentId - ID of the parent comment (if any)
+   */
+  const renderComments = (comments: Comment[], depth = 0, parentId: string | null = null) => {
+    return comments.map((comment: Comment) => (
       <div
         key={comment._id}
         id={`comment-${comment._id}`}
@@ -428,14 +600,14 @@ const PostPage = () => {
             <div className="flex items-center space-x-4 mt-3">
               <button
                 onClick={() => handleLikeComment(comment._id)}
-                className={`flex items-center space-x-1 text-sm ${comment.likes.includes(userInfo?.id) ? "text-primary" : "text-muted-foreground"} hover:text-primary transition-colors`}
+                className={`flex items-center space-x-1 text-sm ${userInfo?.id && comment.likes.includes(userInfo.id) ? "text-primary" : "text-muted-foreground"} hover:text-primary transition-colors`}
               >
                 <Heart className="h-4 w-4" />
                 <span>{comment.likes.length}</span>
               </button>
               <button
                 onClick={() => handleDislikeComment(comment._id)}
-                className={`flex items-center space-x-1 text-sm ${comment.dislikes.includes(userInfo?.id) ? "text-destructive" : "text-muted-foreground"} hover:text-destructive transition-colors`}
+                className={`flex items-center space-x-1 text-sm ${userInfo?.id && comment.dislikes.includes(userInfo.id) ? "text-destructive" : "text-muted-foreground"} hover:text-destructive transition-colors`}
               >
                 <ThumbsDown className="h-4 w-4" />
                 <span>{comment.dislikes.length}</span>
@@ -526,10 +698,17 @@ const PostPage = () => {
   const username = userInfo?.username
   const userId = userInfo?.id
 
-  async function deletePost(postId) {
+  /**
+   * Delete a post with confirmation
+   * @param postId - ID of the post to delete
+   */
+  async function deletePost(postId: string): Promise<void> {
     try {
+      // Show confirmation modal
       setConfirmModalIsOpen(true)
-      const confirmDeletion = await new Promise((resolve) => {
+
+      // Wait for user confirmation
+      const confirmDeletion = await new Promise<boolean>((resolve) => {
         setConfirmModalOnConfirm(() => {
           resolve(true)
           setConfirmModalIsOpen(false)
@@ -537,35 +716,93 @@ const PostPage = () => {
       })
 
       if (confirmDeletion) {
-        const response = await fetch(`https://mern-backend-neon.vercel.app/posts/${postId}`, {
+        // Show loading state
+        setIsSubmittingComment(true)
+
+        const response = await fetch(`${API_ENDPOINTS.posts}/${postId}`, {
           method: "DELETE",
           credentials: "include",
         })
 
-        if (response.ok) {
-          console.log("Post deleted successfully")
-          alert("Post deleted successfully")
-          window.location.href = "/"
-        } else {
-          console.error("Error deleting post")
+        if (!response.ok) {
+          throw new Error(`Failed to delete post: ${response.status}`)
         }
+
+        setSuccessMessage("Post deleted successfully")
+
+        // Redirect to home page after a short delay
+        setTimeout(() => {
+          window.location.href = "/"
+        }, 1500)
       }
     } catch (error) {
-      console.error(error)
+      console.error("Error deleting post:", error)
+      setErrorMessage(error instanceof Error ? error.message : "Failed to delete post")
+    } finally {
+      setIsSubmittingComment(false)
     }
   }
 
-  const formatImagePath = (path) => {
+  /**
+   * Format image path to handle both relative and absolute URLs
+   * @param path - Image path
+   * @returns Formatted image URL
+   */
+  const formatImagePath = (path: string): string => {
     if (path.startsWith("http")) {
       return path
     }
-    return `https://mern-backend-neon.vercel.app/${path.replace(/\\/g, "/")}`
+    return `${API_BASE_URL}/${path.replace(/\\/g, "/")}`
   }
+
+  // Render error message
+  const renderErrorMessage = () => {
+    if (!errorMessage) return null;
+
+    return (
+      <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start">
+        <AlertCircle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="text-red-800 text-sm font-medium">{errorMessage}</p>
+          <button
+            onClick={() => setErrorMessage(null)}
+            className="text-xs text-red-600 hover:text-red-800 mt-1"
+          >
+            Dismiss
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // Render success message
+  const renderSuccessMessage = () => {
+    if (!successMessage) return null;
+
+    return (
+      <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md flex items-start">
+        <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="text-green-800 text-sm font-medium">{successMessage}</p>
+          <button
+            onClick={() => setSuccessMessage(null)}
+            className="text-xs text-green-600 hover:text-green-800 mt-1"
+          >
+            Dismiss
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <main className="py-10">
       <Container>
         <article className="max-w-3xl mx-auto">
+          {/* Error and success messages */}
+          {renderErrorMessage()}
+          {renderSuccessMessage()}
+
           <AnimateOnView animation="fade">
             <div className="mb-8">
               <div className="relative w-full h-[400px] bg-cover bg-center rounded-xl overflow-hidden">

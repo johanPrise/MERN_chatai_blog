@@ -26,7 +26,7 @@ const Header = () => {
   const [isMenuOpen, setMenuOpen] = useState(false)
   const [isDropdownOpen, setDropdownOpen] = useState(false)
   const [isAccountDropdownOpen, setAccountDropdownOpen] = useState(false)
-  const [categories, setCategories] = useState([])
+  const [categories, setCategories] = useState<{ _id: string; name: string }[]>([])
   const [isScrolled, setIsScrolled] = useState(false)
   const navigate = useNavigate()
 

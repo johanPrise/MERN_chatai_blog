@@ -4,18 +4,8 @@ import React from "react"
 import { useState } from "react"
 import { Button } from "./ui/button"
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
+import { PaginationProps } from "../types/PaginationProps"
 
-type PaginationProps = {
-  currentPage: number
-  totalPages: number
-  onPageChange: (page: number) => void
-  pageSize?: number
-  totalItems?: number
-  showFirstLast?: boolean
-  showPageSize?: boolean
-  pageSizeOptions?: number[]
-  onPageSizeChange?: (pageSize: number) => void
-}
 
 const Pagination: React.FC<PaginationProps> = ({
   currentPage,

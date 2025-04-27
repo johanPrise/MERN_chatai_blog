@@ -4,12 +4,9 @@ import { Link } from "react-router-dom"
 import { Badge } from "./ui/badge"
 import { Folder } from "lucide-react"
 import React from "react"
+import { CategoryProps } from "../types/CategoryProps"
 
-interface CategoryProps {
-  name: string
-  description?: string
-  _id: string
-}
+
 
 const CategoryCard = ({ categoryId }: { categoryId: string }) => {
   const [categoryData, setCategoryData] = useState<CategoryProps | null>(null)

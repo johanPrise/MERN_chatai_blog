@@ -2,12 +2,9 @@
 
 import  React from "react"
 import Modal from "react-modal"
+import { ConfirmationModalProps } from "../types/ConfirmationModalProps"
 
-interface ConfirmationModalProps {
-  isOpen: boolean
-  onRequestClose: () => void
-  onConfirm: () => void
-}
+
 
 /**
  * Renders a confirmation modal for deleting a post.

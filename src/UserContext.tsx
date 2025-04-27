@@ -11,6 +11,13 @@ import {
   type SetStateAction,
 } from "react"
 
+// Déclaration de module pour étendre le type ImportMeta de Vite
+declare global {
+  interface ImportMeta {
+    env: Record<string, string | undefined>
+  }
+}
+
 // URL de base de l'API - using Vite's environment variable pattern
 const API_BASE_URL = import.meta.env.VITE_API_URL || "https://mern-backend-neon.vercel.app";
 
@@ -43,11 +50,14 @@ export const UserContextProvider = ({ children }: { children: ReactNode }) => {
   const [userInfo, setUserInfo] = useState<UserInfo>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
 
-  // Fonction pour vérifier l'authentification de l'utilisateur
+  /**
+   * Fonction pour vérifier l'authentification de l'utilisateur
+   * @returns Promise<boolean> - true si l'utilisateur est authentifié, false sinon
+   */
   const checkAuth = async (): Promise<boolean> => {
     try {
       setIsLoading(true)
-      const res = await fetch(`${API_BASE_URL}/verify-session`, {
+      const res = await fetch(`${API_BASE_URL}/users/profile`, {
         method: "GET",
         credentials: "include",
         headers: {
@@ -57,14 +67,44 @@ export const UserContextProvider = ({ children }: { children: ReactNode }) => {
 
       if (res.ok) {
         const userData = await res.json()
-        setUserInfo(userData)
+
+        if (!userData || !userData._id) {
+          console.error("Auth check error: Invalid user data received from server")
+          setUserInfo(null)
+          return false
+        }
+
+        // Mettre à jour les informations utilisateur
+        setUserInfo({
+          id: userData._id,
+          username: userData.username,
+          role: userData.role,
+        })
+
         return true
       } else {
+        // Si le statut est 401 ou 403, l'utilisateur n'est pas authentifié
+        if (res.status === 401 || res.status === 403) {
+          setUserInfo(null)
+          return false
+        }
+
+        // Pour les autres erreurs, on log le problème
+        let errorMessage = "Authentication check failed"
+
+        try {
+          const errorData = await res.json()
+          errorMessage = errorData.message || errorMessage
+        } catch (e) {
+          // Si la réponse n'est pas du JSON valide, on utilise le message par défaut
+        }
+
+        console.error(`Auth check failed (${res.status}): ${errorMessage}`)
         setUserInfo(null)
         return false
       }
     } catch (error) {
-      console.error("Session verification failed:", error)
+      console.error("Session verification failed:", error instanceof Error ? error.message : String(error))
       setUserInfo(null)
       return false
     } finally {
@@ -72,11 +112,21 @@ export const UserContextProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
-  // Fonction de connexion
+  /**
+   * Fonction de connexion utilisateur
+   * @param username - Nom d'utilisateur
+   * @param password - Mot de passe
+   * @returns Promise<boolean> - true si la connexion a réussi, false sinon
+   */
   const login = async (username: string, password: string): Promise<boolean> => {
+    if (!username || !password) {
+      console.error("Login error: Username and password are required")
+      return false
+    }
+
     try {
       setIsLoading(true)
-      const res = await fetch(`${API_BASE_URL}/login`, {
+      const res = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -87,30 +137,48 @@ export const UserContextProvider = ({ children }: { children: ReactNode }) => {
 
       if (res.ok) {
         const userData = await res.json()
+
+        if (!userData || !userData._id) {
+          console.error("Login error: Invalid user data received from server")
+          return false
+        }
+
         setUserInfo({
           id: userData._id,
           username: userData.username,
           role: userData.role,
         })
+
         return true
       } else {
-        const errorData = await res.json()
-        console.error("Login failed:", errorData)
+        let errorMessage = "Login failed"
+
+        try {
+          const errorData = await res.json()
+          errorMessage = errorData.message || errorMessage
+        } catch (e) {
+          // Si la réponse n'est pas du JSON valide, on utilise le message par défaut
+        }
+
+        console.error(`Login failed (${res.status}): ${errorMessage}`)
         return false
       }
     } catch (error) {
-      console.error("Login error:", error)
+      console.error("Login error:", error instanceof Error ? error.message : String(error))
       return false
     } finally {
       setIsLoading(false)
     }
   }
 
-  // Fonction de déconnexion
+  /**
+   * Fonction de déconnexion utilisateur
+   * @returns Promise<void>
+   */
   const logout = async (): Promise<void> => {
     try {
       setIsLoading(true)
-      const res = await fetch(`${API_BASE_URL}/logout`, {
+      const res = await fetch(`${API_BASE_URL}/auth/logout`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -119,12 +187,31 @@ export const UserContextProvider = ({ children }: { children: ReactNode }) => {
       })
 
       if (res.ok) {
+        // Déconnexion réussie, on efface les infos utilisateur
         setUserInfo(null)
+
+        // Effacer les données locales si nécessaire
+        // localStorage.removeItem('some-user-data')
       } else {
-        console.error("Logout failed")
+        let errorMessage = "Logout failed"
+
+        try {
+          const errorData = await res.json()
+          errorMessage = errorData.message || errorMessage
+        } catch (e) {
+          // Si la réponse n'est pas du JSON valide, on utilise le message par défaut
+        }
+
+        console.error(`Logout failed (${res.status}): ${errorMessage}`)
+
+        // Même en cas d'échec de l'API, on déconnecte l'utilisateur localement
+        setUserInfo(null)
       }
     } catch (error) {
-      console.error("Logout error:", error)
+      console.error("Logout error:", error instanceof Error ? error.message : String(error))
+
+      // Même en cas d'erreur, on déconnecte l'utilisateur localement
+      setUserInfo(null)
     } finally {
       setIsLoading(false)
     }
@@ -146,13 +233,13 @@ export const UserContextProvider = ({ children }: { children: ReactNode }) => {
   }, [userInfo?.id]) // Dépendance sur userInfo.id pour éviter des boucles infinies
 
   return (
-    <UserContextScheme.Provider value={{ 
-      userInfo, 
-      setUserInfo, 
-      checkAuth, 
-      login, 
-      logout, 
-      isLoading 
+    <UserContextScheme.Provider value={{
+      userInfo,
+      setUserInfo,
+      checkAuth,
+      login,
+      logout,
+      isLoading
     }}>
       {children}
     </UserContextScheme.Provider>
@@ -160,7 +247,19 @@ export const UserContextProvider = ({ children }: { children: ReactNode }) => {
 }
 
 // Export du contexte avec typage explicite
+/**
+ * Hook pour accéder au contexte utilisateur
+ * @returns Le contexte utilisateur typé
+ * @throws {Error} Si utilisé en dehors d'un UserContextProvider
+ */
 export const UserContext = (): UserContextType => {
-  return useContext(UserContextScheme)
+  const context = useContext(UserContextScheme)
+
+  // Vérification que le hook est utilisé dans un Provider
+  if (context === undefined) {
+    throw new Error('UserContext doit être utilisé à l\'intérieur d\'un UserContextProvider')
+  }
+
+  return context
 }
 

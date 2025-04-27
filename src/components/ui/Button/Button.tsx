@@ -1,6 +1,7 @@
 import React from "react"
 import type { ButtonHTMLAttributes, ReactNode } from "react"
-import styled, { css } from "styled-components"
+import styled from "@emotion/styled"
+import { css } from "@emotion/react"
 
 type ButtonVariant = "contained" | "outlined" | "text"
 type ButtonSize = "small" | "medium" | "large"
@@ -15,7 +16,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   to?: string
 }
 
-const ButtonBase = css<ButtonProps>`
+const ButtonBase = css`
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -27,13 +28,7 @@ const ButtonBase = css<ButtonProps>`
   cursor: pointer;
   outline: none;
   border: none;
-  
-  ${(props) =>
-    props.fullWidth &&
-    css`
-    width: 100%;
-  `}
-  
+
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
@@ -59,12 +54,12 @@ const variantStyles = {
   contained: css`
     background-color: var(--color-primary);
     color: white;
-    
+
     &:hover:not(:disabled) {
       background-color: var(--color-primary-dark);
       transform: translateY(-1px);
     }
-    
+
     &:active:not(:disabled) {
       transform: translateY(0);
     }
@@ -73,7 +68,7 @@ const variantStyles = {
     background-color: transparent;
     color: var(--color-primary);
     border: 1px solid var(--color-primary);
-    
+
     &:hover:not(:disabled) {
       background-color: rgba(var(--color-primary-rgb), 0.05);
     }
@@ -83,7 +78,7 @@ const variantStyles = {
     color: var(--color-primary);
     padding-left: 0.5rem;
     padding-right: 0.5rem;
-    
+
     &:hover:not(:disabled) {
       background-color: rgba(var(--color-primary-rgb), 0.05);
     }
@@ -92,8 +87,9 @@ const variantStyles = {
 
 const StyledButton = styled.button<ButtonProps>`
   ${ButtonBase}
-  ${(props) => sizeStyles[props.size || "medium"]}
-  ${(props) => variantStyles[props.variant || "contained"]}
+  ${({ size = "medium" }) => sizeStyles[size]}
+  ${({ variant = "contained" }) => variantStyles[variant]}
+  ${({ fullWidth }) => fullWidth && css`width: 100%;`}
 `
 
 const Button: React.FC<ButtonProps> = ({
