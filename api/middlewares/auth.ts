@@ -1,6 +1,5 @@
 import jwt from 'jsonwebtoken';
 import UserModel from '../models/User';
-import { NextFunction } from 'express';
 import { ExtendedRequest, ExtendedResponse } from '../types/express.d';
 
 interface JwtPayload {
@@ -21,7 +20,7 @@ interface CustomRequest extends ExtendedRequest {
 const secret = "bj3behrj2o3ierbhj3j2no"; // Consider moving this to environment variables
 
 // Middleware to check if user is authenticated
-export const authMiddleware = (req: CustomRequest, res: ExtendedResponse, next: NextFunction) => {
+export const authMiddleware = (req: CustomRequest, res: ExtendedResponse, next: Function) => {
   const { token } = req.cookies;
 
   if (!token) {
@@ -42,7 +41,7 @@ export const authMiddleware = (req: CustomRequest, res: ExtendedResponse, next: 
 };
 
 // Middleware to check if user is an author or admin
-export const authorMiddleware = async (req: CustomRequest, res: ExtendedResponse, next: NextFunction) => {
+export const authorMiddleware = async (req: CustomRequest, res: ExtendedResponse, next: Function) => {
   try {
     const user = await UserModel.findById(req.user.id);
 
@@ -62,7 +61,7 @@ export const authorMiddleware = async (req: CustomRequest, res: ExtendedResponse
 };
 
 // Middleware to check if user is an admin
-export const adminMiddleware = async (req: CustomRequest, res: ExtendedResponse, next: NextFunction) => {
+export const adminMiddleware = async (req: CustomRequest, res: ExtendedResponse, next: Function) => {
   try {
     const user = await UserModel.findById(req.user.id);
 
