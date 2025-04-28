@@ -3,16 +3,12 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { emailService } from '../services/email.service';
 import crypto from 'crypto';
-import { Request, Response } from 'express';
 import { IUser } from '../types/User';
-
-interface AuthRequest extends Request {
-  user: { id: string; role: string };
-}
+import type { ExtendedRequest, ExtendedResponse, AuthRequest } from '../types/express.d.ts';
 
 export const authUserController = {
   // Auth methods
-  register: async (req: Request, res: Response) => {
+  register: async (req: ExtendedRequest, res: ExtendedResponse) => {
     try {
       const { email, password, username } = req.body;
 
@@ -52,7 +48,7 @@ export const authUserController = {
     }
   },
 
-  login: async (req: Request, res: Response) => {
+  login: async (req: ExtendedRequest, res: ExtendedResponse) => {
     try {
       const { email, password } = req.body;
 
@@ -89,7 +85,7 @@ export const authUserController = {
     }
   },
 
-  logout: async (req: Request, res: Response) => {
+  logout: async (_req: ExtendedRequest, res: ExtendedResponse) => {
     try {
       // Since JWT is stateless, the client should handle token deletion
       // Server can't invalidate tokens, but we can acknowledge the logout
@@ -102,7 +98,7 @@ export const authUserController = {
     }
   },
 
-  forgotPassword: async (req: Request, res: Response) => {
+  forgotPassword: async (req: ExtendedRequest, res: ExtendedResponse) => {
     try {
       const { email } = req.body;
 
@@ -131,7 +127,7 @@ export const authUserController = {
     }
   },
 
-  resetPassword: async (req: Request, res: Response) => {
+  resetPassword: async (req: ExtendedRequest, res: ExtendedResponse) => {
     try {
       const { token, password } = req.body;
 
@@ -158,7 +154,7 @@ export const authUserController = {
     }
   },
 
-  verifyEmail: async (req: Request, res: Response) => {
+  verifyEmail: async (req: ExtendedRequest, res: ExtendedResponse) => {
     try {
       const { token } = req.params;
 
@@ -187,7 +183,7 @@ export const authUserController = {
   },
 
   // User methods
-  getProfile: async (req: AuthRequest, res: Response) => {
+  getProfile: async (req: AuthRequest, res: ExtendedResponse) => {
     try {
       const user = await User.findById(req.user.id).select('-password') as IUser | null;
       if (!user) {
@@ -200,7 +196,7 @@ export const authUserController = {
     }
   },
 
-  getUserById: async (req: Request, res: Response) => {
+  getUserById: async (req: ExtendedRequest, res: ExtendedResponse) => {
     try {
       const { id } = req.params;
 
@@ -215,7 +211,7 @@ export const authUserController = {
     }
   },
 
-  getAllUsers: async (req: Request, res: Response) => {
+  getAllUsers: async (req: ExtendedRequest, res: ExtendedResponse) => {
     try {
       // Pagination parameters
       const page = parseInt(req.query.page as string) || 1;
@@ -244,7 +240,7 @@ export const authUserController = {
     }
   },
 
-  updateProfile: async (req: AuthRequest, res: Response) => {
+  updateProfile: async (req: AuthRequest, res: ExtendedResponse) => {
     try {
       const { username, email, bio } = req.body;
 
@@ -265,7 +261,7 @@ export const authUserController = {
     }
   },
 
-  changePassword: async (req: AuthRequest, res: Response) => {
+  changePassword: async (req: AuthRequest, res: ExtendedResponse) => {
     try {
       const { currentPassword, newPassword } = req.body;
 
@@ -291,7 +287,7 @@ export const authUserController = {
     }
   },
 
-  deleteUser: async (req: Request, res: Response) => {
+  deleteUser: async (req: ExtendedRequest, res: ExtendedResponse) => {
     try {
       const { id } = req.params;
 
@@ -310,7 +306,7 @@ export const authUserController = {
     }
   },
 
-  deleteAccount: async (req: AuthRequest, res: Response) => {
+  deleteAccount: async (req: AuthRequest, res: ExtendedResponse) => {
     try {
       await User.findByIdAndDelete(req.user.id);
       res.status(200).json({ message: 'Account deleted successfully' });
@@ -320,19 +316,19 @@ export const authUserController = {
   },
 
   // Vérifier si l'utilisateur est admin
-  checkAdmin: (req: AuthRequest, res: Response) => {
+  checkAdmin: (req: AuthRequest, res: ExtendedResponse) => {
     console.log('User in check-admin:', req.user.role);
     res.json({ isAdmin: req.user.role === 'admin' });
   },
 
   // Vérifier si l'utilisateur est author ou admin
-  checkAuthorAdmin: (req: AuthRequest, res: Response) => {
+  checkAuthorAdmin: (req: AuthRequest, res: ExtendedResponse) => {
     console.log('User in check-author-admin:', req.user.role);
     res.json({ isAuthorOrAdmin: req.user.role === 'author' || req.user.role === 'admin' });
   },
 
   // Mettre à jour le username
-  updateUsername: async (req: AuthRequest, res: Response) => {
+  updateUsername: async (req: AuthRequest, res: ExtendedResponse) => {
     try {
       const userId = req.user.id;
       const { newUsername } = req.body;
@@ -361,7 +357,7 @@ export const authUserController = {
   },
 
   // Refuser une demande d'auteur (admin seulement)
-  rejectAuthor: async (req: AuthRequest, res: Response) => {
+  rejectAuthor: async (req: AuthRequest, res: ExtendedResponse) => {
     try {
       const { userId } = req.body;
 
@@ -384,7 +380,7 @@ export const authUserController = {
   },
 
   // Changer le rôle d'un utilisateur (admin seulement)
-  changeUserRole: async (req: Request, res: Response) => {
+  changeUserRole: async (req: ExtendedRequest, res: ExtendedResponse) => {
     try {
       const { userId, newRole } = req.body;
 

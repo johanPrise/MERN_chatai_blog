@@ -1,19 +1,18 @@
-import healthRoutes from './health.js';
-import authUserRoutes from './auth-user.routes.js';
-import contentRoutes from './content.routes.js';
-import aiRoutes from './ai.routes.js';
-import uploadRoutes from './upload.routes.js';
-import { Express, Request, Response } from 'express';
+import healthRoutes from './health';
+import authUserRoutes from './auth-user.routes';
+import contentRoutes from './content.routes';
+import aiRoutes from './ai.routes';
+import uploadRoutes from './upload.routes';
 
 /**
  * Configure toutes les routes de l'API
  */
-const configureRoutes = (app: Express) => {
+const configureRoutes = (app: any) => {
   // Route de health check
   healthRoutes(app);
 
   // Basic root route
-  app.get('/', (_req: Request, res: Response) => {
+  app.get('/', (_req: any, res: any) => {
     res.send("API is running");
   });
 
@@ -24,7 +23,7 @@ const configureRoutes = (app: Express) => {
   uploadRoutes(app);
 
   // Route par défaut pour les requêtes non gérées
-  app.use('/api/*', (_req: Request, res: Response) => {
+  app.use('/api/*', (_req: any, res: any) => {
     res.status(404).json({ message: 'Endpoint non trouvé' });
   });
 };

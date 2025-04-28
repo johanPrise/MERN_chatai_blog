@@ -1,7 +1,6 @@
 import cors from 'cors';
-import { Express, Request, Response, NextFunction } from 'express';
 
-const configureCors = (app: Express) => {
+const configureCors = (app: any) => {
   const allowedOrigins = [
     'https://iwomi-blog.netlify.app',
     'http://localhost:5173',
@@ -17,21 +16,21 @@ const configureCors = (app: Express) => {
     origin: function(origin, callback) {
       // Allow requests with no origin (like mobile apps, curl requests)
       if (!origin) return callback(null, true);
-      
+
       // Check if origin is in allowlist or matches pattern
       const isAllowed = allowedOrigins.some(allowedOrigin => {
         // Handle exact matches
         if (allowedOrigin === origin) return true;
-        
+
         // Handle wildcard matches
         if (allowedOrigin.includes('*')) {
           const pattern = new RegExp(allowedOrigin.replace('*', '.*'));
           return pattern.test(origin);
         }
-        
+
         return false;
       });
-      
+
       if (isAllowed) {
         callback(null, true);
       } else {
@@ -46,8 +45,8 @@ const configureCors = (app: Express) => {
 
   app.use(cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.some(allowedOrigin => 
-        allowedOrigin === origin || 
+      if (!origin || allowedOrigins.some(allowedOrigin =>
+        allowedOrigin === origin ||
         (allowedOrigin.includes('*') && new RegExp(allowedOrigin.replace('*', '.*')).test(origin))
       )) {
         callback(null, true);

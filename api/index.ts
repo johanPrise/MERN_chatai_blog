@@ -23,7 +23,7 @@ const startServer = async () => {
     app.listen(PORT, () => {
       console.log(`Serveur en écoute sur le port ${PORT}`);
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur au démarrage du serveur:', error.message);
     process.exit(1);
   }

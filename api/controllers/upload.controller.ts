@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { Request, Response } from 'express';
+import type { ExtendedRequest, ExtendedResponse } from '../types/express.d.ts';
 
 // Get the directory name
 const __filename = fileURLToPath(import.meta.url);
@@ -19,7 +19,7 @@ export const uploadController = {
    * @param {Object} req - Express request object (with file from multer)
    * @param {Object} res - Express response object
    */
-  uploadFile: async (req: Request, res: Response) => {
+  uploadFile: async (req: ExtendedRequest, res: ExtendedResponse) => {
     try {
       if (!req.file) {
         return res.status(400).json({ success: false, message: 'No file uploaded' });
@@ -38,10 +38,10 @@ export const uploadController = {
       });
     } catch (error) {
       console.error('Error uploading file:', error);
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Failed to upload file', 
-        error: error instanceof Error ? error.message : String(error) 
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to upload file',
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   },
@@ -51,7 +51,7 @@ export const uploadController = {
    * @param {Object} req - Express request object
    * @param {Object} res - Express response object
    */
-  uploadBase64File: async (req: Request, res: Response) => {
+  uploadBase64File: async (req: ExtendedRequest, res: ExtendedResponse) => {
     try {
       const { base64Data, filename, mimetype } = req.body;
 
@@ -60,8 +60,8 @@ export const uploadController = {
       }
 
       // Extract the base64 content (remove data:image/jpeg;base64, part if present)
-      const base64Content = base64Data.includes('base64,') 
-        ? base64Data.split('base64,')[1] 
+      const base64Content = base64Data.includes('base64,')
+        ? base64Data.split('base64,')[1]
         : base64Data;
 
       // Generate a unique filename
@@ -69,10 +69,10 @@ export const uploadController = {
       const fileExtension = path.extname(filename);
       const baseFilename = path.basename(filename, fileExtension);
       const uniqueFilename = `${baseFilename}_${timestamp}${fileExtension}`;
-      
+
       // Create file path
       const filePath = path.join(uploadsDirectory, uniqueFilename);
-      
+
       // Write file to disk
       fs.writeFileSync(filePath, Buffer.from(base64Content, 'base64'));
 
@@ -87,10 +87,10 @@ export const uploadController = {
       });
     } catch (error) {
       console.error('Error uploading base64 file:', error);
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Failed to upload base64 file', 
-        error: error instanceof Error ? error.message : String(error) 
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to upload base64 file',
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   },
@@ -100,10 +100,10 @@ export const uploadController = {
    * @param {Object} req - Express request object
    * @param {Object} res - Express response object
    */
-  deleteFile: async (req: Request, res: Response) => {
+  deleteFile: async (req: ExtendedRequest, res: ExtendedResponse) => {
     try {
       const { filename } = req.params;
-      
+
       if (!filename) {
         return res.status(400).json({ success: false, message: 'Filename is required' });
       }
@@ -124,10 +124,10 @@ export const uploadController = {
       });
     } catch (error) {
       console.error('Error deleting file:', error);
-      return res.status(500).json({ 
-        success: false, 
-        message: 'Failed to delete file', 
-        error: error instanceof Error ? error.message : String(error) 
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to delete file',
+        error: error instanceof Error ? error.message : String(error)
       });
     }
   }

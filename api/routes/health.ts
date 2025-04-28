@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import { Request, Response } from 'express';
 
 /**
  * Routes pour la vérification de l'état de l'API
@@ -12,7 +11,7 @@ const healthRoutes = (app: any) => {
    * @desc Vérifier l'état de l'API et de la connexion à la base de données
    * @access Public
    */
-  app.get('/health', (_req: Request, res: Response) => {
+  app.get('/health', (_req: any, res: any) => {
     const status = {
       status: 'OK',
       timestamp: new Date(),

@@ -1,12 +1,12 @@
 import { nanoid } from 'nanoid';
 import ConversationModel from '../models/Conversation';
 import { aiService } from '../services/ai.service';
-import { Request, Response } from 'express';
 import { IConversation, IMessage } from '../types/Conversation';
+import type { ExtendedRequest, ExtendedResponse } from '../types/express.d.ts';
 
 export const aiController = {
   // Send a message to the AI and get a response
-  sendMessage: async (req: Request, res: Response) => {
+  sendMessage: async (req: ExtendedRequest, res: ExtendedResponse) => {
     const { input, sessionId } = req.body as unknown as { input: string; sessionId: string };
     const newMessage: IMessage = { sender: "user", content: input, timestamp: new Date() };
 
@@ -50,7 +50,7 @@ export const aiController = {
   },
 
   // Get conversation history
-  getConversation: async (req: Request, res: Response) => {
+  getConversation: async (req: ExtendedRequest, res: ExtendedResponse) => {
     const { sessionId } = req.params;
 
     try {
@@ -72,7 +72,7 @@ export const aiController = {
   },
 
   // Clear conversation history
-  clearConversation: async (req: Request, res: Response) => {
+  clearConversation: async (req: ExtendedRequest, res: ExtendedResponse) => {
     const { sessionId } = req.params;
 
     try {
