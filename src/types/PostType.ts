@@ -40,6 +40,7 @@ export interface Post {
   cover: string
   author: Author
   category?: Category | null
+  categories?: Category[] // Ajout du champ categories pour compatibilité avec le backend
   createdAt: string
   updatedAt?: string
   likes: string[]

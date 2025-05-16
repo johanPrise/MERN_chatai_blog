@@ -6,13 +6,7 @@ import { Link } from "react-router-dom"
 import { CategoryProps } from "../types/CategoryProps"
 import { Trash2, AlertCircle, Search, X, ArrowLeft, Loader2 } from "lucide-react"
 import { FetchStatus } from "../types/FetchStatus"
-
-// API configuration
-const API_BASE_URL = "https://mern-backend-neon.vercel.app"
-const API_ENDPOINTS = {
-  checkAuthorAdmin: `${API_BASE_URL}/check-author-admin`,
-  categories: `${API_BASE_URL}/categories`
-}
+import { API_ENDPOINTS } from "../config/api.config"
 
 // Component states
 
@@ -39,7 +33,7 @@ const DeleteCategories: React.FC = () => {
     const checkAuthorAdminStatus = async () => {
       setFetchStatus("loading")
       try {
-        const response = await fetch(API_ENDPOINTS.checkAuthorAdmin, {
+        const response = await fetch(API_ENDPOINTS.users.profile, {
           credentials: "include",
         })
 
@@ -66,14 +60,15 @@ const DeleteCategories: React.FC = () => {
     const fetchCategories = async () => {
       setFetchStatus("loading")
       try {
-        const response = await fetch(API_ENDPOINTS.categories)
+        const response = await fetch(API_ENDPOINTS.categories.list)
 
         if (!response.ok) {
           throw new Error("Failed to fetch categories")
         }
 
         const data = await response.json()
-        setCategories(data)
+        // Correction : s'assurer que c'est bien un tableau
+        setCategories(Array.isArray(data.categories) ? data.categories : Array.isArray(data) ? data : [])
         setFetchStatus("success")
       } catch (error) {
         console.error("Error fetching categories:", error)
@@ -86,9 +81,9 @@ const DeleteCategories: React.FC = () => {
   }, [])
 
   // Filter categories based on search query
-  const filteredCategories = categories.filter(category =>
+  const filteredCategories = Array.isArray(categories) ? categories.filter(category =>
     category.name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  ) : []
 
   // Handle checkbox selection
   const handleCheckboxChange = (categoryId: string) => {
@@ -136,7 +131,7 @@ const DeleteCategories: React.FC = () => {
       const results = await Promise.all(
         selectedCategories.map(async (categoryId) => {
           try {
-            const response = await fetch(`${API_ENDPOINTS.categories}/${categoryId}`, {
+            const response = await fetch(`${API_ENDPOINTS.categories.list}/${categoryId}`, {
               method: "DELETE",
               credentials: "include",
             })

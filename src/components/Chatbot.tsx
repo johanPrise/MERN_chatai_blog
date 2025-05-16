@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { nanoid } from "nanoid"
-import { MessageCircle, X, Send, Bot, User, Loader2 } from "lucide-react"
+import { MessageCircle, X, Send, Bot, User, Loader2, LogIn } from "lucide-react"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Badge } from "./ui/badge"
@@ -17,6 +17,9 @@ import {
   loadMessagesFromStorage,
   generateWelcomeMessage
 } from "../lib/chatUtils"
+import { API_ENDPOINTS } from "../config/api.config"
+import { UserContext } from "../UserContext"
+import { Link } from "react-router-dom"
 
 
 /**
@@ -28,8 +31,11 @@ import {
 const Chatbot: React.FC<ChatbotProps> = ({
   title = "Assistant IA",
   placeholder = "Tapez votre message...",
-  apiEndpoint = "https://mern-backend-neon.vercel.app/send"
+  apiEndpoint = API_ENDPOINTS.ai.message
 }) => {
+  // Get user context for authentication
+  const { userInfo } = UserContext()
+
   // State
   const [isOpen, setIsOpen] = useState<boolean>(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -111,6 +117,12 @@ const Chatbot: React.FC<ChatbotProps> = ({
   const handleSend = async () => {
     if (input.trim() === "") return
 
+    // Check if user is authenticated
+    if (!userInfo) {
+      setError("Vous devez être connecté pour utiliser le chat. Veuillez vous connecter.")
+      return
+    }
+
     // Clear error
     setError(null)
 
@@ -134,13 +146,22 @@ const Chatbot: React.FC<ChatbotProps> = ({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ input, sessionId }),
+        credentials: "include", // Inclure les cookies pour l'authentification si nécessaire
       })
 
       if (!response.ok) {
-        throw new Error(`Erreur serveur: ${response.status}`)
+        if (response.status === 401) {
+          throw new Error("Vous devez être connecté pour utiliser le chat. Veuillez vous connecter.")
+        } else {
+          throw new Error(`Erreur serveur: ${response.status}`)
+        }
       }
 
       const data: ChatApiResponse = await response.json()
+
+      if (!data.success) {
+        throw new Error(data.error || "Erreur lors de la génération de la réponse")
+      }
 
       // Create bot response message
       const botMessage: ChatMessage = {
@@ -196,6 +217,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
         variant="default"
         size="icon"
         className="h-12 w-12 rounded-full shadow-lg bg-lime-600 hover:bg-lime-700 transition-all duration-300"
+        style={{ position: 'fixed', bottom: '20px', right: '20px' }}
       >
         {isOpen ? (
           <X className="h-5 w-5" />
@@ -212,6 +234,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
             ? "opacity-100 scale-100 translate-y-0"
             : "opacity-0 scale-95 translate-y-4 pointer-events-none"
         )}
+        style={{ position: 'fixed', bottom: '80px', right: '20px' }}
       >
         <Card className="border-lime-200 shadow-lg overflow-hidden h-[450px] flex flex-col">
           {/* Chat header */}

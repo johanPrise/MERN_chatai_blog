@@ -8,14 +8,7 @@ import "../css/App.css"
 import { UserContext } from "../UserContext"
 import { AlertCircle, CheckCircle, ArrowLeft, Trash2 } from "lucide-react"
 import { CategoryFormData } from "../types/CategoryFormData"
-
-
-// API URLs
-const API_BASE_URL = "https://mern-backend-neon.vercel.app"
-const API_ENDPOINTS = {
-  checkAuthorAdmin: `${API_BASE_URL}/check-author-admin`,
-  categories: `${API_BASE_URL}/categories`
-}
+import { API_ENDPOINTS } from "../config/api.config"
 
 // Quill editor configuration
 const QUILL_MODULES = {
@@ -63,7 +56,8 @@ const CreateCategory: React.FC = () => {
     setIsChecking(true)
 
     try {
-      const response = await fetch(API_ENDPOINTS.checkAuthorAdmin, {
+      // Utiliser la route dédiée pour vérifier les permissions d'auteur/éditeur/admin
+      const response = await fetch(API_ENDPOINTS.auth.checkAuthor, {
         credentials: "include",
       })
 
@@ -72,6 +66,7 @@ const CreateCategory: React.FC = () => {
       }
 
       const data = await response.json()
+      console.log("Author check response:", data)
       setIsAuthorOrAdmin(data.isAuthorOrAdmin)
     } catch (error) {
       console.error("Error checking author/admin status:", error)
@@ -127,7 +122,7 @@ const CreateCategory: React.FC = () => {
     setErrorMessage(null)
 
     try {
-      const response = await fetch(API_ENDPOINTS.categories, {
+      const response = await fetch(API_ENDPOINTS.categories.list, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

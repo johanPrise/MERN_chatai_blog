@@ -10,6 +10,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react"
+import { API_ENDPOINTS } from "./config/api.config"
 
 // Déclaration de module pour étendre le type ImportMeta de Vite
 declare global {
@@ -17,9 +18,6 @@ declare global {
     env: Record<string, string | undefined>
   }
 }
-
-// URL de base de l'API - using Vite's environment variable pattern
-const API_BASE_URL = import.meta.env.VITE_API_URL || "https://mern-backend-neon.vercel.app";
 
 export type UserInfo = {
   id: string
@@ -31,7 +29,7 @@ interface UserContextType {
   userInfo: UserInfo
   setUserInfo: Dispatch<SetStateAction<UserInfo>>
   checkAuth: () => Promise<boolean>
-  login: (username: string, password: string) => Promise<boolean>
+  login: (email: string, password: string) => Promise<boolean>
   logout: () => Promise<void>
   isLoading: boolean
 }
@@ -57,7 +55,12 @@ export const UserContextProvider = ({ children }: { children: ReactNode }) => {
   const checkAuth = async (): Promise<boolean> => {
     try {
       setIsLoading(true)
-      const res = await fetch(`${API_BASE_URL}/users/profile`, {
+      console.log("Checking authentication status...")
+
+      // Log cookies for debugging (will only show in server logs)
+      console.log("Document cookies:", document.cookie)
+
+      const res = await fetch(API_ENDPOINTS.users.profile, {
         method: "GET",
         credentials: "include",
         headers: {
@@ -66,10 +69,23 @@ export const UserContextProvider = ({ children }: { children: ReactNode }) => {
       })
 
       if (res.ok) {
-        const userData = await res.json()
+        const responseData = await res.json()
 
-        if (!userData || !userData._id) {
-          console.error("Auth check error: Invalid user data received from server")
+        // Afficher la réponse complète pour le débogage
+        console.log("Auth check response data:", responseData)
+
+        let userData;
+
+        // Vérifier si la réponse contient un objet 'user'
+        if (responseData && responseData.user && responseData.user._id) {
+          userData = responseData.user;
+        }
+        // Sinon, vérifier si la réponse contient directement les données utilisateur
+        else if (responseData && responseData._id) {
+          userData = responseData;
+        }
+        else {
+          console.error("Auth check error: Invalid user data received from server", responseData)
           setUserInfo(null)
           return false
         }
@@ -114,34 +130,55 @@ export const UserContextProvider = ({ children }: { children: ReactNode }) => {
 
   /**
    * Fonction de connexion utilisateur
-   * @param username - Nom d'utilisateur
+   * @param email - Adresse email
    * @param password - Mot de passe
    * @returns Promise<boolean> - true si la connexion a réussi, false sinon
    */
-  const login = async (username: string, password: string): Promise<boolean> => {
-    if (!username || !password) {
-      console.error("Login error: Username and password are required")
+  const login = async (email: string, password: string): Promise<boolean> => {
+    if (!email || !password) {
+      console.error("Login error: Email and password are required")
       return false
     }
 
     try {
       setIsLoading(true)
-      const res = await fetch(`${API_BASE_URL}/auth/login`, {
+      // Afficher les données envoyées pour le débogage
+      console.log("Tentative de connexion avec:", { email, password });
+
+      const res = await fetch(API_ENDPOINTS.auth.login, {
         method: "POST",
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ email, password }),
       })
 
       if (res.ok) {
-        const userData = await res.json()
+        const responseData = await res.json()
 
-        if (!userData || !userData._id) {
+        // Afficher la réponse complète pour le débogage
+        console.log("Login response data:", responseData)
+
+        // Log all cookies after login
+        console.log("Cookies after login:", document.cookie)
+
+        // Check if token was received in the response
+        if (responseData.token) {
+          console.log("Token received in response body")
+          // We don't need to store the token in localStorage since we're using cookies
+          // But we could store it for backup if needed
+        } else {
+          console.log("No token in response body, checking for cookie")
+        }
+
+        // Vérifier si la réponse contient un objet utilisateur
+        if (!responseData || !responseData.user || !responseData.user._id) {
           console.error("Login error: Invalid user data received from server")
           return false
         }
+
+        const userData = responseData.user
 
         setUserInfo({
           id: userData._id,
@@ -156,11 +193,15 @@ export const UserContextProvider = ({ children }: { children: ReactNode }) => {
         try {
           const errorData = await res.json()
           errorMessage = errorData.message || errorMessage
+          // Afficher les détails de l'erreur pour le débogage
+          console.error("Détails de l'erreur:", errorData);
         } catch (e) {
           // Si la réponse n'est pas du JSON valide, on utilise le message par défaut
+          console.error("Erreur lors de la lecture de la réponse JSON:", e);
         }
 
-        console.error(`Login failed (${res.status}): ${errorMessage}`)
+        // Afficher le statut et le message d'erreur
+        console.error(`Login failed (${res.status}): ${errorMessage}`);
         return false
       }
     } catch (error) {
@@ -178,7 +219,7 @@ export const UserContextProvider = ({ children }: { children: ReactNode }) => {
   const logout = async (): Promise<void> => {
     try {
       setIsLoading(true)
-      const res = await fetch(`${API_BASE_URL}/auth/logout`, {
+      const res = await fetch(API_ENDPOINTS.auth.logout, {
         method: "POST",
         credentials: "include",
         headers: {

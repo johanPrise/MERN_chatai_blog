@@ -5,6 +5,7 @@
 @tailwind utilities;
 
 @layer base {
+  /* Thème par défaut (vert) */
   :root {
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
@@ -12,7 +13,7 @@
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 142.1 76.2% 36.3%;
+    --primary: 142.1 76.2% 36.3%; /* Vert */
     --primary-foreground: 355.7 100% 97.3%;
     --secondary: 217.2 91.2% 59.8%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -24,10 +25,11 @@
     --destructive-foreground: 210 40% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 142.1 76.2% 36.3%;
+    --ring: 142.1 76.2% 36.3%; /* Vert */
     --radius: 0.5rem;
   }
 
+  /* Thème sombre (vert) */
   .dark {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
@@ -35,7 +37,7 @@
     --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
-    --primary: 142.1 70.6% 45.3%;
+    --primary: 142.1 70.6% 45.3%; /* Vert */
     --primary-foreground: 144.9 80.4% 10%;
     --secondary: 217.2 91.2% 59.8%;
     --secondary-foreground: 210 40% 98%;
@@ -47,7 +49,49 @@
     --destructive-foreground: 210 40% 98%;
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
-    --ring: 142.4 71.8% 29.2%;
+    --ring: 142.4 71.8% 29.2%; /* Vert */
+  }
+
+  /* Thème bleu (clair) */
+  [data-color-theme="blue"] {
+    --primary: 221.2 83.2% 53.3%; /* Bleu */
+    --primary-foreground: 210 40% 98%;
+    --ring: 221.2 83.2% 53.3%; /* Bleu */
+  }
+
+  /* Thème bleu (sombre) */
+  .dark[data-color-theme="blue"] {
+    --primary: 217.2 91.2% 59.8%; /* Bleu */
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --ring: 224.3 76.3% 48%; /* Bleu */
+  }
+
+  /* Thème violet (clair) */
+  [data-color-theme="purple"] {
+    --primary: 262.1 83.3% 57.8%; /* Violet */
+    --primary-foreground: 210 40% 98%;
+    --ring: 262.1 83.3% 57.8%; /* Violet */
+  }
+
+  /* Thème violet (sombre) */
+  .dark[data-color-theme="purple"] {
+    --primary: 263.4 70% 50.4%; /* Violet */
+    --primary-foreground: 210 40% 98%;
+    --ring: 263.4 70% 50.4%; /* Violet */
+  }
+
+  /* Thème ambre (clair) */
+  [data-color-theme="amber"] {
+    --primary: 38 92% 50%; /* Ambre */
+    --primary-foreground: 0 0% 0%;
+    --ring: 38 92% 50%; /* Ambre */
+  }
+
+  /* Thème ambre (sombre) */
+  .dark[data-color-theme="amber"] {
+    --primary: 48 96% 53%; /* Ambre */
+    --primary-foreground: 0 0% 0%;
+    --ring: 48 96% 53%; /* Ambre */
   }
 
   * {
@@ -57,6 +101,12 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  /* Transitions fluides pour les éléments qui utilisent les couleurs du thème */
+  a, button, input, select, textarea, .btn, .card, .badge {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
   }
 
   /* Focus styles for accessibility */
@@ -79,6 +129,23 @@
 
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-neutral-400 dark:bg-neutral-500;
+  }
+
+  /* Effet de transition pour le changement de thème */
+  .theme-transition {
+    animation: theme-flash 1s ease;
+  }
+
+  @keyframes theme-flash {
+    0% {
+      filter: brightness(1);
+    }
+    50% {
+      filter: brightness(1.1);
+    }
+    100% {
+      filter: brightness(1);
+    }
   }
 
   /* Typography enhancements */
@@ -147,8 +214,8 @@
   }
 
   .btn {
-    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors 
-    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 
+    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
+    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
     disabled:opacity-50 disabled:pointer-events-none ring-offset-background;
   }
 
@@ -209,7 +276,7 @@
   }
 
   .badge {
-    @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors 
+    @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors
     focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
   }
 
@@ -230,43 +297,43 @@
   }
 
   .input {
-    @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm 
-    ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium 
-    placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 
+    @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm
+    ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium
+    placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2
     focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .textarea {
-    @apply flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm 
-    ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none 
-    focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 
+    @apply flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm
+    ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none
+    focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
     disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .select {
-    @apply flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 
-    text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none 
+    @apply flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2
+    text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none
     focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .checkbox {
-    @apply peer h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background 
-    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 
-    disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary 
+    @apply peer h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background
+    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+    disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary
     data-[state=checked]:text-primary-foreground;
   }
 
   .radio {
-    @apply h-4 w-4 rounded-full border border-primary text-primary ring-offset-background 
-    focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 
+    @apply h-4 w-4 rounded-full border border-primary text-primary ring-offset-background
+    focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2
     disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .switch {
-    @apply peer inline-flex h-[24px] w-[44px] shrink-0 cursor-pointer items-center rounded-full 
-    border-2 border-transparent transition-colors focus-visible:outline-none 
-    focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 
-    disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary 
+    @apply peer inline-flex h-[24px] w-[44px] shrink-0 cursor-pointer items-center rounded-full
+    border-2 border-transparent transition-colors focus-visible:outline-none
+    focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+    disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary
     data-[state=unchecked]:bg-input;
   }
 }

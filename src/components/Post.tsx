@@ -14,7 +14,26 @@ export interface PostProps {
 }
 
 export default function Post({ post, variant = "default" }: PostProps) {
-  const { _id, title, summary, cover, author, createdAt, category } = post
+  const { _id, title, summary, cover, author, createdAt } = post
+
+  // Utiliser category s'il existe, sinon prendre la première catégorie du tableau categories
+  // @ts-ignore - Ignorer l'erreur TypeScript car categories n'est pas dans le type
+  const categoryFromArray = post.categories && post.categories.length > 0 ? post.categories[0] : null
+  const category = post.category || categoryFromArray
+
+  // Debug: Log the post and category data
+  console.log("Post data:", post)
+  console.log("Category data:", category)
+  console.log("Categories array:", (post as any).categories)
+
+  // Vérifier si la catégorie est correctement définie
+  if (!category) {
+    console.warn(`Post ${_id} has no category defined`)
+  } else if (typeof category !== 'object') {
+    console.warn(`Post ${_id} has invalid category format:`, category)
+  } else if (!category.name) {
+    console.warn(`Post ${_id} has category without name:`, category)
+  }
 
   if (variant === "compact") {
     return (
@@ -53,7 +72,7 @@ export default function Post({ post, variant = "default" }: PostProps) {
           <p className="line-clamp-2 text-sm text-muted-foreground">{summary}</p>
         </CardContent>
         <CardFooter className="p-4 pt-0">
-          {category ? (
+          {category && category._id && category.name ? (
             <Link to={`/category/${category._id}`}>
               <Badge variant="outline" className="hover:bg-primary-50 hover:text-primary-700 transition-colors">
                 {category.name}
@@ -152,7 +171,7 @@ export default function Post({ post, variant = "default" }: PostProps) {
         <p className="line-clamp-3 text-muted-foreground">{summary}</p>
       </CardContent>
       <CardFooter className="p-4 pt-0 flex justify-between items-center">
-        {category ? (
+        {category && category._id && category.name ? (
           <Link to={`/category/${category._id}`}>
             <Badge variant="outline" className="hover:bg-primary-50 hover:text-primary-700 transition-colors">
               {category.name}

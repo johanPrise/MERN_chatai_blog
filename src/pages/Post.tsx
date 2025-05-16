@@ -16,6 +16,27 @@ import {
 import AnimateOnView from "../components/AnimateOnView"
 import { ActionStatus } from "../types/Action"
 import { Post, Comment } from "../types/PostType"
+import "../css/markdown.css"
+// Import highlight.js for syntax highlighting
+import hljs from 'highlight.js'
+import 'highlight.js/styles/github.css'
+
+// Helper to extract the category name safely
+const getCategoryName = (post: Post | null): string => {
+  if (!post) return "Uncategorized"
+
+  // Utiliser category s'il existe, sinon prendre la première catégorie du tableau categories
+  // @ts-ignore - Ignorer l'erreur TypeScript car categories n'est pas dans le type
+  const categoryFromArray = post.categories && post.categories.length > 0 ? post.categories[0] : null
+  const category = post.category || categoryFromArray
+
+  // Debug: Log the category data
+  console.log("Post category data:", category)
+  console.log("Categories array:", (post as any).categories)
+
+  if (!category || typeof category !== "object") return "Uncategorized"
+  return category.name || "Uncategorized"
+}
 
 // Action states
 interface ActionState {
@@ -27,13 +48,8 @@ interface CommentActionStates {
   [commentId: string]: ActionState
 }
 
-// API configuration
-const API_BASE_URL = "https://mern-backend-neon.vercel.app"
-const API_ENDPOINTS = {
-  posts: `${API_BASE_URL}/posts`,
-  comments: `${API_BASE_URL}/comments`,
-  comment: `${API_BASE_URL}/comment`
-}
+// Import API configuration
+import { API_BASE_URL, API_ENDPOINTS } from "../config/api.config"
 
 
 const PostPage = () => {
@@ -43,6 +59,7 @@ const PostPage = () => {
 
   // Comment form state
   const [newComment, setNewComment] = useState("")
+  const [replyContent, setReplyContent] = useState("") // Nouvel état pour les réponses
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const [editingComment, setEditingComment] = useState<string | null>(null)
   const [editedContent, setEditedContent] = useState("")
@@ -76,13 +93,14 @@ const PostPage = () => {
 
     try {
       setErrorMessage(null)
-      const response = await fetch(`${API_ENDPOINTS.comments}/${id}`)
+      const response = await fetch(`${API_ENDPOINTS.comments.list}/post/${id}`)
 
       if (!response.ok) {
         throw new Error(`Failed to fetch comments: ${response.status}`)
       }
 
-      const fetchedComments: Comment[] = await response.json()
+      const fetchedCommentsRaw = await response.json()
+      const fetchedComments: Comment[] = Array.isArray(fetchedCommentsRaw) ? fetchedCommentsRaw : []
       setComments(fetchedComments)
     } catch (error) {
       console.error("Error fetching comments:", error)
@@ -91,56 +109,238 @@ const PostPage = () => {
   }, [id])
 
   /**
-   * Format HTML content with enhanced styling
-   * @param content - HTML content to format
+   * Format content with enhanced styling and syntax highlighting
+   * @param content - Content to format (can be Markdown or HTML)
    * @returns Formatted HTML string
    */
   const formatContent = (content: string): string => {
+    // Vérifier si le contenu est déjà du HTML ou du Markdown
+    const isHTML = content.trim().startsWith('<') && content.includes('</');
+
+    let htmlContent = content;
+
+    // Si ce n'est pas du HTML, on considère que c'est du Markdown
+    // et on le convertit en HTML en utilisant une approche améliorée
+    if (!isHTML) {
+      // Préserver les blocs de code pour le traitement ultérieur
+      const codeBlocks: Array<{language: string, code: string}> = [];
+
+      // Extraire les blocs de code avec leur langage
+      htmlContent = content.replace(/```(\w*)\n([\s\S]*?)```/g, (match, language, code) => {
+        const id = codeBlocks.length;
+        codeBlocks.push({ language, code });
+        return `CODEBLOCK${id}`;
+      });
+
+      // Conversion améliorée de Markdown en HTML
+      htmlContent = htmlContent
+        // Convertir les titres avec ancres pour la navigation
+        .replace(/^# (.*$)/gm, (match, title) => {
+          const id = title.toLowerCase().replace(/[^\w]+/g, '-');
+          return `<h1 id="${id}">${title}</h1>`;
+        })
+        .replace(/^## (.*$)/gm, (match, title) => {
+          const id = title.toLowerCase().replace(/[^\w]+/g, '-');
+          return `<h2 id="${id}">${title}</h2>`;
+        })
+        .replace(/^### (.*$)/gm, (match, title) => {
+          const id = title.toLowerCase().replace(/[^\w]+/g, '-');
+          return `<h3 id="${id}">${title}</h3>`;
+        })
+        .replace(/^#### (.*$)/gm, (match, title) => {
+          const id = title.toLowerCase().replace(/[^\w]+/g, '-');
+          return `<h4 id="${id}">${title}</h4>`;
+        })
+        .replace(/^##### (.*$)/gm, (match, title) => {
+          const id = title.toLowerCase().replace(/[^\w]+/g, '-');
+          return `<h5 id="${id}">${title}</h5>`;
+        })
+        .replace(/^###### (.*$)/gm, (match, title) => {
+          const id = title.toLowerCase().replace(/[^\w]+/g, '-');
+          return `<h6 id="${id}">${title}</h6>`;
+        })
+
+        // Convertir les paragraphes (lignes non vides qui ne sont pas des titres)
+        .replace(/^(?!<h[1-6]>)(.*$)/gm, function(match) {
+          return match.trim() ? '<p>' + match + '</p>' : match;
+        })
+
+        // Convertir les listes non ordonnées
+        .replace(/^[\*\-] (.*$)/gm, '<li>$1</li>')
+
+        // Convertir les listes ordonnées
+        .replace(/^(\d+)\. (.*$)/gm, '<li value="$1">$2</li>')
+
+        // Entourer les listes avec <ul> ou <ol>
+        .replace(/(<li value="[0-9]+".*<\/li>)\n(?!<li value="[0-9]+")/g, '$1</ol>')
+        .replace(/(?<!<\/ol>)\n(<li value="[0-9]+")/g, '<ol>$1')
+        .replace(/(<li>.*<\/li>)\n(?!<li>)/g, '$1</ul>')
+        .replace(/(?<!<\/ul>)\n(<li>)/g, '<ul>$1')
+
+        // Convertir le texte en gras
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/__(.*?)__/g, '<strong>$1</strong>')
+
+        // Convertir le texte en italique (en évitant les conflits avec le gras)
+        .replace(/(?<!\*)\*(?!\*)([^\*]+)(?<!\*)\*(?!\*)/g, '<em>$1</em>')
+        .replace(/(?<!_)_(?!_)([^_]+)(?<!_)_(?!_)/g, '<em>$1</em>')
+
+        // Convertir le texte barré
+        .replace(/~~(.*?)~~/g, '<del>$1</del>')
+
+        // Convertir les liens
+        .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+
+        // Convertir les images avec attributs alt et title
+        .replace(/!\[(.*?)\]\((.*?)(?:\s+"(.*?)")?\)/g, (match, alt, src, title) => {
+          return `<img alt="${alt || ''}" src="${src}" ${title ? `title="${title}"` : ''} loading="lazy" />`;
+        })
+
+        // Convertir les citations
+        .replace(/^>\s*(.*$)/gm, '<blockquote>$1</blockquote>')
+
+        // Convertir les séparateurs horizontaux
+        .replace(/^---+$/gm, '<hr />')
+
+        // Convertir les sauts de ligne
+        .replace(/\n\n/g, '<br /><br />');
+
+      // Réinsérer les blocs de code avec coloration syntaxique
+      htmlContent = htmlContent.replace(/CODEBLOCK(\d+)/g, (match, id) => {
+        try {
+          const blockId = parseInt(id, 10);
+          if (blockId >= 0 && blockId < codeBlocks.length) {
+            const { language, code } = codeBlocks[blockId];
+            let highlightedCode;
+
+            try {
+              // Vérifier si highlight.js est disponible
+              if (typeof hljs !== 'undefined' && hljs !== null && typeof hljs.highlight === 'function') {
+                // Essayer d'appliquer la coloration syntaxique
+                highlightedCode = language && language.trim() !== ''
+                  ? hljs.highlight(code.trim(), { language }).value
+                  : hljs.highlightAuto(code.trim()).value;
+              } else {
+                throw new Error("highlight.js n'est pas disponible");
+              }
+            } catch (e) {
+              console.error("Erreur lors de la coloration syntaxique:", e);
+              // Échapper le HTML pour l'afficher tel quel
+              highlightedCode = code
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+            }
+
+            return `<pre><code class="language-${language || 'plaintext'}">${highlightedCode}</code></pre>`;
+          } else {
+            console.error(`Bloc de code avec ID ${id} non trouvé`);
+            return match; // Retourner le texte original si l'ID n'est pas valide
+          }
+        } catch (error) {
+          console.error("Erreur lors du traitement du bloc de code:", error);
+          return `<pre><code>Erreur lors du traitement du bloc de code</code></pre>`;
+        }
+      });
+
+      // Convertir les blocs de code inline
+      htmlContent = htmlContent.replace(/`([^`]+)`/g, (match, code) => {
+        return `<code>${code}</code>`;
+      });
+
+      // Méthode alternative pour les blocs de code si la première méthode échoue
+      if (htmlContent.includes("CODEBLOCK")) {
+        console.warn("Détection de blocs de code non traités, application de la méthode alternative");
+
+        // Traiter directement les blocs de code sans extraction préalable
+        htmlContent = content.replace(/```(\w*)\n([\s\S]*?)```/g, (match, language, code) => {
+          try {
+            // Échapper le HTML pour l'afficher tel quel
+            const escapedCode = code
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;")
+              .replace(/"/g, "&quot;")
+              .replace(/'/g, "&#039;");
+
+            return `<pre><code class="language-${language || 'plaintext'}">${escapedCode}</code></pre>`;
+          } catch (error) {
+            console.error("Erreur lors du traitement direct du bloc de code:", error);
+            return `<pre><code>${code}</code></pre>`;
+          }
+        });
+      }
+    }
+
+    // Maintenant, on traite le HTML pour améliorer le style
     const parser = new DOMParser()
-    const doc = parser.parseFromString(content, "text/html")
+    const doc = parser.parseFromString(htmlContent, "text/html")
 
-    // Enhance images
-    doc.querySelectorAll("img").forEach((img) => {
-      img.style.display = "block"
-      img.style.margin = "2rem auto"
-      img.style.borderRadius = "0.5rem"
-      img.style.maxWidth = "100%"
-      img.style.height = "auto"
-      img.style.boxShadow = "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)"
-    })
+    // Ajouter des attributs data-aos pour les animations au défilement
+    doc.querySelectorAll("h1, h2, h3, h4, h5, h6").forEach((heading, index) => {
+      heading.setAttribute("data-aos", "fade-up");
+      heading.setAttribute("data-aos-delay", `${index * 50}`);
+      heading.setAttribute("data-aos-duration", "800");
+    });
 
-    // Enhance headings
-    doc.querySelectorAll("h1, h2, h3, h4, h5, h6").forEach((heading) => {
-      const element = heading as HTMLElement
-      element.style.marginTop = "2rem"
-      element.style.marginBottom = "1rem"
-      element.style.fontWeight = "600"
-      element.style.lineHeight = "1.25"
-    })
+    // Ajouter des attributs data-aos pour les images
+    doc.querySelectorAll("img").forEach((img, index) => {
+      img.setAttribute("data-aos", "zoom-in");
+      img.setAttribute("data-aos-delay", `${index * 100}`);
+      img.setAttribute("data-aos-duration", "1000");
 
-    // Enhance paragraphs
-    doc.querySelectorAll("p").forEach((paragraph) => {
-      paragraph.style.marginTop = "1rem"
-      paragraph.style.marginBottom = "1rem"
-      paragraph.style.lineHeight = "1.7"
-    })
+      // Ajouter une classe pour le zoom au clic
+      img.classList.add("zoomable");
+      img.addEventListener("click", () => {
+        img.classList.toggle("zoomed");
+      });
+    });
 
-    // Enhance links
-    doc.querySelectorAll("a").forEach((link) => {
-      link.style.color = "#16a34a"
-      link.style.textDecoration = "none"
-    })
+    // Ajouter des attributs data-aos pour les blocs de code
+    doc.querySelectorAll("pre").forEach((pre, index) => {
+      pre.setAttribute("data-aos", "fade-up");
+      pre.setAttribute("data-aos-delay", `${index * 50}`);
+    });
 
-    // Enhance blockquotes
-    doc.querySelectorAll("blockquote").forEach((quote) => {
-      quote.style.borderLeft = "4px solid #22c55e"
-      quote.style.paddingLeft = "1rem"
-      quote.style.fontStyle = "italic"
-      quote.style.margin = "1.5rem 0"
-      quote.style.color = "#4b5563"
-    })
+    // Ajouter des attributs data-aos pour les citations
+    doc.querySelectorAll("blockquote").forEach((quote, index) => {
+      quote.setAttribute("data-aos", "fade-right");
+      quote.setAttribute("data-aos-delay", `${index * 50}`);
+    });
 
-    return doc.body.innerHTML
+    // Ajouter des numéros de ligne aux blocs de code
+    doc.querySelectorAll("pre code").forEach((codeBlock) => {
+      const code = codeBlock.textContent || "";
+      const lines = code.split("\n");
+      let numberedCode = "";
+
+      lines.forEach((line, index) => {
+        if (index === lines.length - 1 && !line.trim()) return;
+        numberedCode += `<div class="code-line"><span class="line-number">${index + 1}</span>${line}</div>`;
+      });
+
+      codeBlock.innerHTML = numberedCode;
+    });
+
+    // Ajouter des liens aux titres pour permettre le partage direct
+    doc.querySelectorAll("h1[id], h2[id], h3[id], h4[id], h5[id], h6[id]").forEach((heading) => {
+      const id = heading.getAttribute("id");
+      const link = document.createElement("a");
+      link.href = `#${id}`;
+      link.className = "heading-link";
+      link.innerHTML = "#";
+      link.title = "Lien direct vers cette section";
+      heading.appendChild(link);
+    });
+
+    // Ajouter des styles pour les tableaux si présents
+    doc.querySelectorAll("table").forEach((table) => {
+      table.classList.add("markdown-table");
+    });
+
+    return doc.body.innerHTML;
   }
 
   /**
@@ -169,7 +369,7 @@ const PostPage = () => {
     updateCommentActionState(commentId, "loading")
 
     try {
-      const response = await fetch(`${API_ENDPOINTS.comment}/${commentId}/like`, {
+      const response = await fetch(`${API_ENDPOINTS.comments.like(commentId)}`, {
         method: "POST",
         credentials: "include",
       })
@@ -211,7 +411,7 @@ const PostPage = () => {
     updateCommentActionState(commentId, "loading")
 
     try {
-      const response = await fetch(`${API_ENDPOINTS.comment}/${commentId}/dislike`, {
+      const response = await fetch(`${API_ENDPOINTS.comments.unlike(commentId)}`, {
         method: "POST",
         credentials: "include",
       })
@@ -254,7 +454,7 @@ const PostPage = () => {
     updateCommentActionState(commentId, "loading")
 
     try {
-      const response = await fetch(`${API_ENDPOINTS.comment}/${commentId}`, {
+      const response = await fetch(`${API_ENDPOINTS.comments.update(commentId)}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -293,7 +493,7 @@ const PostPage = () => {
 
       try {
         // Fix the incorrect URL
-        const response = await fetch(`${API_ENDPOINTS.comment}/${commentId}`, {
+        const response = await fetch(`${API_ENDPOINTS.comments.delete(commentId)}`, {
           method: "DELETE",
           credentials: "include",
         })
@@ -319,17 +519,40 @@ const PostPage = () => {
   }
 
   /**
+   * Sanitize comment payload to avoid circular structures and ensure proper schema
+   * @param content - Comment content
+   * @param postId - ID of the post
+   * @param parentId - ID of the parent comment (if replying)
+   * @returns Sanitized payload object
+   */
+  function sanitizeCommentPayload(
+    content: string,
+    postId: string,
+    parentId: string | null = null
+  ) {
+    // Just string or undefined/null for parent; nothing else!
+    const sanitized: { content: string, post: string, parent?: string } = {
+      content,
+      post: postId
+    }
+    if (typeof parentId === "string" && parentId.trim().length > 0) {
+      sanitized.parent = parentId
+    }
+    return sanitized
+  }
+
+  /**
    * Reply to a comment
    * @param parentId - ID of the parent comment
    * @param content - Content of the reply
    */
-  const handleReply = async (parentId: string, content: string) => {
+  const handleReply = async (parentId: string) => {
     if (!userInfo) {
       setErrorMessage("You must be logged in to reply")
       return
     }
 
-    if (!content.trim()) {
+    if (!replyContent.trim()) {
       setErrorMessage("Reply cannot be empty")
       return
     }
@@ -338,25 +561,68 @@ const PostPage = () => {
     setIsSubmittingComment(true)
 
     try {
-      const response = await fetch(API_ENDPOINTS.comment, {
+      const payload = sanitizeCommentPayload(replyContent, id || "", parentId)
+      console.log("[handleReply] Payload:", payload)
+
+      // Defensive check - ensure payload can be serialized
+      JSON.stringify(payload)
+
+      const response = await fetch(API_ENDPOINTS.comments.create, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          content,
-          postId: id,
-          parentId,
-        }),
+        body: JSON.stringify(payload),
         credentials: "include",
       })
 
+      // Read the response body once
+      const responseData = await response.json()
+
       if (!response.ok) {
-        throw new Error(`Failed to post reply: ${response.status}`)
+        throw new Error(responseData.message || `Failed to post reply: ${response.status}`)
       }
 
-      await fetchComments()
-      setNewComment("")
+      // Process the reply data
+      if (responseData && responseData.comment) {
+        // Make sure the comment has the required properties
+        const newReply = {
+          ...responseData.comment,
+          likes: responseData.comment.likes || [],
+          dislikes: responseData.comment.dislikes || []
+        }
+
+        // Find the parent comment and add this reply to it
+        setComments(prevComments => {
+          // Create a deep copy of the comments array
+          const updatedComments = [...prevComments]
+
+          // Find the parent comment
+          const parentComment = updatedComments.find(comment => comment._id === parentId)
+
+          if (parentComment) {
+            // Initialize replies array if it doesn't exist
+            if (!parentComment.replies) {
+              parentComment.replies = []
+            }
+
+            // Add the new reply to the parent's replies
+            parentComment.replies = [newReply, ...parentComment.replies]
+          } else {
+            // If parent comment not found, add as a new comment
+            updatedComments.push(newReply)
+          }
+
+          return updatedComments
+        })
+      } else {
+        // Fallback to fetching all comments if the response doesn't include the new reply
+        console.log("Reply created but no comment data returned, fetching all comments")
+        await fetchComments()
+      }
+
+      // Réinitialiser le contenu de la réponse et fermer le formulaire
+      setReplyContent("")
       setReplyingTo(null)
       updateCommentActionState(parentId, "success")
       setSuccessMessage("Reply posted successfully")
@@ -393,28 +659,48 @@ const PostPage = () => {
     setIsSubmittingComment(true)
 
     try {
-      const response = await fetch(API_ENDPOINTS.comment, {
+      // Use sanitized payload - no complex objects, no event objects, no parent objects
+      const payload = sanitizeCommentPayload(newComment, id || "", parentId)
+      console.log("[handleCommentSubmit] Payload:", payload)
+
+      // Defensive check - ensure payload can be serialized
+      JSON.stringify(payload)
+
+      const response = await fetch(API_ENDPOINTS.comments.create, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
         },
-        body: JSON.stringify({
-          content: newComment,
-          postId: id,
-          parentId,
-        }),
+        body: JSON.stringify(payload),
         credentials: "include",
       })
 
+      // Read the response body once
+      const responseData = await response.json()
+
       if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.message || "Failed to post comment")
+        throw new Error(responseData.message || "Failed to post comment")
+      }
+
+      // Process the comment data
+      if (responseData && responseData.comment) {
+        // Make sure the comment has the required properties
+        const newComment = {
+          ...responseData.comment,
+          likes: responseData.comment.likes || [],
+          dislikes: responseData.comment.dislikes || []
+        }
+
+        // Add the new comment to the beginning of the array (most recent first)
+        setComments(prevComments => [newComment, ...prevComments])
+      } else {
+        // Fallback to fetching all comments if the response doesn't include the new comment
+        console.log("Comment created but no comment data returned, fetching all comments")
+        await fetchComments()
       }
 
       setNewComment("")
       setReplyingTo(null)
-      await fetchComments()
       setSuccessMessage("Comment posted successfully")
 
       // Clear success message after 3 seconds
@@ -431,19 +717,27 @@ const PostPage = () => {
     const fetchData = async () => {
       setIsLoading(true)
       try {
-        const response = await fetch(`https://mern-backend-neon.vercel.app/posts/${id}`)
+        const response = await fetch(API_ENDPOINTS.posts.detail(id || ''))
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch post: ${response.status}`)
+        }
+
         const postData = await response.json()
-        setPostInfo(postData)
-        setLikes(postData.likes?.length || 0)
-        setDislikes(postData.dislikes?.length || 0)
+        // Correction : compatibilité avec backend qui retourne { post }
+        const post = postData.post || postData
+        setPostInfo(post)
+        setLikes(post.likes?.length || 0)
+        setDislikes(post.dislikes?.length || 0)
         if (userInfo) {
-          setUserLiked(postData.likes?.includes(userInfo.id))
-          setUserDisliked(postData.dislikes?.includes(userInfo.id))
+          setUserLiked(post.likes?.includes(userInfo.id))
+          setUserDisliked(post.dislikes?.includes(userInfo.id))
         }
 
         await fetchComments()
       } catch (error) {
         console.error("Error fetching data:", error)
+        setErrorMessage(error instanceof Error ? error.message : "Failed to load post data")
       } finally {
         setIsLoading(false)
       }
@@ -451,7 +745,32 @@ const PostPage = () => {
 
     fetchData()
 
-    // Add highlight animation styles
+    // Vérifier si highlight.js est disponible
+    const isHighlightJsAvailable = () => {
+      try {
+        return typeof hljs !== 'undefined' && hljs !== null && typeof hljs.highlight === 'function';
+      } catch (e) {
+        console.error("highlight.js n'est pas disponible:", e);
+        return false;
+      }
+    };
+
+    // Initialiser highlight.js s'il est disponible
+    if (isHighlightJsAvailable()) {
+      try {
+        hljs.configure({
+          languages: ['javascript', 'typescript', 'python', 'html', 'css', 'bash', 'json', 'markdown'],
+          ignoreUnescapedHTML: true
+        });
+        console.log("highlight.js initialisé avec succès");
+      } catch (e) {
+        console.error("Erreur lors de l'initialisation de highlight.js:", e);
+      }
+    } else {
+      console.warn("highlight.js n'est pas disponible, la coloration syntaxique sera désactivée");
+    }
+
+    // Add styles for animations and interactions
     const style = document.createElement("style")
     style.textContent = `
       .highlight {
@@ -461,21 +780,116 @@ const PostPage = () => {
         0% { background-color: rgba(34, 197, 94, 0.2); }
         100% { background-color: transparent; }
       }
+
+      /* Animation pour les éléments qui apparaissent au défilement */
+      [data-aos] {
+        opacity: 0;
+        transition: opacity 0.8s, transform 0.8s;
+      }
+
+      [data-aos="fade-up"] {
+        transform: translateY(20px);
+      }
+
+      [data-aos="fade-right"] {
+        transform: translateX(-20px);
+      }
+
+      [data-aos="zoom-in"] {
+        transform: scale(0.95);
+      }
+
+      [data-aos].aos-animate {
+        opacity: 1;
+        transform: translateY(0) translateX(0) scale(1);
+      }
+
+      /* Style pour la table des matières */
+      .table-of-contents {
+        background-color: #f9f9f9;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        border: 1px solid #eaeaea;
+      }
+
+      .table-of-contents h3 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+        font-size: 1.2rem;
+      }
+
+      .table-of-contents ul {
+        list-style-type: none;
+        padding-left: 0;
+      }
+
+      .table-of-contents li {
+        margin-bottom: 0.5rem;
+      }
+
+      .table-of-contents a {
+        color: #16a34a;
+        text-decoration: none;
+        transition: color 0.2s;
+      }
+
+      .table-of-contents a:hover {
+        color: #15803d;
+        text-decoration: underline;
+      }
+
+      /* Style pour le mode sombre */
+      @media (prefers-color-scheme: dark) {
+        .table-of-contents {
+          background-color: #222;
+          border-color: #333;
+        }
+
+        .table-of-contents a {
+          color: #4ade80;
+        }
+
+        .table-of-contents a:hover {
+          color: #86efac;
+        }
+      }
     `
     document.head.appendChild(style)
 
+    // Fonction pour animer les éléments au défilement
+    const animateOnScroll = () => {
+      const elements = document.querySelectorAll('[data-aos]')
+
+      elements.forEach(element => {
+        const elementPosition = element.getBoundingClientRect().top
+        const windowHeight = window.innerHeight
+
+        if (elementPosition < windowHeight * 0.85) {
+          element.classList.add('aos-animate')
+        }
+      })
+    }
+
+    // Ajouter les écouteurs d'événements
+    window.addEventListener('scroll', animateOnScroll)
+
+    // Déclencher l'animation initiale
+    setTimeout(animateOnScroll, 100)
+
     return () => {
       document.head.removeChild(style)
+      window.removeEventListener('scroll', animateOnScroll)
     }
-  }, [id, userInfo])
+  }, [id, userInfo, fetchComments])
 
   const handleLikePost = async () => {
     if (!userInfo) {
-      alert("You must be logged in to like a post")
+      setErrorMessage("You must be logged in to like a post")
       return
     }
     try {
-      const response = await fetch(`https://mern-backend-neon.vercel.app/posts/${id}/like`, {
+      const response = await fetch(`${API_ENDPOINTS.posts.detail(id || '')}/like`, {
         method: "POST",
         credentials: "include",
       })
@@ -485,19 +899,24 @@ const PostPage = () => {
         setDislikes(data.dislikes.length)
         setUserLiked(data.likes.includes(userInfo.id))
         setUserDisliked(data.dislikes.includes(userInfo.id))
+        setSuccessMessage("Post liked successfully")
+
+        // Clear success message after 3 seconds
+        setTimeout(() => setSuccessMessage(null), 3000)
       }
     } catch (error) {
       console.error("Error liking post:", error)
+      setErrorMessage(error instanceof Error ? error.message : "Failed to like post")
     }
   }
 
   const handleDislikePost = async () => {
     if (!userInfo) {
-      alert("You must be logged in to dislike a post")
+      setErrorMessage("You must be logged in to dislike a post")
       return
     }
     try {
-      const response = await fetch(`https://mern-backend-neon.vercel.app/posts/${id}/dislike`, {
+      const response = await fetch(`${API_ENDPOINTS.posts.detail(id || '')}/dislike`, {
         method: "POST",
         credentials: "include",
       })
@@ -507,9 +926,14 @@ const PostPage = () => {
         setDislikes(data.dislikes.length)
         setUserLiked(data.likes.includes(userInfo.id))
         setUserDisliked(data.dislikes.includes(userInfo.id))
+        setSuccessMessage("Post disliked successfully")
+
+        // Clear success message after 3 seconds
+        setTimeout(() => setSuccessMessage(null), 3000)
       }
     } catch (error) {
       console.error("Error disliking post:", error)
+      setErrorMessage(error instanceof Error ? error.message : "Failed to dislike post")
     }
   }
 
@@ -534,7 +958,9 @@ const PostPage = () => {
    * @param depth - Current depth level for indentation
    * @param parentId - ID of the parent comment (if any)
    */
-  const renderComments = (comments: Comment[], depth = 0, parentId: string | null = null) => {
+  const renderComments = (commentsInput: Comment[] = [], depth = 0, parentId: string | null = null) => {
+    // Defensive: always use an array
+    const comments = Array.isArray(commentsInput) ? commentsInput : []
     return comments.map((comment: Comment) => (
       <div
         key={comment._id}
@@ -600,20 +1026,23 @@ const PostPage = () => {
             <div className="flex items-center space-x-4 mt-3">
               <button
                 onClick={() => handleLikeComment(comment._id)}
-                className={`flex items-center space-x-1 text-sm ${userInfo?.id && comment.likes.includes(userInfo.id) ? "text-primary" : "text-muted-foreground"} hover:text-primary transition-colors`}
+                className={`flex items-center space-x-1 text-sm ${userInfo?.id && Array.isArray(comment.likes) && comment.likes.includes(userInfo.id) ? "text-primary" : "text-muted-foreground"} hover:text-primary transition-colors`}
               >
                 <Heart className="h-4 w-4" />
-                <span>{comment.likes.length}</span>
+                <span>{Array.isArray(comment.likes) ? comment.likes.length : 0}</span>
               </button>
               <button
                 onClick={() => handleDislikeComment(comment._id)}
-                className={`flex items-center space-x-1 text-sm ${userInfo?.id && comment.dislikes.includes(userInfo.id) ? "text-destructive" : "text-muted-foreground"} hover:text-destructive transition-colors`}
+                className={`flex items-center space-x-1 text-sm ${userInfo?.id && Array.isArray(comment.dislikes) && comment.dislikes.includes(userInfo.id) ? "text-destructive" : "text-muted-foreground"} hover:text-destructive transition-colors`}
               >
                 <ThumbsDown className="h-4 w-4" />
-                <span>{comment.dislikes.length}</span>
+                <span>{Array.isArray(comment.dislikes) ? comment.dislikes.length : 0}</span>
               </button>
               <button
-                onClick={() => setReplyingTo(comment._id)}
+                onClick={() => {
+                  setReplyingTo(comment._id)
+                  setReplyContent("") // Réinitialiser le contenu de la réponse
+                }}
                 className="flex items-center space-x-1 text-sm text-muted-foreground hover:text-primary transition-colors"
               >
                 <Reply className="h-4 w-4" />
@@ -645,13 +1074,13 @@ const PostPage = () => {
           <form
             onSubmit={(e) => {
               e.preventDefault()
-              handleReply(comment._id, newComment)
+              handleReply(comment._id)
             }}
             className="mt-4"
           >
             <textarea
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
+              value={replyContent}
+              onChange={(e) => setReplyContent(e.target.value)}
               placeholder="Write your reply..."
               className="w-full p-3 border rounded-md text-sm resize-none min-h-[100px] focus:ring-2 focus:ring-primary focus:border-transparent"
               required
@@ -660,14 +1089,21 @@ const PostPage = () => {
               <Button type="submit" size="sm">
                 Post Reply
               </Button>
-              <Button onClick={() => setReplyingTo(null)} variant="outline" size="sm">
+              <Button
+                onClick={() => {
+                  setReplyingTo(null)
+                  setReplyContent("")
+                }}
+                variant="outline"
+                size="sm"
+              >
                 Cancel
               </Button>
             </div>
           </form>
         )}
 
-        {comment.replies && comment.replies.length > 0 && (
+        {comment.replies && Array.isArray(comment.replies) && comment.replies.length > 0 && (
           <div className="mt-4">{renderComments(comment.replies, depth + 1, comment._id)}</div>
         )}
       </div>
@@ -698,6 +1134,9 @@ const PostPage = () => {
   const username = userInfo?.username
   const userId = userInfo?.id
 
+  // Check if the current user is the author of the post
+  const isAuthor = userId && postInfo?.author?._id === userId
+
   /**
    * Delete a post with confirmation
    * @param postId - ID of the post to delete
@@ -719,7 +1158,7 @@ const PostPage = () => {
         // Show loading state
         setIsSubmittingComment(true)
 
-        const response = await fetch(`${API_ENDPOINTS.posts}/${postId}`, {
+        const response = await fetch(`${API_ENDPOINTS.posts.delete(postId)}`, {
           method: "DELETE",
           credentials: "include",
         })
@@ -744,15 +1183,19 @@ const PostPage = () => {
   }
 
   /**
-   * Format image path to handle both relative and absolute URLs
-   * @param path - Image path
-   * @returns Formatted image URL
+   * Format image path to handle both relative and absolute URLs safely
+   * @param path - Image path (may be undefined or null)
+   * @returns Formatted image URL or a placeholder if not valid
    */
-  const formatImagePath = (path: string): string => {
-    if (path.startsWith("http")) {
-      return path
+  const formatImagePath = (path?: string | null): string => {
+    if (!path || path.trim() === '') {
+      // Return a default placeholder
+      return "/images/placeholder.png";
     }
-    return `${API_BASE_URL}/${path.replace(/\\/g, "/")}`
+    if (path.startsWith("http")) {
+      return path;
+    }
+    return `${API_BASE_URL}/${path.replace(/\\/g, "/")}`;
   }
 
   // Render error message
@@ -807,7 +1250,7 @@ const PostPage = () => {
             <div className="mb-8">
               <div className="relative w-full h-[400px] bg-cover bg-center rounded-xl overflow-hidden">
                 <img
-                  src={formatImagePath(postInfo.cover) || "/placeholder.svg"}
+                  src={formatImagePath(postInfo.cover)}
                   alt={postInfo.title}
                   className="w-full h-full object-cover"
                 />
@@ -823,7 +1266,7 @@ const PostPage = () => {
                   variant="outline"
                   className="bg-primary-50 text-primary-700 border-primary-200 dark:bg-primary-900 dark:text-primary-300 dark:border-primary-800"
                 >
-                  {postInfo.category?.name || "Uncategorized"}
+                  {getCategoryName(postInfo)}
                 </Badge>
                 <time className="text-sm text-muted-foreground flex items-center">
                   <CalendarIcon className="h-4 w-4 mr-1" />
@@ -845,8 +1288,66 @@ const PostPage = () => {
           </AnimateOnView>
 
           <AnimateOnView animation="slide-up" delay={200}>
-            <div className="prose prose-green max-w-none dark:prose-invert mb-8">
-              <div dangerouslySetInnerHTML={{ __html: formatContent(postInfo.content) }} />
+            {/* Table des matières générée automatiquement */}
+            <div className="table-of-contents mb-8">
+              <h3 className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+                </svg>
+                Sommaire
+              </h3>
+              {(() => {
+                // Extraire les titres du contenu pour générer la table des matières
+                const headings: {id: string, text: string, level: number}[] = [];
+                const parser = new DOMParser();
+                const htmlContent = formatContent(postInfo.content);
+                const doc = parser.parseFromString(htmlContent, 'text/html');
+
+                doc.querySelectorAll('h1, h2, h3').forEach((heading) => {
+                  const id = heading.getAttribute('id') || '';
+                  const level = parseInt(heading.tagName.substring(1));
+                  headings.push({
+                    id,
+                    text: heading.textContent?.replace('#', '') || '',
+                    level
+                  });
+                });
+
+                // Générer la liste des liens
+                return (
+                  <ul>
+                    {headings.map((heading, index) => (
+                      <li key={index} style={{ paddingLeft: `${(heading.level - 1) * 1}rem` }}>
+                        <a href={`#${heading.id}`}>{heading.text}</a>
+                      </li>
+                    ))}
+                  </ul>
+                );
+              })()}
+            </div>
+
+            {/* Contenu principal avec mise en forme améliorée */}
+            <div className="prose prose-green max-w-none dark:prose-invert mb-8 markdown-content">
+              <div
+                dangerouslySetInnerHTML={{ __html: formatContent(postInfo.content) }}
+                className="markdown-body"
+              />
+            </div>
+
+            {/* Informations sur l'article */}
+            <div className="bg-muted/30 rounded-lg p-4 mb-8 text-sm text-muted-foreground">
+              <div className="flex items-center mb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Dernière mise à jour: {formatDate(postInfo.updatedAt || postInfo.createdAt)}</span>
+              </div>
+              <div className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+                </svg>
+                <span>Catégorie: {getCategoryName(postInfo)}</span>
+              </div>
             </div>
           </AnimateOnView>
 
@@ -869,7 +1370,7 @@ const PostPage = () => {
             </div>
           </AnimateOnView>
 
-          {userId === postInfo.author._id && (
+          {isAuthor && (
             <AnimateOnView animation="slide-up" delay={400}>
               <div className="flex justify-center space-x-4 mb-12">
                 <Link to={`/edit_page/${postInfo._id}`}>

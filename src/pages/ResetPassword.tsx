@@ -5,12 +5,7 @@ import { useParams, useNavigate, Link } from "react-router-dom"
 import { AlertCircle, CheckCircle, Loader2, KeyRound } from "lucide-react"
 import { ValidationErrors } from "../types/ValidationErrors"
 import { ApiResponse } from "../types/ApiResponse"
-
-// API configuration
-const API_BASE_URL = "https://mern-backend-neon.vercel.app"
-const API_ENDPOINTS = {
-  resetPassword: (token: string) => `${API_BASE_URL}/auth/reset-password/${token}`
-}
+import { API_ENDPOINTS } from "../config/api.config"
 
 const ResetPassword: React.FC = () => {
   // Form state
@@ -108,7 +103,7 @@ const ResetPassword: React.FC = () => {
         throw new Error("Token de réinitialisation invalide ou manquant")
       }
 
-      const response = await fetch(API_ENDPOINTS.resetPassword(resetToken), {
+      const response = await fetch(API_ENDPOINTS.auth.resetPassword(resetToken), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

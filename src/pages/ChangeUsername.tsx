@@ -4,13 +4,7 @@ import React, { useState, useCallback, useEffect } from "react"
 import { Navigate, Link, useNavigate } from "react-router-dom"
 import { UserContext } from "../UserContext"
 import { FormStatus } from "../types/FormStatus"
-
-// API URLs
-const API_BASE_URL = "https://mern-backend-neon.vercel.app"
-const API_ENDPOINTS = {
-  updateProfile: `${API_BASE_URL}/users/profile`,
-  getProfile: `${API_BASE_URL}/users/profile`
-}
+import { API_ENDPOINTS } from "../config/api.config"
 
 
 const EditUsername: React.FC = () => {
@@ -81,12 +75,18 @@ const EditUsername: React.FC = () => {
       return
     }
 
+    // Check if user is logged in and has an ID
+    if (!userInfo || !userInfo.id) {
+      setErrorMessage("You must be logged in to update your username")
+      return
+    }
+
     setStatus("submitting")
     setErrorMessage(null)
 
     try {
-      // Use the correct API endpoint for updating profile
-      const response = await fetch(API_ENDPOINTS.updateProfile, {
+      // Use the API endpoint for updating user profile
+      const response = await fetch(API_ENDPOINTS.users.update, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

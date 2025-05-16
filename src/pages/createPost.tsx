@@ -7,15 +7,7 @@ import ReactQuill from "react-quill"
 import { Navigate } from "react-router-dom"
 import "react-quill/dist/quill.snow.css"
 import "../css/App.css"
-
-// API configuration
-const API_BASE_URL = "https://mern-backend-neon.vercel.app"
-const API_ENDPOINTS = {
-  checkAuthorAdmin: `${API_BASE_URL}/check-author-admin`,
-  uploads: `${API_BASE_URL}/uploads`,
-  createPost: `${API_BASE_URL}/posts`,
-  categories: `${API_BASE_URL}/categories`
-}
+import { API_ENDPOINTS } from "../config/api.config"
 
 // Editor configuration
 const EDITOR_MODULES = {
@@ -72,6 +64,8 @@ const CreatePost: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>("")
   const [featured, setFeatured] = useState<boolean>(false)
   const [coverUrl, setCoverUrl] = useState<string>("")
+  const [coverUrlInput, setCoverUrlInput] = useState<string>("") // Nouveau champ pour l'URL
+  const [useUrl, setUseUrl] = useState<boolean>(false) // Toggle entre upload et URL
 
   // UI state
   const [redirect, setRedirect] = useState<boolean>(false)
@@ -87,7 +81,8 @@ const CreatePost: React.FC = () => {
   useEffect(() => {
     const checkAuthorAdminStatus = async () => {
       try {
-        const response = await fetch(API_ENDPOINTS.checkAuthorAdmin, {
+        // Utiliser la route dédiée pour vérifier les permissions d'auteur/éditeur/admin
+        const response = await fetch(API_ENDPOINTS.auth.checkAuthor, {
           credentials: "include",
         })
 
@@ -96,6 +91,7 @@ const CreatePost: React.FC = () => {
         }
 
         const data = await response.json()
+        console.log("Author check response:", data)
         setIsAuthorOrAdmin(data.isAuthorOrAdmin)
       } catch (error) {
         console.error("Error checking author/admin status:", error)
@@ -111,14 +107,24 @@ const CreatePost: React.FC = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch(API_ENDPOINTS.categories)
+        const response = await fetch(API_ENDPOINTS.categories.list)
 
         if (!response.ok) {
           throw new Error("Failed to fetch categories")
         }
 
         const data = await response.json()
-        setCategories(data)
+        console.log("Categories response:", data)
+
+        // Vérifier si data est un tableau ou s'il contient un tableau de catégories
+        if (Array.isArray(data)) {
+          setCategories(data)
+        } else if (data && Array.isArray(data.categories)) {
+          setCategories(data.categories)
+        } else {
+          console.error("Unexpected categories data format:", data)
+          setCategories([])
+        }
       } catch (error) {
         console.error("Error fetching categories:", error)
         alert("Failed to load categories")
@@ -162,7 +168,7 @@ const CreatePost: React.FC = () => {
           : ""
 
         try {
-          const response = await fetch(API_ENDPOINTS.uploads, {
+          const response = await fetch(API_ENDPOINTS.uploads.base64, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -206,8 +212,11 @@ const CreatePost: React.FC = () => {
   const handleSubmit = async (ev: FormEvent) => {
     ev.preventDefault()
 
+    // Utiliser l'URL si le toggle est activé, sinon l'upload
+    const finalCoverUrl = useUrl ? coverUrlInput : coverUrl
+
     // Validate form
-    const validation = validateForm(title, summary, content, selectedCategory, coverUrl)
+    const validation = validateForm(title, summary, content, selectedCategory, finalCoverUrl)
 
     if (!validation.isValid) {
       alert(validation.errors.join('\n'))
@@ -217,16 +226,21 @@ const CreatePost: React.FC = () => {
     setIsSubmitting(true)
 
     try {
+      // Préparer les données du post
       const postData = {
         title,
         summary,
         content,
-        category: selectedCategory,
+        categories: selectedCategory ? [selectedCategory] : [], // Envoyer comme tableau pour correspondre à l'attente du backend
+        category: selectedCategory, // Envoyer aussi comme champ unique pour compatibilité
         featured: featured ? "true" : "false",
-        cover: coverUrl,
+        cover: finalCoverUrl,
       }
 
-      const response = await fetch(API_ENDPOINTS.createPost, {
+      // Debug: Afficher les données envoyées
+      console.log("Sending post data:", postData)
+
+      const response = await fetch(API_ENDPOINTS.posts.create, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -317,19 +331,32 @@ const CreatePost: React.FC = () => {
             />
           </div>
 
-          {/* Cover image upload */}
+          {/* Cover image upload ou URL */}
           <div>
             <label htmlFor="cover" className="mb-2 block text-sm font-medium text-gray-900">Cover Image</label>
-            <input
-              id="cover"
-              type="file"
-              onChange={handleImageUpload}
-              required
-              accept="image/*"
-              className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-lime-50 file:text-lime-700 hover:file:bg-lime-100"
-            />
-
-            {isUploading && (
+            <div className="flex items-center gap-4 mb-2">
+              <button type="button" className={`px-3 py-1 rounded ${!useUrl ? 'bg-lime-600 text-white' : 'bg-gray-200'}`} onClick={() => setUseUrl(false)}>Upload</button>
+              <button type="button" className={`px-3 py-1 rounded ${useUrl ? 'bg-lime-600 text-white' : 'bg-gray-200'}`} onClick={() => setUseUrl(true)}>Lien URL</button>
+            </div>
+            {!useUrl ? (
+              <input
+                id="cover"
+                type="file"
+                onChange={handleImageUpload}
+                accept="image/*"
+                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-lime-50 file:text-lime-700 hover:file:bg-lime-100"
+              />
+            ) : (
+              <input
+                id="cover-url"
+                type="url"
+                placeholder="https://..."
+                value={coverUrlInput}
+                onChange={e => setCoverUrlInput(e.target.value)}
+                className="w-full rounded-lg border-gray-200 p-4 text-sm shadow-sm"
+              />
+            )}
+            {isUploading && !useUrl && (
               <div className="mt-2">
                 <div className="w-full bg-gray-200 rounded-full h-2.5">
                   <div className="bg-lime-600 h-2.5 rounded-full w-full animate-pulse"></div>
@@ -337,12 +364,11 @@ const CreatePost: React.FC = () => {
                 <p className="text-sm text-gray-500 mt-1">Uploading image...</p>
               </div>
             )}
-
-            {previewImage && (
+            {((previewImage && !useUrl) || (useUrl && coverUrlInput)) && (
               <div className="mt-2">
                 <p className="text-sm text-gray-700 mb-1">Image preview:</p>
                 <img
-                  src={previewImage}
+                  src={useUrl ? coverUrlInput : previewImage || undefined}
                   alt="Preview"
                   className="mt-2 max-w-full h-auto max-h-40 rounded-md"
                 />

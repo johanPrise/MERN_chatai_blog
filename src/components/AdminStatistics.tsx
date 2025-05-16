@@ -1,0 +1,211 @@
+import React from "react"
+import { User as UserType } from "../types/User"
+
+interface StatCardProps {
+  title: string
+  value: number | string
+  icon: React.ReactNode
+  color: string
+}
+
+const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color }) => {
+  return (
+    <div className={`bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700`}>
+      <div className="flex items-center">
+        <div className={`p-3 rounded-full ${color} mr-4`}>
+          {icon}
+        </div>
+        <div>
+          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">{title}</p>
+          <p className="text-2xl font-semibold text-gray-900 dark:text-white">{value}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+interface AdminStatisticsProps {
+  users: UserType[]
+}
+
+export const AdminStatistics: React.FC<AdminStatisticsProps> = ({ users }) => {
+  // Calculer les statistiques
+  const totalUsers = users.length
+  const verifiedUsers = users.filter(user => user.isVerified).length
+  const unverifiedUsers = totalUsers - verifiedUsers
+  const verificationRate = totalUsers > 0 ? Math.round((verifiedUsers / totalUsers) * 100) : 0
+
+  const usersByRole = {
+    admin: users.filter(user => user.role === 'admin').length,
+    author: users.filter(user => user.role === 'author').length,
+    editor: users.filter(user => user.role === 'editor').length,
+    user: users.filter(user => user.role === 'user').length,
+  }
+
+  // Calculer les utilisateurs par mois (pour les 6 derniers mois)
+  const usersByMonth = () => {
+    const months: Record<string, number> = {}
+    const now = new Date()
+    
+    // Initialiser les 6 derniers mois avec 0 utilisateurs
+    for (let i = 5; i >= 0; i--) {
+      const month = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const monthKey = month.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+      months[monthKey] = 0
+    }
+    
+    // Compter les utilisateurs par mois
+    users.forEach(user => {
+      const createdAt = new Date(user.createdAt)
+      // Ne compter que les utilisateurs des 6 derniers mois
+      if (createdAt >= new Date(now.getFullYear(), now.getMonth() - 5, 1)) {
+        const monthKey = createdAt.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+        if (months[monthKey] !== undefined) {
+          months[monthKey]++
+        }
+      }
+    })
+    
+    return months
+  }
+
+  const monthlyData = usersByMonth()
+
+  return (
+    <div className="space-y-8">
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Statistiques des utilisateurs</h2>
+      
+      {/* Cartes de statistiques principales */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard
+          title="Total Utilisateurs"
+          value={totalUsers}
+          icon={
+            <svg className="w-6 h-6 text-lime-600 dark:text-lime-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+            </svg>
+          }
+          color="bg-lime-100 dark:bg-lime-900 text-lime-600 dark:text-lime-400"
+        />
+        
+        <StatCard
+          title="Utilisateurs vérifiés"
+          value={`${verifiedUsers} (${verificationRate}%)`}
+          icon={
+            <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          }
+          color="bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400"
+        />
+        
+        <StatCard
+          title="Utilisateurs non vérifiés"
+          value={unverifiedUsers}
+          icon={
+            <svg className="w-6 h-6 text-yellow-600 dark:text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+          }
+          color="bg-yellow-100 dark:bg-yellow-900 text-yellow-600 dark:text-yellow-400"
+        />
+        
+        <StatCard
+          title="Taux de vérification"
+          value={`${verificationRate}%`}
+          icon={
+            <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+            </svg>
+          }
+          color="bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400"
+        />
+      </div>
+      
+      {/* Distribution des rôles */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Distribution des rôles</h3>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
+            <div className="flex items-center">
+              <div className="p-2 bg-red-100 dark:bg-red-900 rounded-full text-red-600 dark:text-red-400 mr-3">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Administrateurs</p>
+                <p className="text-xl font-semibold text-gray-900 dark:text-white">{usersByRole.admin}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <div className="flex items-center">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-full text-blue-600 dark:text-blue-400 mr-3">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Auteurs</p>
+                <p className="text-xl font-semibold text-gray-900 dark:text-white">{usersByRole.author}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+            <div className="flex items-center">
+              <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-full text-purple-600 dark:text-purple-400 mr-3">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Éditeurs</p>
+                <p className="text-xl font-semibold text-gray-900 dark:text-white">{usersByRole.editor}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-4 bg-gray-50 dark:bg-gray-700/20 rounded-lg">
+            <div className="flex items-center">
+              <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-full text-gray-600 dark:text-gray-400 mr-3">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Utilisateurs</p>
+                <p className="text-xl font-semibold text-gray-900 dark:text-white">{usersByRole.user}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Graphique des inscriptions mensuelles */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Inscriptions mensuelles</h3>
+        <div className="h-64 flex items-end space-x-2">
+          {Object.entries(monthlyData).map(([month, count], index) => {
+            const maxCount = Math.max(...Object.values(monthlyData))
+            const height = maxCount > 0 ? (count / maxCount) * 100 : 0
+            
+            return (
+              <div key={month} className="flex-1 flex flex-col items-center">
+                <div 
+                  className="w-full bg-lime-500 dark:bg-lime-600 rounded-t-md transition-all duration-500"
+                  style={{ height: `${height}%` }}
+                ></div>
+                <div className="mt-2 text-xs text-gray-600 dark:text-gray-400 text-center">
+                  {month.split(' ')[0]}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}

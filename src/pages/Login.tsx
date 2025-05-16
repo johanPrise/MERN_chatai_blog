@@ -14,7 +14,7 @@ import { ValidationErrors } from "../types/ValidationErrors"
  */
 function Login(): JSX.Element {
   // Form state
-  const [username, setUsername] = useState<string>("")
+  const [email, setEmail] = useState<string>("")
   const [password, setPassword] = useState<string>("")
 
   // UI state
@@ -28,13 +28,13 @@ function Login(): JSX.Element {
 
   // Clear error when input changes
   useEffect(() => {
-    if (username && errors.username) {
-      setErrors(prev => ({ ...prev, username: undefined }))
+    if (email && errors.email) {
+      setErrors(prev => ({ ...prev, email: undefined }))
     }
     if (password && errors.password) {
       setErrors(prev => ({ ...prev, password: undefined }))
     }
-  }, [username, password, errors.username, errors.password])
+  }, [email, password, errors.email, errors.password])
 
   /**
    * Validate form inputs
@@ -44,8 +44,11 @@ function Login(): JSX.Element {
     const newErrors: ValidationErrors = {}
     let isValid = true
 
-    if (!username.trim()) {
-      newErrors.username = "Le nom d'utilisateur est requis"
+    if (!email.trim()) {
+      newErrors.email = "L'adresse email est requise"
+      isValid = false
+    } else if (!/^\S+@\S+\.\S+$/.test(email)) {
+      newErrors.email = "Veuillez entrer une adresse email valide"
       isValid = false
     }
 
@@ -60,6 +63,62 @@ function Login(): JSX.Element {
     setErrors(newErrors)
     return isValid
   }
+
+  /**
+   * Handle login submission with test credentials
+   */
+  const handleTestLogin = async () => {
+    setEmail("admin@example.com")
+    setPassword("admin123")
+
+    setIsSubmitting(true)
+
+    try {
+      // Test direct API call
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: "admin@example.com",
+          password: "admin123"
+        }),
+      });
+
+      console.log("Test login response status:", response.status);
+
+      try {
+        const data = await response.json();
+        console.log("Test login response data:", data);
+
+        // Afficher la structure complète de la réponse
+        console.log("Response structure:", JSON.stringify(data, null, 2));
+
+        if (response.ok) {
+          if (data && data.user && data.user._id) {
+            setSuccessMessage(`Test de connexion réussi! Utilisateur: ${data.user.username}`);
+          } else {
+            setSuccessMessage("Test de connexion réussi, mais format de réponse inattendu");
+          }
+        } else {
+          setErrors({ general: data.message || "Échec du test de connexion" });
+        }
+      } catch (jsonError) {
+        console.error("Erreur lors de la lecture de la réponse JSON:", jsonError);
+        setErrors({ general: "Erreur lors de la lecture de la réponse du serveur" });
+      }
+    } catch (error) {
+      console.error("Test login error:", error);
+      setErrors({
+        general: error instanceof Error
+          ? error.message
+          : "Une erreur s'est produite lors du test de connexion"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   /**
    * Handle login form submission
@@ -81,7 +140,7 @@ function Login(): JSX.Element {
 
     try {
       // Use the login function from UserContext
-      const success = await contextLogin(username, password)
+      const success = await contextLogin(email, password)
 
       if (success) {
         setSuccessMessage("Connexion réussie! Redirection...")
@@ -91,7 +150,7 @@ function Login(): JSX.Element {
           navigate("/", { replace: true })
         }, 1000)
       } else {
-        setErrors({ general: "Nom d'utilisateur ou mot de passe incorrect" })
+        setErrors({ general: "Email ou mot de passe incorrect" })
       }
     } catch (error) {
       console.error("Login error:", error)
@@ -106,6 +165,38 @@ function Login(): JSX.Element {
   }
 
 
+
+  // Render error message
+  const renderErrorMessage = () => {
+    if (!errors.general) return null;
+
+    return (
+      <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start">
+        <AlertCircle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="text-red-800 text-sm font-medium">{errors.general}</p>
+          <button
+            onClick={() => setErrors(prev => ({ ...prev, general: undefined }))}
+            className="text-xs text-red-600 hover:text-red-800 mt-1"
+          >
+            Fermer
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // Render success message
+  const renderSuccessMessage = () => {
+    if (!successMessage) return null;
+
+    return (
+      <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md flex items-start">
+        <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
+        <p className="text-green-800 text-sm">{successMessage}</p>
+      </div>
+    );
+  };
 
   return (
     <div className="flex min-h-full flex-1 flex-col justify-center px-6 py-12 lg:px-8">
@@ -123,44 +214,32 @@ function Login(): JSX.Element {
       </div>
 
       <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
-        {/* Error message */}
-        {errors.general && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start">
-            <AlertCircle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
-            <p className="text-red-800 text-sm">{errors.general}</p>
-          </div>
-        )}
-
-        {/* Success message */}
-        {successMessage && (
-          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md flex items-start">
-            <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-            <p className="text-green-800 text-sm">{successMessage}</p>
-          </div>
-        )}
+        {/* Error and success messages */}
+        {renderErrorMessage()}
+        {renderSuccessMessage()}
 
         <form className="space-y-6" onSubmit={handleSubmit}>
-          {/* Username field */}
+          {/* Email field */}
           <div>
-            <label htmlFor="username" className="block text-sm font-medium leading-6 text-gray-900">
-              Nom d'utilisateur
+            <label htmlFor="email" className="block text-sm font-medium leading-6 text-gray-900">
+              Adresse email
             </label>
             <div className="mt-2">
               <input
-                id="username"
-                name="username"
-                type="text"
-                autoComplete="username"
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
                 required
                 className={`block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ${
-                  errors.username ? 'ring-red-300 focus:ring-red-500' : 'ring-gray-300 focus:ring-lime-600'
+                  errors.email ? 'ring-red-300 focus:ring-red-500' : 'ring-gray-300 focus:ring-lime-600'
                 } placeholder:text-gray-400 focus:ring-2 focus:ring-inset sm:text-sm sm:leading-6 disabled:opacity-70 disabled:cursor-not-allowed`}
-                value={username}
-                onChange={(ev) => setUsername(ev.target.value)}
+                value={email}
+                onChange={(ev) => setEmail(ev.target.value)}
                 disabled={isSubmitting}
               />
-              {errors.username && (
-                <p className="mt-1 text-sm text-red-600">{errors.username}</p>
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-600">{errors.email}</p>
               )}
             </div>
           </div>
@@ -212,6 +291,18 @@ function Login(): JSX.Element {
               ) : (
                 "Se connecter"
               )}
+            </button>
+          </div>
+
+          {/* Test login button */}
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={handleTestLogin}
+              disabled={isSubmitting}
+              className="flex w-full justify-center rounded-md bg-blue-600 px-3 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-70 disabled:cursor-not-allowed transition-colors"
+            >
+              Tester avec admin@example.com
             </button>
           </div>
         </form>

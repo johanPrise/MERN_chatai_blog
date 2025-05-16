@@ -2,23 +2,17 @@
 
 import React, { useEffect, useState, useCallback } from "react"
 import Featured from "../components/Featured"
-import Post from "../components/Post"
+import PostComponent from "../components/Post"
 import { CategoryCard2 } from "../components/category"
 import AnimateOnView from "../components/AnimateOnView"
 import Pagination from "../components/pagination"
 import { Container } from "../components/ui/container"
 import { H1, H2 } from "../components/ui/typography"
 import { AlertCircle, RefreshCw } from "lucide-react"
-import { PostType } from "../types/PostType"
+import { Post as PostType } from "../types/PostType"
 import { CategoryProps } from "../types/CategoryProps"
 import { FetchStatus } from "../types/FetchStatus"
-
-// API configuration
-const API_BASE_URL = "https://mern-backend-neon.vercel.app"
-const API_ENDPOINTS = {
-  posts: `${API_BASE_URL}/posts`,
-  categories: `${API_BASE_URL}/categories`
-}
+import { API_ENDPOINTS } from "../config/api.config"
 
 // Interface for fetch state
 interface FetchState {
@@ -73,7 +67,7 @@ export default function Home() {
     }))
 
     try {
-      const response = await fetch(API_ENDPOINTS.posts)
+      const response = await fetch(API_ENDPOINTS.posts.list)
 
       if (!response.ok) {
         throw new Error(`Failed to fetch posts: ${response.status}`)
@@ -81,11 +75,29 @@ export default function Home() {
 
       const data = await response.json()
 
+      // Check for possible array or object structure
+      let postsArray: PostType[];
+      if (Array.isArray(data)) {
+        postsArray = data;
+      } else if (Array.isArray(data.posts)) {
+        postsArray = data.posts;
+      } else {
+        throw new Error("Malformed posts response")
+      }
+
+      // Debug: Log the posts data to see category structure
+      console.log("Posts data from API:", postsArray)
+
+      // Debug: Log specifically the category data for each post
+      postsArray.forEach(post => {
+        console.log(`Post ${post._id} - Category:`, post.category, "Categories:", (post as any).categories)
+      })
+
       // Update posts state
-      setPosts(data)
+      setPosts(postsArray)
 
       // Filter featured posts
-      const featured = data.filter((post: any) => post.featured === true)
+      const featured = postsArray.filter((post: any) => post.featured === true)
       setFeaturedPosts(featured)
 
       // Update fetch state to success
@@ -118,7 +130,7 @@ export default function Home() {
     }))
 
     try {
-      const response = await fetch(API_ENDPOINTS.categories)
+      const response = await fetch(API_ENDPOINTS.categories.list)
 
       if (!response.ok) {
         throw new Error(`Failed to fetch categories: ${response.status}`)
@@ -126,8 +138,8 @@ export default function Home() {
 
       const data = await response.json()
 
-      // Update categories state
-      setCategories(data)
+      // Correction : s'assurer que c'est bien un tableau
+      setCategories(Array.isArray(data.categories) ? data.categories : Array.isArray(data) ? data : [])
 
       // Update fetch state to success
       setFetchState(prev => ({
@@ -246,7 +258,7 @@ export default function Home() {
                 .slice((currentPage - 1) * postsPerPage, currentPage * postsPerPage)
                 .map((post, index) => (
                   <AnimateOnView key={post._id} animation="slide-up" delay={index * 100}>
-                    <Post post={post} />
+                    <PostComponent post={post} />
                   </AnimateOnView>
                 ))}
             </div>

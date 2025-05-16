@@ -3,21 +3,14 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react"
 import { useParams, Link } from "react-router-dom"
 import Post from "../components/Post"
-import CategoryCard2 from "../components/category"
+import { CategoryCard2 } from "../components/category"
 import "../css/categoryPage.css"
 import AnimateOnView from "../components/AnimateOnView"
 import Pagination from "../components/pagination"
 import { CategoryProps } from "../types/CategoryProps"
 import { FetchStatus} from "../types/FetchStatus"
 import { Post as PostType } from "../types/PostType"
-
-// API URLs
-const API_BASE_URL = "https://mern-backend-neon.vercel.app"
-const API_ENDPOINTS = {
-  categories: `${API_BASE_URL}/categories`,
-  category: `${API_BASE_URL}/category`,
-  posts: `${API_BASE_URL}/posts`,
-}
+import { API_ENDPOINTS } from "../config/api.config"
 
 
 const CategoryPage: React.FC = () => {
@@ -43,13 +36,33 @@ const CategoryPage: React.FC = () => {
   // Filter posts by current category
   const filteredPosts = useMemo(() => {
     if (!category || !posts.length) return []
-    return posts.filter((post) => post.category && post.category._id === category._id)
+
+    return posts.filter((post) => {
+      // Vérifier si le post a une catégorie directe qui correspond
+      if (post.category && post.category._id === category._id) {
+        return true
+      }
+
+      // Vérifier si le post a un tableau de catégories qui contient la catégorie actuelle
+      if (post.categories && Array.isArray(post.categories)) {
+        return post.categories.some(cat => cat._id === category._id)
+      }
+
+      return false
+    })
   }, [posts, category])
 
   // Calculate total pages based on filtered posts
   const totalPages = useMemo(() => {
     return Math.ceil(filteredPosts.length / postsPerPage)
   }, [filteredPosts, postsPerPage])
+
+  // Get current posts for pagination
+  const currentPosts = useMemo(() => {
+    const indexOfLastPost = currentPage * postsPerPage
+    const indexOfFirstPost = indexOfLastPost - postsPerPage
+    return filteredPosts.slice(indexOfFirstPost, indexOfLastPost)
+  }, [filteredPosts, currentPage, postsPerPage])
 
   // Reset to page 1 when category changes
   useEffect(() => {
@@ -73,14 +86,16 @@ const CategoryPage: React.FC = () => {
     setError(null)
 
     try {
-      const response = await fetch(`${API_ENDPOINTS.categories}/${categoryId}`)
+      const response = await fetch(API_ENDPOINTS.categories.detail(categoryId))
 
       if (!response.ok) {
         throw new Error(`Failed to fetch category: ${response.status}`)
       }
 
       const data = await response.json()
-      setCategory(data)
+      // Adapter la réponse si nécessaire
+      const categoryData = data.category || data
+      setCategory(categoryData)
       setStatus((prev) => ({ ...prev, category: "success" }))
     } catch (error) {
       console.error("Error fetching category:", error)
@@ -94,35 +109,49 @@ const CategoryPage: React.FC = () => {
     setStatus((prev) => ({ ...prev, posts: "loading" }))
 
     try {
-      const response = await fetch(API_ENDPOINTS.posts)
+      // Si nous avons un categoryId, essayons d'abord de récupérer les posts par catégorie
+      let url = API_ENDPOINTS.posts.list
+      if (categoryId) {
+        // Ajouter un paramètre de requête pour filtrer par catégorie
+        url = `${url}?category=${categoryId}`
+      }
+
+      console.log("Fetching posts from:", url)
+      const response = await fetch(url)
 
       if (!response.ok) {
         throw new Error(`Failed to fetch posts: ${response.status}`)
       }
 
       const data = await response.json()
-      setPosts(data)
+      console.log("Posts data:", data)
+
+      // Adapter la réponse si nécessaire
+      const postsData = data.posts || data
+      setPosts(postsData)
       setStatus((prev) => ({ ...prev, posts: "success" }))
     } catch (error) {
       console.error("Error fetching posts:", error)
       setStatus((prev) => ({ ...prev, posts: "error" }))
       setError(error instanceof Error ? error.message : "Failed to load posts")
     }
-  }, [])
+  }, [categoryId])
 
   // Fetch all categories
   const fetchCategories = useCallback(async () => {
     setStatus((prev) => ({ ...prev, categories: "loading" }))
 
     try {
-      const response = await fetch(API_ENDPOINTS.category)
+      const response = await fetch(API_ENDPOINTS.categories.list)
 
       if (!response.ok) {
         throw new Error(`Failed to fetch categories: ${response.status}`)
       }
 
       const data = await response.json()
-      setCategories(data)
+      // Adapter la réponse si nécessaire
+      const categoriesData = data.categories || data
+      setCategories(categoriesData)
       setStatus((prev) => ({ ...prev, categories: "success" }))
     } catch (error) {
       console.error("Error fetching categories:", error)
@@ -184,13 +213,6 @@ const CategoryPage: React.FC = () => {
       </div>
     )
   }
-
-  // Get current posts for pagination
-  const currentPosts = useMemo(() => {
-    const indexOfLastPost = currentPage * postsPerPage
-    const indexOfFirstPost = indexOfLastPost - postsPerPage
-    return filteredPosts.slice(indexOfFirstPost, indexOfLastPost)
-  }, [filteredPosts, currentPage, postsPerPage])
 
   return (
     <div className="dark:bg-gray-900 format format-sm sm:format-base lg:format-lg format-blue dark:format-invert antialiased p-4">
@@ -288,7 +310,7 @@ const CategoryPage: React.FC = () => {
             {categories.map((cat) => (
               <CategoryCard2
                 key={cat._id}
-                categoryId={cat._id}
+                category={cat}
               />
             ))}
           </div>

@@ -16,6 +16,7 @@ import AdminDashboard from "./pages/AdminDashboard"
 import EditUsername from "./pages/ChangeUsername"
 import CreateCategory from "./pages/createCategory"
 import DeleteCategories from "./pages/DelCategory"
+import Search from "./pages/Search"
 
 // Components
 import Header from "./components/header"
@@ -26,23 +27,26 @@ import Chatbot from "./components/Chatbot"
  */
 function App(): React.ReactElement {
   return (
-    <div className="font-sans font-semibold bg-[#F8F7F4] dark:bg-blue-900 ">
+    <div className="font-sans font-semibold bg-background text-foreground min-h-screen flex flex-col">
       <Header />
-      <Routes>
-        <Route index element={<Home />} />
-        <Route path="/category/:categoryId" element={<CategoryPage />} />
-        <Route path="/deleteCategory" element={<DeleteCategories />} />
-        <Route path="/create_category" element={<CreateCategory />} />
-        <Route path="/Post/:id" element={<PostPage />} />
-        <Route path="/create_post" element={<CreatePost />} />
-        <Route path="/register_page" element={<Register />} />
-        <Route path="/login_page" element={<Login />} />
-        <Route path="/forgot_password" element={<ForgotPassword />} />
-        <Route path="/reset-password/:resetToken" element={<ResetPassword />} />
-        <Route path="/edit-username" element={<EditUsername />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/edit_page/:id" element={<EditPost />} />
-      </Routes>
+      <div className="flex-grow">
+        <Routes>
+          <Route index element={<Home />} />
+          <Route path="/category/:categoryId" element={<CategoryPage />} />
+          <Route path="/deleteCategory" element={<DeleteCategories />} />
+          <Route path="/create_category" element={<CreateCategory />} />
+          <Route path="/Post/:id" element={<PostPage />} />
+          <Route path="/create_post" element={<CreatePost />} />
+          <Route path="/register_page" element={<Register />} />
+          <Route path="/login_page" element={<Login />} />
+          <Route path="/forgot_password" element={<ForgotPassword />} />
+          <Route path="/reset-password/:resetToken" element={<ResetPassword />} />
+          <Route path="/edit-username" element={<EditUsername />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/edit_page/:id" element={<EditPost />} />
+          <Route path="/search" element={<Search />} />
+        </Routes>
+      </div>
       <Chatbot />
     </div>
   )
