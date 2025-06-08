@@ -21,12 +21,13 @@ export function truncateText(text: string, maxLength: number): string {
 export function getImageUrl(path?: string): string {
   // If invalid or empty path, return a default placeholder image
   if (!path) {
-    return "/images/placeholder.png"
+    return "/placeholder.svg"
   }
   if (path.startsWith("http")) {
     return path // Already a full URL
   }
-  return `/uploads/${path}`
+  // Use localhost:4200 for uploaded images
+  return `http://localhost:4200/uploads/${path.replace(/^\//, '')}`
 }
 
 export function getOptimizedImageUrl(url: string, width = 800): string {

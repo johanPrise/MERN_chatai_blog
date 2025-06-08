@@ -3,7 +3,6 @@ import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
 import cookie from '@fastify/cookie';
 import multipart from '@fastify/multipart';
-import fastifyStatic from '@fastify/static';
 import path from 'path';
 import { connectDB } from './config/database.js';
 import { registerRoutes } from './routes/index.js';
@@ -100,10 +99,9 @@ export async function buildServer(): Promise<FastifyInstance> {
   });
 
   // Configurer le plugin static pour servir les fichiers uploadés
-  await server.register(fastifyStatic, {
+  await server.register(import('@fastify/static'), {
     root: path.join(process.cwd(), 'uploads'),
-    prefix: '/uploads/',
-    decorateReply: false
+    prefix: '/uploads/', // URL prefix pour accéder aux fichiers
   });
 
   // Connecter à la base de données

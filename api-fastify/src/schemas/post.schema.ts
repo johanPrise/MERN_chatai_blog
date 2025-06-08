@@ -258,6 +258,60 @@ export const updatePostSchema: FastifySchema = {
   },
 };
 
+export const dislikePostSchema: FastifySchema = {
+  description: 'Disliker un article',
+  tags: ['posts'],
+  security: [{ bearerAuth: [] }],
+  params: {
+    type: 'object',
+    required: ['id'],
+    properties: {
+      id: {
+        type: 'string',
+        description: 'ID de l\'article'
+      }
+    }
+  },
+  response: {
+    200: {
+      description: 'Article disliké avec succès',
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        likes: {
+          type: 'array',
+          items: { type: 'string' }
+        },
+        dislikes: {
+          type: 'array',
+          items: { type: 'string' }
+        }
+      }
+    },
+    400: {
+      description: 'Erreur de validation',
+      type: 'object',
+      properties: {
+        message: { type: 'string' }
+      }
+    },
+    401: {
+      description: 'Non autorisé',
+      type: 'object',
+      properties: {
+        message: { type: 'string' }
+      }
+    },
+    404: {
+      description: 'Article non trouvé',
+      type: 'object',
+      properties: {
+        message: { type: 'string' }
+      }
+    }
+  }
+};
+
 /**
  * Schéma pour la validation de la suppression d'un article
  */

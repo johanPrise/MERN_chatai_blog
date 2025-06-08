@@ -106,3 +106,22 @@ export const isAuthorEditorOrAdmin = async (request: FastifyRequest, reply: Fast
     reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
   }
 };
+
+/**
+ * Middleware d'authentification obligatoire
+ */
+export const authMiddleware = authenticate;
+
+/**
+ * Middleware d'authentification optionnelle
+ * N'interrompt pas la requête si l'utilisateur n'est pas authentifié
+ */
+export const optionalAuthMiddleware = async (request: FastifyRequest, reply: FastifyReply) => {
+  try {
+    // Essayer de vérifier le token JWT
+    await request.jwtVerify();
+  } catch (error) {
+    // Si la vérification échoue, continuer sans utilisateur authentifié
+    // Ne pas renvoyer d'erreur, juste continuer
+  }
+};

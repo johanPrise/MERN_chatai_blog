@@ -156,8 +156,8 @@ const EditPost: React.FC = () => {
         const postInfo = data.post || data
 
         // Vérifier si l'utilisateur est l'auteur du post
-        if (postInfo && postInfo.author && postInfo.author._id) {
-          setIsAuthor(userInfo?.id === postInfo.author._id)
+        if (postInfo && postInfo.author && postInfo.author._id && userInfo) {
+          setIsAuthor(userInfo.id === postInfo.author._id)
         }
 
         setTitle(postInfo.title || "")
@@ -165,6 +165,13 @@ const EditPost: React.FC = () => {
         setContent(postInfo.content || "")
         setCoverUrl(postInfo.cover || "")
         setPreviewImage(postInfo.cover || null)
+
+        // Debug logging
+        console.log("Setting content for editing:", {
+          contentLength: postInfo.content?.length || 0,
+          contentPreview: postInfo.content?.substring(0, 200) || "",
+          isMarkdown: !postInfo.content?.includes('<') || false
+        })
 
         // Si le post a une catégorie, la sélectionner
         if (postInfo.category && postInfo.category._id) {
@@ -180,8 +187,11 @@ const EditPost: React.FC = () => {
       }
     }
 
-    fetchPostData()
-  }, [id])
+    // Ne charger les données que si on a un ID
+    if (id) {
+      fetchPostData()
+    }
+  }, [id, userInfo])
 
   // Gestion de l'upload d'image
   const handleImageUpload = async (ev: FormEvent) => {
@@ -189,12 +199,22 @@ const EditPost: React.FC = () => {
     const file = target.files ? target.files[0] : null
     if (!file) return
     if (!file.type.startsWith('image/')) {
-      alert("Please select an image file")
+      alert("Please select an image file (png, jpeg, jpg, svg, webp, etc.)")
       return
     }
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Image size should be less than 5MB")
-      return
+    // Vérification spécifique pour les SVG : viewBox doit contenir 4 nombres
+    if (file.type === 'image/svg+xml') {
+      const text = await file.text();
+      const viewBoxMatch = text.match(/viewBox\s*=\s*"([^"]*)"/i);
+      if (!viewBoxMatch) {
+        alert("SVG invalide : attribut viewBox manquant.");
+        return;
+      }
+      const viewBoxValues = viewBoxMatch[1].trim().split(/\s+/);
+      if (viewBoxValues.length !== 4 || !viewBoxValues.every(v => /^-?\d*\.?\d+$/.test(v))) {
+        alert("SVG invalide : l'attribut viewBox doit contenir 4 nombres (ex: '0 0 100 100').");
+        return;
+      }
     }
     const objectUrl = URL.createObjectURL(file)
     setPreviewImage(objectUrl)
@@ -314,6 +334,11 @@ const EditPost: React.FC = () => {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  // Redirect if not logged in
+  if (!userInfo) {
+    return <Navigate to="/login" />
   }
 
   // Redirect after successful update

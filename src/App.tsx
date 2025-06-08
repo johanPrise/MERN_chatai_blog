@@ -1,5 +1,5 @@
 import React from "react"
-import { Routes, Route } from "react-router-dom"
+import { Routes, Route, useLocation } from "react-router-dom"
 import "./css/App.css"
 
 // Pages
@@ -8,6 +8,9 @@ import CategoryPage from "./pages/Category"
 import PostPage from "./pages/Post"
 import CreatePost from "./pages/createPost"
 import EditPost from "./pages/EditPost"
+// New enhanced post management
+import { CreatePost as NewCreatePost } from "./features/posts/pages/CreatePost"
+import { EditPost as NewEditPost } from "./features/posts/pages/EditPost"
 import Register from "./pages/Register"
 import Login from "./pages/Login"
 import ForgotPassword from "./pages/ForgotPassword"
@@ -26,9 +29,13 @@ import Chatbot from "./components/Chatbot"
  * Renders the main application component with various routes and components.
  */
 function App(): React.ReactElement {
+  const location = useLocation()
+  // On masque le Header général sur la route /admin pour afficher uniquement AdminHeader dans AdminDashboard
+  const isAdminRoute = location.pathname.startsWith("/admin")
   return (
     <div className="font-sans font-semibold bg-background text-foreground min-h-screen flex flex-col">
-      <Header />
+      {/* Affiche le Header général sauf sur la page admin */}
+      {!isAdminRoute && <Header />}
       <div className="flex-grow">
         <Routes>
           <Route index element={<Home />} />
@@ -45,6 +52,9 @@ function App(): React.ReactElement {
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/edit_page/:id" element={<EditPost />} />
           <Route path="/search" element={<Search />} />
+          {/* New enhanced post management routes */}
+          <Route path="/posts/create" element={<NewCreatePost />} />
+          <Route path="/posts/edit/:id" element={<NewEditPost />} />
         </Routes>
       </div>
       <Chatbot />

@@ -26,6 +26,8 @@ export interface IPost extends Document {
   viewCount: number;
   likeCount: number;
   likedBy: IUser['_id'][];
+  dislikeCount: number;
+  dislikedBy: IUser['_id'][];
   commentCount: number;
   createdAt: Date;
   updatedAt: Date;

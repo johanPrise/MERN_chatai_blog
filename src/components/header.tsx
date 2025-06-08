@@ -8,6 +8,19 @@ import { ColorThemeToggle } from "./ui/color-theme-toggle"
 import { Button } from "./ui/button"
 import { Container } from "./ui/container"
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "./ui/collapsible"
+import {
   Menu,
   X,
   ChevronDown,
@@ -19,6 +32,7 @@ import {
   FolderPlus,
   LayoutDashboard,
   Search,
+  ChevronRight,
 } from "lucide-react"
 import AnimateOnView from "./AnimateOnView"
 import React from "react"
@@ -28,8 +42,6 @@ import { cn } from "../lib/utils"
 const Header = () => {
   const { userInfo, setUserInfo } = UserContext()
   const [isMenuOpen, setMenuOpen] = useState(false)
-  const [isDropdownOpen, setDropdownOpen] = useState(false)
-  const [isAccountDropdownOpen, setAccountDropdownOpen] = useState(false)
   const [isSearchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [categories, setCategories] = useState<any[]>([])
@@ -206,40 +218,36 @@ const Header = () => {
               >
                 Home
               </Link>
-              <div
-                className="relative"
-                onMouseEnter={() => setDropdownOpen(true)}
-                onMouseLeave={() => setDropdownOpen(false)}
-              >
-                <button
-                  className={cn(
-                    "flex items-center gap-1 text-sm font-medium transition-all",
-                    location.pathname.includes("/category")
-                      ? "text-foreground after:absolute after:bottom-[-1.5px] after:left-0 after:h-[2px] after:w-full after:bg-primary after:content-['']"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Categories
-                  <ChevronDown className="h-4 w-4 transition-transform duration-200"
-                    style={{ transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0)' }}
-                  />
-                </button>
-                {isDropdownOpen && (
-                  <div className="absolute left-0 top-full mt-2 w-56 rounded-md border bg-card p-2 shadow-md animate-in fade-in slide-in-from-top-5 duration-200">
-                    <div className="grid grid-cols-1 gap-1">
-                      {Array.isArray(categories) && categories.map((category) => (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className={cn(
+                      "flex items-center gap-1 text-sm font-medium transition-all",
+                      location.pathname.includes("/category")
+                        ? "text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    Categories
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56">
+                  <DropdownMenuLabel>Post Categories</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {Array.isArray(categories) &&
+                    categories.map((category) => (
+                      <DropdownMenuItem key={category._id} asChild>
                         <Link
-                          key={category._id}
-                          className="flex items-center rounded-md px-3 py-2 text-sm hover:bg-accent transition-colors"
+                          className="flex items-center"
                           to={`/category/${category._id}`}
                         >
                           {category.name}
                         </Link>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+                      </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </nav>
 
             {/* Barre de recherche */}
@@ -253,7 +261,7 @@ const Header = () => {
               </button>
 
               {isSearchOpen && (
-                <div className="absolute right-0 top-full mt-2 w-72 rounded-md border bg-card p-2 shadow-md animate-in fade-in slide-in-from-top-5 duration-200 z-50">
+                <div className="absolute right-0 top-full mt-2 w-72 rounded-md dropdown-menu p-2 animate-in fade-in slide-in-from-top-5 duration-200 z-50">
                   <form onSubmit={handleSearch} className="flex items-center gap-2">
                     <div className="relative flex-1">
                       <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -279,81 +287,72 @@ const Header = () => {
               <ThemeToggle />
 
               {username ? (
-                <div className="relative">
-                  <button
-                    onClick={() => setAccountDropdownOpen(!isAccountDropdownOpen)}
-                    className="flex items-center gap-2 rounded-full bg-primary-50 dark:bg-primary-900 px-3 py-1.5 text-sm font-medium text-primary-800 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-800 transition-all duration-200 hover:shadow-md"
-                    aria-expanded={isAccountDropdownOpen}
-                    aria-haspopup="true"
-                  >
-                    <User className="h-4 w-4" />
-                    {username}
-                    <ChevronDown
-                      className="h-4 w-4 transition-transform duration-200"
-                      style={{ transform: isAccountDropdownOpen ? 'rotate(180deg)' : 'rotate(0)' }}
-                    />
-                  </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="flex items-center gap-2 rounded-full bg-primary-50 dark:bg-primary-900 px-3 py-1.5 text-sm font-medium text-primary-800 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-800 transition-all duration-200 hover:shadow-md">
+                      <User className="h-4 w-4" />
+                      {username}
+                      <ChevronDown className="h-4 w-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56">
+                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to="/edit-username" className="flex items-center">
+                        <Settings className="mr-2 h-4 w-4" />
+                        Edit Username
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={deleteAccount} className="text-destructive">
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete Account
+                    </DropdownMenuItem>
 
-                  {isAccountDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-56 rounded-md border bg-card p-2 shadow-md animate-in fade-in slide-in-from-top-5 duration-200 z-50">
-                      <div className="grid grid-cols-1 gap-1">
-                        <Link
-                          to="/edit-username"
-                          className="flex items-center rounded-md px-3 py-2 text-sm hover:bg-accent transition-colors group"
-                        >
-                          <Settings className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:rotate-45" />
-                          Edit Username
-                        </Link>
-                        <button
-                          onClick={deleteAccount}
-                          className="flex w-full items-center rounded-md px-3 py-2 text-sm text-left hover:bg-accent transition-colors group"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4 text-destructive transition-transform duration-200 group-hover:scale-110" />
-                          Delete Account
-                        </button>
+                    {(role === "admin" || role === "author") && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel>Content</DropdownMenuLabel>
+                        <DropdownMenuItem asChild>
+                          <Link to="/create_post" className="flex items-center">
+                            <PenSquare className="mr-2 h-4 w-4" />
+                            Create Post (Legacy)
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/posts/create" className="flex items-center">
+                            <PenSquare className="mr-2 h-4 w-4" />
+                            Create Post (New)
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/create_category" className="flex items-center">
+                            <FolderPlus className="mr-2 h-4 w-4" />
+                            Create Category
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
 
-                        {(role === "admin" || role === "author") && (
-                          <>
-                            <div className="my-1 h-px bg-border" />
-                            <Link
-                              to="/create_post"
-                              className="flex items-center rounded-md px-3 py-2 text-sm hover:bg-accent transition-colors group"
-                            >
-                              <PenSquare className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
-                              Create Post
-                            </Link>
-                            <Link
-                              to="/create_category"
-                              className="flex items-center rounded-md px-3 py-2 text-sm hover:bg-accent transition-colors group"
-                            >
-                              <FolderPlus className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
-                              Create Category
-                            </Link>
-                          </>
-                        )}
-
-                        {role === "admin" && (
-                          <Link
-                            to="/admin"
-                            className="flex items-center rounded-md px-3 py-2 text-sm hover:bg-accent transition-colors group"
-                          >
-                            <LayoutDashboard className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
+                    {role === "admin" && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild>
+                          <Link to="/admin" className="flex items-center">
+                            <LayoutDashboard className="mr-2 h-4 w-4" />
                             Admin Dashboard
                           </Link>
-                        )}
+                        </DropdownMenuItem>
+                      </>
+                    )}
 
-                        <div className="my-1 h-px bg-border" />
-                        <button
-                          onClick={logout}
-                          className="flex w-full items-center rounded-md px-3 py-2 text-sm text-left hover:bg-accent transition-colors group"
-                        >
-                          <LogOut className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
-                          Logout
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={logout}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Logout
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               ) : (
                 <div className="flex items-center gap-2">
                   <Link to="/login_page">
@@ -423,29 +422,39 @@ const Header = () => {
                 >
                   Home
                 </Link>
-                <div className="rounded-md px-3 py-2">
-                  <div className={cn(
-                    "mb-2 text-sm font-medium",
-                    location.pathname.includes("/category") && "text-primary"
-                  )}>
-                    Categories
-                  </div>
-                  <div className="grid grid-cols-1 gap-1 pl-2">
-                    {Array.isArray(categories) && categories.map((category) => (
-                      <Link
-                        key={category._id}
-                        className={cn(
-                          "flex items-center rounded-md px-3 py-2 text-sm transition-colors",
-                          location.pathname === `/category/${category._id}` ? "bg-accent/50 font-medium" : "hover:bg-accent"
-                        )}
-                        to={`/category/${category._id}`}
-                        onClick={() => setMenuOpen(false)}
-                      >
-                        {category.name}
-                      </Link>
-                    ))}
-                  </div>
-                </div>
+                <Collapsible className="rounded-md px-3 py-2">
+                  <CollapsibleTrigger className="flex w-full items-center justify-between">
+                    <div
+                      className={cn(
+                        "text-sm font-medium",
+                        location.pathname.includes("/category") && "text-primary"
+                      )}
+                    >
+                      Categories
+                    </div>
+                    <ChevronRight className="h-4 w-4 transition-transform duration-200 ui-open:rotate-90" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pt-2">
+                    <div className="grid grid-cols-1 gap-1 pl-2">
+                      {Array.isArray(categories) &&
+                        categories.map((category) => (
+                          <Link
+                            key={category._id}
+                            className={cn(
+                              "flex items-center rounded-md px-3 py-2 text-sm transition-colors",
+                              location.pathname === `/category/${category._id}`
+                                ? "bg-accent/50 font-medium"
+                                : "hover:bg-accent"
+                            )}
+                            to={`/category/${category._id}`}
+                            onClick={() => setMenuOpen(false)}
+                          >
+                            {category.name}
+                          </Link>
+                        ))}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
 
                 {username ? (
                   <>
@@ -489,7 +498,18 @@ const Header = () => {
                             onClick={() => setMenuOpen(false)}
                           >
                             <PenSquare className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
-                            Create Post
+                            Create Post (Legacy)
+                          </Link>
+                          <Link
+                            to="/posts/create"
+                            className={cn(
+                              "flex items-center rounded-md px-3 py-2 text-sm transition-colors group",
+                              location.pathname === "/posts/create" ? "bg-accent/50 font-medium" : "hover:bg-accent"
+                            )}
+                            onClick={() => setMenuOpen(false)}
+                          >
+                            <PenSquare className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
+                            Create Post (New)
                           </Link>
                           <Link
                             to="/create_category"

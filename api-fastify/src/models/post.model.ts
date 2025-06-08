@@ -59,12 +59,32 @@ const postSchema = new Schema<IPost>(
       type: Schema.Types.ObjectId,
       ref: 'User',
     }],
+    dislikeCount: {
+      type: Number,
+      default: 0,
+    },
+    dislikedBy: [{
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+    }],
     commentCount: {
       type: Number,
       default: 0,
     },
     publishedAt: {
       type: Date,
+    },
+    // Soft delete fields
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedAt: {
+      type: Date,
+    },
+    deletedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
     },
   },
   {
@@ -74,10 +94,12 @@ const postSchema = new Schema<IPost>(
 
 // Index pour améliorer les performances des recherches
 postSchema.index({ title: 'text', content: 'text' });
-postSchema.index({ slug: 1 });
+// Note: slug index is automatically created by unique: true
 postSchema.index({ author: 1 });
 postSchema.index({ categories: 1 });
 postSchema.index({ status: 1, createdAt: -1 });
+postSchema.index({ status: 1, publishedAt: -1 }); // Index pour le tri par date de publication
+postSchema.index({ publishedAt: -1, createdAt: -1 }); // Index composé pour le tri optimisé
 
 // Middleware pré-sauvegarde pour définir la date de publication
 postSchema.pre('save', function (next) {

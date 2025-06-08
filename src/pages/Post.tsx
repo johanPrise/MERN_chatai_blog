@@ -8,7 +8,9 @@ import { Container } from "../components/ui/container"
 import { Button } from "../components/ui/button"
 import { Badge } from "../components/ui/badge"
 import { H1, H2, P } from "../components/ui/typography"
-import { formatDate } from "../lib/utils"
+import { formatDate, getImageUrl } from "../lib/utils"
+import { formatContent } from "../lib/formatContent"
+import { detectDarkMode, setupThemeListener } from "../lib/themeDetector"
 import {
   CalendarIcon, User2, MessageCircle, Edit, Trash2,
   Reply, Heart, ThumbsDown, AlertCircle, CheckCircle
@@ -17,25 +19,37 @@ import AnimateOnView from "../components/AnimateOnView"
 import { ActionStatus } from "../types/Action"
 import { Post, Comment } from "../types/PostType"
 import "../css/markdown.css"
+import "../css/theme-overrides.css"
 // Import highlight.js for syntax highlighting
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github.css'
 
 // Helper to extract the category name safely
 const getCategoryName = (post: Post | null): string => {
-  if (!post) return "Uncategorized"
+  if (!post) return "Non catégorisé"
 
-  // Utiliser category s'il existe, sinon prendre la première catégorie du tableau categories
-  // @ts-ignore - Ignorer l'erreur TypeScript car categories n'est pas dans le type
-  const categoryFromArray = post.categories && post.categories.length > 0 ? post.categories[0] : null
-  const category = post.category || categoryFromArray
+  // Vérifier si post.category est défini et a une propriété name
+  if (post.category && typeof post.category === 'object' && 'name' in post.category && post.category.name) {
+    return post.category.name;
+  }
 
-  // Debug: Log the category data
-  console.log("Post category data:", category)
-  console.log("Categories array:", (post as any).categories)
+  // Vérifier si post.categories existe et contient des éléments
+  // @ts-ignore - Ignorer l'erreur TypeScript car categories n'est pas toujours dans le type
+  if (post.categories && Array.isArray(post.categories) && post.categories.length > 0) {
+    // Vérifier que le premier élément a une propriété name
+    // @ts-ignore
+    const firstCategory = post.categories[0];
+    if (typeof firstCategory === 'object' && firstCategory && 'name' in firstCategory) {
+      return firstCategory.name;
+    }
+    // Si c'est une chaîne de caractères, la retourner directement
+    // @ts-ignore
+    if (typeof firstCategory === 'string') {
+      return firstCategory;
+    }
+  }
 
-  if (!category || typeof category !== "object") return "Uncategorized"
-  return category.name || "Uncategorized"
+  return "Non catégorisé";
 }
 
 // Action states
@@ -48,11 +62,33 @@ interface CommentActionStates {
   [commentId: string]: ActionState
 }
 
+// État d'interaction avec les articles
+interface PostInteractionState {
+  isLoading: boolean
+  error: string | null
+  success: string | null
+}
+
 // Import API configuration
 import { API_BASE_URL, API_ENDPOINTS } from "../config/api.config"
 
+/**
+ * Vérifie si un utilisateur a aimé un élément
+ * @param likes - Tableau des IDs des utilisateurs qui ont aimé l'élément
+ * @param userId - ID de l'utilisateur à vérifier
+ * @returns true si l'utilisateur a aimé l'élément, false sinon
+ */
+const hasUserLiked = (likes: any, userId: string | undefined): boolean => {
+  if (!userId) return false;
+  if (!likes) return false;
+  if (!Array.isArray(likes)) return false;
+  return likes.includes(userId);
+}
 
 const PostPage = () => {
+  // State for theme detection
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(false)
+
   // Post and comments state
   const [postInfo, setPostInfo] = useState<Post | null>(null)
   const [comments, setComments] = useState<Comment[]>([])
@@ -69,6 +105,11 @@ const PostPage = () => {
   const [dislikes, setDislikes] = useState(0)
   const [userLiked, setUserLiked] = useState(false)
   const [userDisliked, setUserDisliked] = useState(false)
+  const [postInteraction, setPostInteraction] = useState<PostInteractionState>({
+    isLoading: false,
+    error: null,
+    success: null
+  })
 
   // UI state
   const [isLoading, setIsLoading] = useState(true)
@@ -93,255 +134,60 @@ const PostPage = () => {
 
     try {
       setErrorMessage(null)
-      const response = await fetch(`${API_ENDPOINTS.comments.list}/post/${id}`)
+      console.log('Fetching comments for post:', id)
+      const response = await fetch(API_ENDPOINTS.comments.byPost(id))
 
       if (!response.ok) {
         throw new Error(`Failed to fetch comments: ${response.status}`)
       }
 
-      const fetchedCommentsRaw = await response.json()
-      const fetchedComments: Comment[] = Array.isArray(fetchedCommentsRaw) ? fetchedCommentsRaw : []
-      setComments(fetchedComments)
+      const responseData = await response.json()
+      console.log('Comments API response:', responseData)
+
+      // Vérifier si la réponse contient un tableau de commentaires ou un objet avec une propriété comments
+      let fetchedComments: Comment[] = 
+        Array.isArray(responseData) ? responseData : 
+        (responseData.comments && Array.isArray(responseData.comments)) ? responseData.comments : []
+
+      // Créer un Set pour suivre les IDs de commentaires déjà vus
+      const seenCommentIds = new Set<string>()
+
+      // Filtrer les commentaires pour supprimer les doublons
+      fetchedComments = fetchedComments.filter(comment => {
+        if (!comment._id) return true // Garder les commentaires sans ID
+
+        // Si on a déjà vu cet ID, on supprime le doublon
+        if (seenCommentIds.has(comment._id)) {
+          return false
+        }
+
+        // Sinon, on l'ajoute au set et on garde le commentaire
+        seenCommentIds.add(comment._id)
+        return true
+      })
+
+      // S'assurer que tous les commentaires ont les champs nécessaires
+      const commentsWithDefaults = fetchedComments.map(comment => ({
+        ...comment,
+        likes: Array.isArray(comment.likes) ? comment.likes : [],
+        dislikes: Array.isArray(comment.dislikes) ? comment.dislikes : [],
+        replies: Array.isArray(comment.replies) ? comment.replies.map(reply => ({
+          ...reply,
+          likes: Array.isArray(reply.likes) ? reply.likes : [],
+          dislikes: Array.isArray(reply.dislikes) ? reply.dislikes : []
+        })) : []
+      }))
+
+      console.log('Processed comments (after deduplication and defaults):', commentsWithDefaults)
+      setComments(commentsWithDefaults)
     } catch (error) {
       console.error("Error fetching comments:", error)
       setErrorMessage(error instanceof Error ? error.message : "Failed to fetch comments")
     }
   }, [id])
 
-  /**
-   * Format content with enhanced styling and syntax highlighting
-   * @param content - Content to format (can be Markdown or HTML)
-   * @returns Formatted HTML string
-   */
-  const formatContent = (content: string): string => {
-    // Vérifier si le contenu est déjà du HTML ou du Markdown
-    const isHTML = content.trim().startsWith('<') && content.includes('</');
-
-    let htmlContent = content;
-
-    // Si ce n'est pas du HTML, on considère que c'est du Markdown
-    // et on le convertit en HTML en utilisant une approche améliorée
-    if (!isHTML) {
-      // Préserver les blocs de code pour le traitement ultérieur
-      const codeBlocks: Array<{language: string, code: string}> = [];
-
-      // Extraire les blocs de code avec leur langage
-      htmlContent = content.replace(/```(\w*)\n([\s\S]*?)```/g, (match, language, code) => {
-        const id = codeBlocks.length;
-        codeBlocks.push({ language, code });
-        return `CODEBLOCK${id}`;
-      });
-
-      // Conversion améliorée de Markdown en HTML
-      htmlContent = htmlContent
-        // Convertir les titres avec ancres pour la navigation
-        .replace(/^# (.*$)/gm, (match, title) => {
-          const id = title.toLowerCase().replace(/[^\w]+/g, '-');
-          return `<h1 id="${id}">${title}</h1>`;
-        })
-        .replace(/^## (.*$)/gm, (match, title) => {
-          const id = title.toLowerCase().replace(/[^\w]+/g, '-');
-          return `<h2 id="${id}">${title}</h2>`;
-        })
-        .replace(/^### (.*$)/gm, (match, title) => {
-          const id = title.toLowerCase().replace(/[^\w]+/g, '-');
-          return `<h3 id="${id}">${title}</h3>`;
-        })
-        .replace(/^#### (.*$)/gm, (match, title) => {
-          const id = title.toLowerCase().replace(/[^\w]+/g, '-');
-          return `<h4 id="${id}">${title}</h4>`;
-        })
-        .replace(/^##### (.*$)/gm, (match, title) => {
-          const id = title.toLowerCase().replace(/[^\w]+/g, '-');
-          return `<h5 id="${id}">${title}</h5>`;
-        })
-        .replace(/^###### (.*$)/gm, (match, title) => {
-          const id = title.toLowerCase().replace(/[^\w]+/g, '-');
-          return `<h6 id="${id}">${title}</h6>`;
-        })
-
-        // Convertir les paragraphes (lignes non vides qui ne sont pas des titres)
-        .replace(/^(?!<h[1-6]>)(.*$)/gm, function(match) {
-          return match.trim() ? '<p>' + match + '</p>' : match;
-        })
-
-        // Convertir les listes non ordonnées
-        .replace(/^[\*\-] (.*$)/gm, '<li>$1</li>')
-
-        // Convertir les listes ordonnées
-        .replace(/^(\d+)\. (.*$)/gm, '<li value="$1">$2</li>')
-
-        // Entourer les listes avec <ul> ou <ol>
-        .replace(/(<li value="[0-9]+".*<\/li>)\n(?!<li value="[0-9]+")/g, '$1</ol>')
-        .replace(/(?<!<\/ol>)\n(<li value="[0-9]+")/g, '<ol>$1')
-        .replace(/(<li>.*<\/li>)\n(?!<li>)/g, '$1</ul>')
-        .replace(/(?<!<\/ul>)\n(<li>)/g, '<ul>$1')
-
-        // Convertir le texte en gras
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/__(.*?)__/g, '<strong>$1</strong>')
-
-        // Convertir le texte en italique (en évitant les conflits avec le gras)
-        .replace(/(?<!\*)\*(?!\*)([^\*]+)(?<!\*)\*(?!\*)/g, '<em>$1</em>')
-        .replace(/(?<!_)_(?!_)([^_]+)(?<!_)_(?!_)/g, '<em>$1</em>')
-
-        // Convertir le texte barré
-        .replace(/~~(.*?)~~/g, '<del>$1</del>')
-
-        // Convertir les liens
-        .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
-
-        // Convertir les images avec attributs alt et title
-        .replace(/!\[(.*?)\]\((.*?)(?:\s+"(.*?)")?\)/g, (match, alt, src, title) => {
-          return `<img alt="${alt || ''}" src="${src}" ${title ? `title="${title}"` : ''} loading="lazy" />`;
-        })
-
-        // Convertir les citations
-        .replace(/^>\s*(.*$)/gm, '<blockquote>$1</blockquote>')
-
-        // Convertir les séparateurs horizontaux
-        .replace(/^---+$/gm, '<hr />')
-
-        // Convertir les sauts de ligne
-        .replace(/\n\n/g, '<br /><br />');
-
-      // Réinsérer les blocs de code avec coloration syntaxique
-      htmlContent = htmlContent.replace(/CODEBLOCK(\d+)/g, (match, id) => {
-        try {
-          const blockId = parseInt(id, 10);
-          if (blockId >= 0 && blockId < codeBlocks.length) {
-            const { language, code } = codeBlocks[blockId];
-            let highlightedCode;
-
-            try {
-              // Vérifier si highlight.js est disponible
-              if (typeof hljs !== 'undefined' && hljs !== null && typeof hljs.highlight === 'function') {
-                // Essayer d'appliquer la coloration syntaxique
-                highlightedCode = language && language.trim() !== ''
-                  ? hljs.highlight(code.trim(), { language }).value
-                  : hljs.highlightAuto(code.trim()).value;
-              } else {
-                throw new Error("highlight.js n'est pas disponible");
-              }
-            } catch (e) {
-              console.error("Erreur lors de la coloration syntaxique:", e);
-              // Échapper le HTML pour l'afficher tel quel
-              highlightedCode = code
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
-            }
-
-            return `<pre><code class="language-${language || 'plaintext'}">${highlightedCode}</code></pre>`;
-          } else {
-            console.error(`Bloc de code avec ID ${id} non trouvé`);
-            return match; // Retourner le texte original si l'ID n'est pas valide
-          }
-        } catch (error) {
-          console.error("Erreur lors du traitement du bloc de code:", error);
-          return `<pre><code>Erreur lors du traitement du bloc de code</code></pre>`;
-        }
-      });
-
-      // Convertir les blocs de code inline
-      htmlContent = htmlContent.replace(/`([^`]+)`/g, (match, code) => {
-        return `<code>${code}</code>`;
-      });
-
-      // Méthode alternative pour les blocs de code si la première méthode échoue
-      if (htmlContent.includes("CODEBLOCK")) {
-        console.warn("Détection de blocs de code non traités, application de la méthode alternative");
-
-        // Traiter directement les blocs de code sans extraction préalable
-        htmlContent = content.replace(/```(\w*)\n([\s\S]*?)```/g, (match, language, code) => {
-          try {
-            // Échapper le HTML pour l'afficher tel quel
-            const escapedCode = code
-              .replace(/&/g, "&amp;")
-              .replace(/</g, "&lt;")
-              .replace(/>/g, "&gt;")
-              .replace(/"/g, "&quot;")
-              .replace(/'/g, "&#039;");
-
-            return `<pre><code class="language-${language || 'plaintext'}">${escapedCode}</code></pre>`;
-          } catch (error) {
-            console.error("Erreur lors du traitement direct du bloc de code:", error);
-            return `<pre><code>${code}</code></pre>`;
-          }
-        });
-      }
-    }
-
-    // Maintenant, on traite le HTML pour améliorer le style
-    const parser = new DOMParser()
-    const doc = parser.parseFromString(htmlContent, "text/html")
-
-    // Ajouter des attributs data-aos pour les animations au défilement
-    doc.querySelectorAll("h1, h2, h3, h4, h5, h6").forEach((heading, index) => {
-      heading.setAttribute("data-aos", "fade-up");
-      heading.setAttribute("data-aos-delay", `${index * 50}`);
-      heading.setAttribute("data-aos-duration", "800");
-    });
-
-    // Ajouter des attributs data-aos pour les images
-    doc.querySelectorAll("img").forEach((img, index) => {
-      img.setAttribute("data-aos", "zoom-in");
-      img.setAttribute("data-aos-delay", `${index * 100}`);
-      img.setAttribute("data-aos-duration", "1000");
-
-      // Ajouter une classe pour le zoom au clic
-      img.classList.add("zoomable");
-      img.addEventListener("click", () => {
-        img.classList.toggle("zoomed");
-      });
-    });
-
-    // Ajouter des attributs data-aos pour les blocs de code
-    doc.querySelectorAll("pre").forEach((pre, index) => {
-      pre.setAttribute("data-aos", "fade-up");
-      pre.setAttribute("data-aos-delay", `${index * 50}`);
-    });
-
-    // Ajouter des attributs data-aos pour les citations
-    doc.querySelectorAll("blockquote").forEach((quote, index) => {
-      quote.setAttribute("data-aos", "fade-right");
-      quote.setAttribute("data-aos-delay", `${index * 50}`);
-    });
-
-    // Ajouter des numéros de ligne aux blocs de code
-    doc.querySelectorAll("pre code").forEach((codeBlock) => {
-      const code = codeBlock.textContent || "";
-      const lines = code.split("\n");
-      let numberedCode = "";
-
-      lines.forEach((line, index) => {
-        if (index === lines.length - 1 && !line.trim()) return;
-        numberedCode += `<div class="code-line"><span class="line-number">${index + 1}</span>${line}</div>`;
-      });
-
-      codeBlock.innerHTML = numberedCode;
-    });
-
-    // Ajouter des liens aux titres pour permettre le partage direct
-    doc.querySelectorAll("h1[id], h2[id], h3[id], h4[id], h5[id], h6[id]").forEach((heading) => {
-      const id = heading.getAttribute("id");
-      const link = document.createElement("a");
-      link.href = `#${id}`;
-      link.className = "heading-link";
-      link.innerHTML = "#";
-      link.title = "Lien direct vers cette section";
-      heading.appendChild(link);
-    });
-
-    // Ajouter des styles pour les tableaux si présents
-    doc.querySelectorAll("table").forEach((table) => {
-      table.classList.add("markdown-table");
-    });
-
-    return doc.body.innerHTML;
-  }
+  // Les fonctions de formatage de contenu et de détection de thème
+  // ont été déplacées vers les helpers src/lib/formatContent.ts et src/lib/themeDetector.ts
 
   /**
    * Update comment action state
@@ -362,7 +208,7 @@ const PostPage = () => {
    */
   const handleLikeComment = async (commentId: string) => {
     if (!userInfo) {
-      setErrorMessage("You must be logged in to like a comment")
+      setErrorMessage("Vous devez être connecté pour aimer un commentaire")
       return
     }
 
@@ -374,23 +220,55 @@ const PostPage = () => {
         credentials: "include",
       })
 
-      if (!response.ok) {
-        throw new Error(`Failed to like comment: ${response.status}`)
-      }
-
       const data = await response.json()
 
-      setComments(
-        comments.map((comment) =>
-          comment._id === commentId ? { ...comment, likes: data.likes, dislikes: data.dislikes } : comment,
-        ),
-      )
-
-      updateCommentActionState(commentId, "success")
-      setSuccessMessage("Comment liked successfully")
-
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccessMessage(null), 3000)
+      if (response.ok) {
+        // Mise à jour avec les données du serveur
+        setComments(
+          comments.map((comment) =>
+            comment._id === commentId ? { 
+              ...comment, 
+              likes: Array.isArray(data.likes) ? data.likes : [],
+              dislikes: Array.isArray(data.dislikes) ? data.dislikes : []
+            } : comment,
+          ),
+        )
+        updateCommentActionState(commentId, "success")
+        setSuccessMessage("Comment liked successfully")
+        setTimeout(() => setSuccessMessage(null), 3000)
+      } else {
+        // Pour les erreurs, on fait un toggle optimiste côté client
+        console.warn("Erreur lors du like:", data.message)
+        
+        // Toggle optimiste : si l'utilisateur a déjà liké, on retire le like
+        setComments(
+          comments.map((comment) => {
+            if (comment._id === commentId) {
+              const currentLikes = Array.isArray(comment.likes) ? comment.likes : []
+              const currentDislikes = Array.isArray(comment.dislikes) ? comment.dislikes : []
+              const userHasLiked = currentLikes.includes(userInfo.id)
+              
+              if (userHasLiked) {
+                // Retirer le like
+                return {
+                  ...comment,
+                  likes: currentLikes.filter(id => id !== userInfo.id),
+                  dislikes: currentDislikes
+                }
+              } else {
+                // Ajouter le like et retirer le dislike si présent
+                return {
+                  ...comment,
+                  likes: [...currentLikes, userInfo.id],
+                  dislikes: currentDislikes.filter(id => id !== userInfo.id)
+                }
+              }
+            }
+            return comment
+          })
+        )
+        updateCommentActionState(commentId, "success")
+      }
     } catch (error) {
       console.error("Error liking comment:", error)
       updateCommentActionState(commentId, "error", error instanceof Error ? error.message : "Failed to like comment")
@@ -404,31 +282,65 @@ const PostPage = () => {
    */
   const handleDislikeComment = async (commentId: string) => {
     if (!userInfo) {
-      setErrorMessage("You must be logged in to dislike a comment")
+      setErrorMessage("Vous devez être connecté pour ne pas aimer un commentaire")
       return
     }
 
     updateCommentActionState(commentId, "loading")
 
     try {
-      const response = await fetch(`${API_ENDPOINTS.comments.unlike(commentId)}`, {
+      const response = await fetch(`${API_ENDPOINTS.comments.dislike(commentId)}`, {
         method: "POST",
         credentials: "include",
       })
 
-      if (!response.ok) {
-        throw new Error(`Failed to dislike comment: ${response.status}`)
-      }
-
       const data = await response.json()
 
-      setComments(
-        comments.map((comment) =>
-          comment._id === commentId ? { ...comment, likes: data.likes, dislikes: data.dislikes } : comment,
-        ),
-      )
-
-      updateCommentActionState(commentId, "success")
+      if (response.ok) {
+        // Mise à jour avec les données du serveur
+        setComments(
+          comments.map((comment) =>
+            comment._id === commentId ? { 
+              ...comment, 
+              likes: Array.isArray(data.likes) ? data.likes : [],
+              dislikes: Array.isArray(data.dislikes) ? data.dislikes : []
+            } : comment,
+          ),
+        )
+        updateCommentActionState(commentId, "success")
+      } else {
+        // Pour les erreurs, on fait un toggle optimiste côté client
+        console.warn("Erreur lors du dislike:", data.message)
+        
+        // Toggle optimiste : si l'utilisateur a déjà disliké, on retire le dislike
+        setComments(
+          comments.map((comment) => {
+            if (comment._id === commentId) {
+              const currentLikes = Array.isArray(comment.likes) ? comment.likes : []
+              const currentDislikes = Array.isArray(comment.dislikes) ? comment.dislikes : []
+              const userHasDisliked = currentDislikes.includes(userInfo.id)
+              
+              if (userHasDisliked) {
+                // Retirer le dislike
+                return {
+                  ...comment,
+                  likes: currentLikes,
+                  dislikes: currentDislikes.filter(id => id !== userInfo.id)
+                }
+              } else {
+                // Ajouter le dislike et retirer le like si présent
+                return {
+                  ...comment,
+                  likes: currentLikes.filter(id => id !== userInfo.id),
+                  dislikes: [...currentDislikes, userInfo.id]
+                }
+              }
+            }
+            return comment
+          })
+        )
+        updateCommentActionState(commentId, "success")
+      }
     } catch (error) {
       console.error("Error disliking comment:", error)
       updateCommentActionState(commentId, "error", error instanceof Error ? error.message : "Failed to dislike comment")
@@ -557,6 +469,11 @@ const PostPage = () => {
       return
     }
 
+    // Éviter les soumissions multiples
+    if (isSubmittingComment) {
+      return
+    }
+
     updateCommentActionState(parentId, "loading")
     setIsSubmittingComment(true)
 
@@ -583,43 +500,16 @@ const PostPage = () => {
         throw new Error(responseData.message || `Failed to post reply: ${response.status}`)
       }
 
-      // Process the reply data
+      // Si nous avons reçu les données du commentaire dans la réponse,
+      // nous l'utilisons directement au lieu de refaire un fetchComments
       if (responseData && responseData.comment) {
-        // Make sure the comment has the required properties
-        const newReply = {
-          ...responseData.comment,
-          likes: responseData.comment.likes || [],
-          dislikes: responseData.comment.dislikes || []
-        }
-
-        // Find the parent comment and add this reply to it
-        setComments(prevComments => {
-          // Create a deep copy of the comments array
-          const updatedComments = [...prevComments]
-
-          // Find the parent comment
-          const parentComment = updatedComments.find(comment => comment._id === parentId)
-
-          if (parentComment) {
-            // Initialize replies array if it doesn't exist
-            if (!parentComment.replies) {
-              parentComment.replies = []
-            }
-
-            // Add the new reply to the parent's replies
-            parentComment.replies = [newReply, ...parentComment.replies]
-          } else {
-            // If parent comment not found, add as a new comment
-            updatedComments.push(newReply)
-          }
-
-          return updatedComments
-        })
-      } else {
-        // Fallback to fetching all comments if the response doesn't include the new reply
-        console.log("Reply created but no comment data returned, fetching all comments")
-        await fetchComments()
+        // Nous ne manipulons pas manuellement le state ici, car cela pourrait créer des doublons
+        // lors du prochain rechargement des commentaires
+        console.log("Reply created successfully, fetching all comments")
       }
+
+      // Dans tous les cas, nous rechargeons tous les commentaires pour assurer la cohérence
+      await fetchComments()
 
       // Réinitialiser le contenu de la réponse et fermer le formulaire
       setReplyContent("")
@@ -682,22 +572,9 @@ const PostPage = () => {
         throw new Error(responseData.message || "Failed to post comment")
       }
 
-      // Process the comment data
-      if (responseData && responseData.comment) {
-        // Make sure the comment has the required properties
-        const newComment = {
-          ...responseData.comment,
-          likes: responseData.comment.likes || [],
-          dislikes: responseData.comment.dislikes || []
-        }
-
-        // Add the new comment to the beginning of the array (most recent first)
-        setComments(prevComments => [newComment, ...prevComments])
-      } else {
-        // Fallback to fetching all comments if the response doesn't include the new comment
-        console.log("Comment created but no comment data returned, fetching all comments")
-        await fetchComments()
-      }
+      // Nous rechargerons tous les commentaires pour éviter les problèmes de duplication
+      console.log("Comment created successfully, fetching all comments")
+      await fetchComments()
 
       setNewComment("")
       setReplyingTo(null)
@@ -712,6 +589,73 @@ const PostPage = () => {
       setIsSubmittingComment(false)
     }
   }
+
+    // Effect to detect theme changes
+    useEffect(() => {
+      // Importer les fonctions pour la gestion du thème
+      // Forcer l'application des variables CSS pour le contenu Markdown avec une spécificité accrue
+      const style = document.createElement('style');
+      style.id = 'markdown-theme-overrides';
+      style.textContent = `
+        /* Augmenter la spécificité des variables CSS pour surcharger le thème du navigateur */
+        html:root {
+          --md-text-heading: #111827 !important; 
+          --md-text-body: #374151 !important;   
+          --md-border: #e5e7eb !important;      
+        }
+
+        html.dark:root, html[data-theme="dark"]:root, html[data-mode="dark"]:root {
+          --md-text-heading: #f5f5f5 !important; 
+          --md-text-body: #d4d4d4 !important;    
+          --md-border: #333 !important;          
+        }
+
+        /* Forcer les styles sur les éléments Markdown spécifiques */
+        .markdown-body h1, .markdown-body h2, .markdown-body h3, 
+        .markdown-body h4, .markdown-body h5, .markdown-body h6 {
+          color: var(--md-text-heading) !important;
+        }
+
+        .markdown-body p, .markdown-body li, .markdown-body td {
+          color: var(--md-text-body) !important;
+        }
+
+        .markdown-body pre, .markdown-body code {
+          background-color: var(--md-code-block-bg, #1a1a1a) !important;
+          border-color: var(--md-code-block-border, #333) !important;
+        }
+      `;
+
+      // Remplacer le style s'il existe déjà
+      const existingStyle = document.getElementById('markdown-theme-overrides');
+      if (existingStyle) {
+        existingStyle.replaceWith(style);
+      } else {
+        document.head.appendChild(style);
+      }
+
+      // Détection initiale du thème
+      setIsDarkMode(detectDarkMode());
+
+      // Configuration de l'écouteur de changement de thème
+      const cleanup = setupThemeListener((isDark) => {
+        setIsDarkMode(isDark);
+        console.log('Theme detection - Dark mode:', isDark);
+
+        // Forcer une mise à jour des styles après un changement de thème
+        document.querySelectorAll('.markdown-body pre').forEach(pre => {
+          (pre as HTMLElement).style.backgroundColor = '';
+          (pre as HTMLElement).style.borderColor = '';
+          setTimeout(() => {
+            (pre as HTMLElement).style.backgroundColor = getComputedStyle(pre as HTMLElement).backgroundColor;
+            (pre as HTMLElement).style.borderColor = getComputedStyle(pre as HTMLElement).borderColor;
+          }, 0);
+        });
+      });
+
+      // Nettoyage lors du démontage du composant
+      return cleanup;
+    }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -730,8 +674,9 @@ const PostPage = () => {
         setLikes(post.likes?.length || 0)
         setDislikes(post.dislikes?.length || 0)
         if (userInfo) {
-          setUserLiked(post.likes?.includes(userInfo.id))
-          setUserDisliked(post.dislikes?.includes(userInfo.id))
+          // Utiliser la fonction dédiée pour vérifier si l'utilisateur a aimé le post
+          setUserLiked(hasUserLiked(post.likes, userInfo.id))
+          setUserDisliked(hasUserLiked(post.dislikes, userInfo.id))
         }
 
         await fetchComments()
@@ -883,57 +828,99 @@ const PostPage = () => {
     }
   }, [id, userInfo, fetchComments])
 
+  /**
+   * Aimer un article
+   */
   const handleLikePost = async () => {
     if (!userInfo) {
-      setErrorMessage("You must be logged in to like a post")
+      setErrorMessage("Vous devez être connecté pour aimer un article")
       return
     }
+
+    // Éviter les soumissions multiples
+    if (isSubmittingComment) return
+
+    setIsSubmittingComment(true)
+
     try {
-      const response = await fetch(`${API_ENDPOINTS.posts.detail(id || '')}/like`, {
+      const response = await fetch(`${API_ENDPOINTS.posts.like(id || '')}`, {
         method: "POST",
         credentials: "include",
       })
-      if (response.ok) {
-        const data = await response.json()
-        setLikes(data.likes.length)
-        setDislikes(data.dislikes.length)
-        setUserLiked(data.likes.includes(userInfo.id))
-        setUserDisliked(data.dislikes.includes(userInfo.id))
-        setSuccessMessage("Post liked successfully")
 
-        // Clear success message after 3 seconds
-        setTimeout(() => setSuccessMessage(null), 3000)
+      // Lire la réponse une seule fois
+      const data = await response.json()
+
+      if (response.ok) {
+        // Vérifier si l'utilisateur a aimé l'article avec la fonction dédiée
+        const newUserLiked = hasUserLiked(data.likes, userInfo?.id)
+        console.log('État de like après action:', { 
+          likes: data.likes, 
+          userId: userInfo?.id, 
+          userLiked: newUserLiked 
+        })
+
+        // Mettre à jour les états locaux
+        setLikes(Array.isArray(data.likes) ? data.likes.length : 0)
+        setDislikes(Array.isArray(data.dislikes) ? data.dislikes.length : 0)
+        setUserLiked(newUserLiked)
+        setUserDisliked(hasUserLiked(data.dislikes, userInfo?.id))
+        setSuccessMessage("Article aimé avec succès")
+      } else {
+        console.warn("Erreur lors du like:", data.message)
       }
+
+      // Effacer le message de succès après 3 secondes
+      setTimeout(() => setSuccessMessage(null), 3000)
     } catch (error) {
-      console.error("Error liking post:", error)
-      setErrorMessage(error instanceof Error ? error.message : "Failed to like post")
+      console.error("Erreur lors de l'action d'aimer l'article:", error)
+      setErrorMessage(error instanceof Error ? error.message : "Échec de l'action")
+    } finally {
+      setIsSubmittingComment(false)
     }
   }
 
+  /**
+   * Ne pas aimer un article
+   */
   const handleDislikePost = async () => {
     if (!userInfo) {
-      setErrorMessage("You must be logged in to dislike a post")
+      setErrorMessage("Vous devez être connecté pour ne pas aimer un article")
       return
     }
+
+    // Éviter les soumissions multiples
+    if (isSubmittingComment) return
+
+    setIsSubmittingComment(true)
+
     try {
-      const response = await fetch(`${API_ENDPOINTS.posts.detail(id || '')}/dislike`, {
+      const response = await fetch(`${API_ENDPOINTS.posts.dislike(id || '')}`, {
         method: "POST",
         credentials: "include",
       })
-      if (response.ok) {
-        const data = await response.json()
-        setLikes(data.likes.length)
-        setDislikes(data.dislikes.length)
-        setUserLiked(data.likes.includes(userInfo.id))
-        setUserDisliked(data.dislikes.includes(userInfo.id))
-        setSuccessMessage("Post disliked successfully")
 
-        // Clear success message after 3 seconds
-        setTimeout(() => setSuccessMessage(null), 3000)
+      // Lire la réponse une seule fois
+      const data = await response.json();
+
+      if (response.ok) {
+        // Mettre à jour les états locaux avec vérification défensive
+        setLikes(Array.isArray(data.likes) ? data.likes.length : 0)
+        setDislikes(Array.isArray(data.dislikes) ? data.dislikes.length : 0)
+        setUserLiked(data.likes && Array.isArray(data.likes) && userInfo.id ? data.likes.includes(userInfo.id) : false)
+        setUserDisliked(data.dislikes && Array.isArray(data.dislikes) && userInfo.id ? data.dislikes.includes(userInfo.id) : false)
+        setSuccessMessage("Article disliké avec succès")
+      } else {
+        console.warn("Erreur lors du dislike:", data.message)
       }
+
+      // Effacer le message de succès après 3 secondes
+      setTimeout(() => setSuccessMessage(null), 3000)
     } catch (error) {
-      console.error("Error disliking post:", error)
-      setErrorMessage(error instanceof Error ? error.message : "Failed to dislike post")
+      console.error("Erreur lors de l'action de ne pas aimer l'article:", error)
+      setErrorMessage(error instanceof Error ? error.message : "Échec de l'action")
+    } finally {
+      setIsSubmittingComment(false)
     }
   }
 
@@ -959,14 +946,41 @@ const PostPage = () => {
    * @param parentId - ID of the parent comment (if any)
    */
   const renderComments = (commentsInput: Comment[] = [], depth = 0, parentId: string | null = null) => {
-    // Defensive: always use an array
-    const comments = Array.isArray(commentsInput) ? commentsInput : []
-    return comments.map((comment: Comment) => (
-      <div
-        key={comment._id}
-        id={`comment-${comment._id}`}
-        className={`${depth > 0 ? "ml-8" : ""} bg-card rounded-lg shadow-sm p-4 mb-4 border`}
-      >
+    // Defensive: always use an array and filter out invalid comments
+    const comments = Array.isArray(commentsInput) 
+      ? commentsInput.filter(comment => 
+          comment && typeof comment === 'object' && comment._id && 
+          // S'assurer que l'auteur existe
+          comment.author && typeof comment.author === 'object')
+      : []
+
+    // Vérifier les doublons pour déboguer
+    const commentIds = comments.map(c => c._id)
+    const duplicateIds = commentIds.filter((id, index) => commentIds.indexOf(id) !== index)
+    if (duplicateIds.length > 0) {
+      console.warn('Duplicate comment IDs found:', duplicateIds)
+    }
+
+    return comments.map((comment: Comment, index) => {
+      // Log de débogage pour l'état des likes/dislikes
+      const userLiked = userInfo?.id && Array.isArray(comment.likes) && comment.likes.includes(userInfo.id)
+      const userDisliked = userInfo?.id && Array.isArray(comment.dislikes) && comment.dislikes.includes(userInfo.id)
+      
+      console.log(`Comment ${comment._id}:`, {
+        userId: userInfo?.id,
+        likes: comment.likes,
+        dislikes: comment.dislikes,
+        userLiked,
+        userDisliked
+      })
+
+      // FIX: Wrap the returned JSX in parentheses so the arrow function returns it
+      return (
+        <div
+          key={`${comment._id}-${depth}-${index}`}
+          id={`comment-${comment._id}`}
+          className={`${depth > 0 ? "ml-8" : ""} bg-card rounded-lg shadow-sm p-4 mb-4 border`}
+        >
         <div className="flex items-start space-x-3 mb-4">
           <div className="flex-shrink-0">
             <img
@@ -1008,6 +1022,11 @@ const PostPage = () => {
                   value={editedContent}
                   onChange={(e) => setEditedContent(e.target.value)}
                   className="w-full p-2 border rounded text-sm resize-none min-h-[100px]"
+                  style={{
+                    backgroundColor: isDarkMode ? '#1e1e1e' : '#ffffff',
+                    color: isDarkMode ? '#e0e0e0' : '#000000',
+                    borderColor: isDarkMode ? '#3a3a3a' : '#e5e7eb'
+                  }}
                   required
                 />
                 <div className="flex justify-end mt-2 space-x-2">
@@ -1028,7 +1047,7 @@ const PostPage = () => {
                 onClick={() => handleLikeComment(comment._id)}
                 className={`flex items-center space-x-1 text-sm ${userInfo?.id && Array.isArray(comment.likes) && comment.likes.includes(userInfo.id) ? "text-primary" : "text-muted-foreground"} hover:text-primary transition-colors`}
               >
-                <Heart className="h-4 w-4" />
+                <Heart className={`h-4 w-4 ${userInfo?.id && Array.isArray(comment.likes) && comment.likes.includes(userInfo.id) ? "fill-current" : ""}`} />
                 <span>{Array.isArray(comment.likes) ? comment.likes.length : 0}</span>
               </button>
               <button
@@ -1083,6 +1102,11 @@ const PostPage = () => {
               onChange={(e) => setReplyContent(e.target.value)}
               placeholder="Write your reply..."
               className="w-full p-3 border rounded-md text-sm resize-none min-h-[100px] focus:ring-2 focus:ring-primary focus:border-transparent"
+              style={{
+                backgroundColor: isDarkMode ? '#1e1e1e' : '#ffffff',
+                color: isDarkMode ? '#e0e0e0' : '#000000',
+                borderColor: isDarkMode ? '#3a3a3a' : '#e5e7eb'
+              }}
               required
             />
             <div className="flex justify-end mt-2 space-x-2">
@@ -1107,7 +1131,8 @@ const PostPage = () => {
           <div className="mt-4">{renderComments(comment.replies, depth + 1, comment._id)}</div>
         )}
       </div>
-    ))
+      )
+    })
   }
 
   if (isLoading) {
@@ -1200,18 +1225,24 @@ const PostPage = () => {
 
   // Render error message
   const renderErrorMessage = () => {
-    if (!errorMessage) return null;
+    // Déterminer le message d'erreur à afficher (priorité aux erreurs d'interaction avec les articles)
+    const displayedError = postInteraction.error || errorMessage;
+
+    if (!displayedError) return null;
 
     return (
       <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start">
         <AlertCircle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
         <div>
-          <p className="text-red-800 text-sm font-medium">{errorMessage}</p>
+          <p className="text-red-800 text-sm font-medium">{displayedError}</p>
           <button
-            onClick={() => setErrorMessage(null)}
+            onClick={() => {
+              setErrorMessage(null);
+              setPostInteraction(prev => ({ ...prev, error: null }));
+            }}
             className="text-xs text-red-600 hover:text-red-800 mt-1"
           >
-            Dismiss
+            Fermer
           </button>
         </div>
       </div>
@@ -1220,18 +1251,24 @@ const PostPage = () => {
 
   // Render success message
   const renderSuccessMessage = () => {
-    if (!successMessage) return null;
+    // Déterminer le message de succès à afficher (priorité aux messages d'interaction avec les articles)
+    const displayedSuccess = postInteraction.success || successMessage;
+
+    if (!displayedSuccess) return null;
 
     return (
       <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md flex items-start">
         <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
         <div>
-          <p className="text-green-800 text-sm font-medium">{successMessage}</p>
+          <p className="text-green-800 text-sm font-medium">{displayedSuccess}</p>
           <button
-            onClick={() => setSuccessMessage(null)}
+            onClick={() => {
+              setSuccessMessage(null);
+              setPostInteraction(prev => ({ ...prev, success: null }));
+            }}
             className="text-xs text-green-600 hover:text-green-800 mt-1"
           >
-            Dismiss
+            Fermer
           </button>
         </div>
       </div>
@@ -1239,8 +1276,9 @@ const PostPage = () => {
   };
 
   return (
+    <> 
     <main className="py-10">
-      <Container>
+            <Container>
         <article className="max-w-3xl mx-auto">
           {/* Error and success messages */}
           {renderErrorMessage()}
@@ -1250,7 +1288,7 @@ const PostPage = () => {
             <div className="mb-8">
               <div className="relative w-full h-[400px] bg-cover bg-center rounded-xl overflow-hidden">
                 <img
-                  src={formatImagePath(postInfo.cover)}
+                  src={getImageUrl(postInfo.cover)}
                   alt={postInfo.title}
                   className="w-full h-full object-cover"
                 />
@@ -1264,7 +1302,7 @@ const PostPage = () => {
               <div className="flex flex-wrap gap-2 mb-4">
                 <Badge
                   variant="outline"
-                  className="bg-primary-50 text-primary-700 border-primary-200 dark:bg-primary-900 dark:text-primary-300 dark:border-primary-800"
+                  className="badge-outline bg-primary-50 text-primary-700 border-primary-200 dark:bg-primary-900 dark:text-primary-300 dark:border-primary-800 shadow-sm"
                 >
                   {getCategoryName(postInfo)}
                 </Badge>
@@ -1355,16 +1393,22 @@ const PostPage = () => {
             <div className="flex justify-center items-center space-x-8 mb-8 border-t border-b py-6">
               <button
                 onClick={handleLikePost}
-                className={`flex items-center space-x-2 ${userLiked ? "text-primary" : "text-muted-foreground"} hover:text-primary transition-colors`}
+                disabled={postInteraction.isLoading || !userInfo}
+                className={`flex items-center space-x-2 ${userLiked ? "text-primary" : "text-muted-foreground"} ${postInteraction.isLoading ? "opacity-50 cursor-not-allowed" : "hover:text-primary"} transition-colors`}
+                aria-label="J'aime cet article"
+                title={!userInfo ? "Vous devez être connecté pour aimer un article" : "J'aime cet article"}
               >
-                <Heart className={`h-6 w-6 ${userLiked ? "fill-current" : ""}`} />
+                <Heart className={`h-6 w-6 ${userLiked ? "fill-current text-primary" : ""} ${postInteraction.isLoading ? "animate-pulse" : ""}`} />
                 <span className="text-lg">{likes}</span>
               </button>
               <button
                 onClick={handleDislikePost}
-                className={`flex items-center space-x-2 ${userDisliked ? "text-destructive" : "text-muted-foreground"} hover:text-destructive transition-colors`}
+                disabled={postInteraction.isLoading || !userInfo}
+                className={`flex items-center space-x-2 ${userDisliked ? "text-destructive" : "text-muted-foreground"} ${postInteraction.isLoading ? "opacity-50 cursor-not-allowed" : "hover:text-destructive"} transition-colors`}
+                aria-label="Je n'aime pas cet article"
+                title={!userInfo ? "Vous devez être connecté pour ne pas aimer un article" : "Je n'aime pas cet article"}
               >
-                <ThumbsDown className="h-6 w-6" />
+                <ThumbsDown className={`h-6 w-6 ${userDisliked ? "fill-current" : ""} ${postInteraction.isLoading ? "animate-pulse" : ""}`} />
                 <span className="text-lg">{dislikes}</span>
               </button>
             </div>
@@ -1399,6 +1443,11 @@ const PostPage = () => {
                 <form onSubmit={handleCommentSubmit} className="mb-8">
                   <textarea
                     className="w-full p-3 border rounded-lg resize-none min-h-[150px] focus:ring-2 focus:ring-primary focus:border-transparent"
+                    style={{
+                      backgroundColor: isDarkMode ? '#1e1e1e' : '#ffffff',
+                      color: isDarkMode ? '#e0e0e0' : '#000000',
+                      borderColor: isDarkMode ? '#3a3a3a' : '#e5e7eb'
+                    }}
                     placeholder="Share your thoughts..."
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
@@ -1435,8 +1484,8 @@ const PostPage = () => {
         onConfirm={confirmModalOnConfirm}
       />
     </main>
+     </>
   )
 }
 
 export default PostPage
-

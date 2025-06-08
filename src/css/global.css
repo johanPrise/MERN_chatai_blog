@@ -29,8 +29,8 @@
     --radius: 0.5rem;
   }
 
-  /* Thème sombre (vert) */
-  .dark {
+  /* Thème sombre (vert) - Support both .dark class and [data-theme="dark"] attribute */
+  .dark, [data-theme="dark"] {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
     --card: 222.2 84% 4.9%;
@@ -60,7 +60,7 @@
   }
 
   /* Thème bleu (sombre) */
-  .dark[data-color-theme="blue"] {
+  .dark[data-color-theme="blue"], [data-theme="dark"][data-color-theme="blue"] {
     --primary: 217.2 91.2% 59.8%; /* Bleu */
     --primary-foreground: 222.2 47.4% 11.2%;
     --ring: 224.3 76.3% 48%; /* Bleu */
@@ -74,7 +74,7 @@
   }
 
   /* Thème violet (sombre) */
-  .dark[data-color-theme="purple"] {
+  .dark[data-color-theme="purple"], [data-theme="dark"][data-color-theme="purple"] {
     --primary: 263.4 70% 50.4%; /* Violet */
     --primary-foreground: 210 40% 98%;
     --ring: 263.4 70% 50.4%; /* Violet */
@@ -88,7 +88,7 @@
   }
 
   /* Thème ambre (sombre) */
-  .dark[data-color-theme="amber"] {
+  .dark[data-color-theme="amber"], [data-theme="dark"][data-color-theme="amber"] {
     --primary: 48 96% 53%; /* Ambre */
     --primary-foreground: 0 0% 0%;
     --ring: 48 96% 53%; /* Ambre */
@@ -107,6 +107,128 @@
   /* Transitions fluides pour les éléments qui utilisent les couleurs du thème */
   a, button, input, select, textarea, .btn, .card, .badge {
     transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  /* Assurer la visibilité du texte dans les inputs en mode sombre */
+  .dark input, .dark textarea, .dark select {
+    color: white !important;
+    background-color: #1e293b !important; /* Tailwind gray-800 */
+    border-color: #475569 !important; /* Tailwind gray-600 */
+  }
+
+  /* Styles spécifiques pour les inputs des formulaires de login/register */
+  .dark input[type="email"],
+  .dark input[type="password"],
+  .dark input[type="text"] {
+    color: white !important;
+    background-color: #1e293b !important;
+  }
+
+  /* Styles pour les inputs avec des classes hardcodées dans les formulaires */
+  .dark .text-gray-900 {
+    color: white !important;
+  }
+
+  /* Styles pour les inputs dans les formulaires de login/register */
+  .dark [class*="text-gray-900"] {
+    color: white !important;
+  }
+
+  /* Style des placeholders en mode sombre */
+  .dark input::placeholder, .dark textarea::placeholder {
+    color: rgba(255, 255, 255, 0.5) !important;
+  }
+
+  /* Styles pour les inputs dans les formulaires avec des classes spécifiques */
+  .dark form input[type="email"],
+  .dark form input[type="password"],
+  .dark form input[type="text"],
+  .dark form input[type="url"],
+  .dark form input[type="number"],
+  .dark form input[type="tel"],
+  .dark form input[type="search"],
+  .dark form input[type="date"],
+  .dark form input[type="time"],
+  .dark form input[type="datetime-local"],
+  .dark form input[type="month"],
+  .dark form input[type="week"],
+  .dark form input[type="color"],
+  .dark form textarea,
+  .dark form select {
+    background-color: #1e293b !important;
+    color: white !important;
+    border-color: #475569 !important;
+  }
+
+  /* Styles spécifiques pour les inputs dans les formulaires de création de post et catégories */
+  .dark .w-full.rounded-lg.border-gray-200.p-4.text-sm.shadow-sm,
+  .dark .w-full.rounded-lg.border-gray-200.p-3.text-sm.shadow-sm {
+    background-color: #1e293b !important;
+    color: white !important;
+    border-color: #475569 !important;
+  }
+
+  /* Styles pour ReactQuill en mode sombre */
+  .dark .quill {
+    background-color: #1e293b !important;
+    border-color: #475569 !important;
+  }
+
+  .dark .ql-toolbar {
+    background-color: #1e293b !important;
+    border-color: #475569 !important;
+  }
+
+  .dark .ql-container {
+    background-color: #1e293b !important;
+    border-color: #475569 !important;
+  }
+
+  .dark .ql-editor {
+    background-color: #1e293b !important;
+    color: white !important;
+  }
+
+  .dark .ql-editor.ql-blank::before {
+    color: rgba(255, 255, 255, 0.5) !important;
+  }
+
+  .dark .ql-snow .ql-stroke {
+    stroke: #d1d5db !important;
+  }
+
+  .dark .ql-snow .ql-fill {
+    fill: #d1d5db !important;
+  }
+
+  .dark .ql-snow .ql-picker {
+    color: #d1d5db !important;
+  }
+
+  .dark .ql-snow .ql-picker-options {
+    background-color: #1e293b !important;
+    border-color: #475569 !important;
+  }
+
+  /* Styles pour les commentaires et autres formulaires */
+  .dark textarea.w-full.p-3.border.rounded-lg.resize-none.min-h-\[150px\].focus\:ring-2.focus\:ring-primary.focus\:border-transparent,
+  .dark textarea.w-full.p-3.border.rounded-lg,
+  .dark textarea.w-full.rounded-lg.border {
+    background-color: #1e293b !important;
+    color: white !important;
+    border-color: #475569 !important;
+  }
+
+  /* Styles génériques pour tous les inputs en mode sombre */
+  .dark input[type],
+  .dark textarea,
+  .dark select,
+  .dark .form-input,
+  .dark .form-textarea,
+  .dark .form-select {
+    background-color: #1e293b !important;
+    color: white !important;
+    border-color: #475569 !important;
   }
 
   /* Focus styles for accessibility */
@@ -213,6 +335,70 @@
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
   }
 
+  .dropdown-menu {
+    /* Solid background with subtle transparency for better readability */
+    @apply bg-popover/98 backdrop-blur-md border border-border shadow-xl;
+    @apply ring-1 ring-border/20;
+    
+    /* Enhanced gradient background for better visibility */
+    background-image: linear-gradient(135deg, 
+      hsl(var(--popover)/100%) 0%, 
+      hsl(var(--popover)/98%) 50%, 
+      hsl(var(--popover)/96%) 100%);
+    
+    /* Improved shadow for depth and modern look */
+    box-shadow: 
+      0 10px 25px -5px rgba(0, 0, 0, 0.1),
+      0 8px 10px -6px rgba(0, 0, 0, 0.1),
+      0 0 0 1px rgba(0, 0, 0, 0.05);
+    
+    /* Smooth animation */
+    @apply transition-all duration-200 ease-out;
+  }
+
+  /* Dark mode specific styling */
+  .dark .dropdown-menu {
+    background-image: linear-gradient(135deg, 
+      hsl(var(--popover)/100%) 0%, 
+      hsl(var(--popover)/98%) 50%, 
+      hsl(var(--popover)/95%) 100%);
+    
+    box-shadow: 
+      0 10px 25px -5px rgba(0, 0, 0, 0.4),
+      0 8px 10px -6px rgba(0, 0, 0, 0.3),
+      0 0 0 1px rgba(255, 255, 255, 0.1);
+  }
+
+  /* Enhanced hover states in dropdowns */
+  .dropdown-menu a:hover, 
+  .dropdown-menu button:hover,
+  .dropdown-menu [role="menuitem"]:hover {
+    @apply bg-accent/80 text-accent-foreground;
+    @apply transform scale-[1.02] transition-all duration-150;
+  }
+
+  /* Focus states for accessibility */
+  .dropdown-menu a:focus-visible, 
+  .dropdown-menu button:focus-visible,
+  .dropdown-menu [role="menuitem"]:focus-visible {
+    @apply bg-accent/70 text-accent-foreground;
+    @apply ring-2 ring-primary ring-offset-2;
+  }
+
+  /* Smooth entry animation */
+  .dropdown-menu[data-state="open"] {
+    @apply animate-in fade-in-0 zoom-in-95 slide-in-from-top-2;
+  }
+
+  .dropdown-menu[data-state="closed"] {
+    @apply animate-out fade-out-0 zoom-out-95 slide-out-to-top-2;
+  }
+
+  /* Classe pour assurer la visibilité du texte dans les inputs en mode sombre */
+  .form-input {
+    @apply text-gray-900 dark:text-white;
+  }
+
   .btn {
     @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
@@ -297,23 +483,25 @@
   }
 
   .input {
-    @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm
-    ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium
-    placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2
-    focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
-  }
-
-  .textarea {
-    @apply flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm
-    ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none
+    @apply flex h-10 w-full rounded-md border border-input bg-background dark:bg-gray-800 px-3 py-2 text-sm
+    text-gray-900 dark:text-white ring-offset-background file:border-0 file:bg-transparent
+    file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none
     focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
     disabled:cursor-not-allowed disabled:opacity-50;
   }
 
+  .textarea {
+    @apply flex min-h-[80px] w-full rounded-md border border-input bg-background dark:bg-gray-800 px-3 py-2 text-sm
+    text-gray-900 dark:text-white ring-offset-background placeholder:text-muted-foreground
+    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+    disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
   .select {
-    @apply flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2
-    text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none
-    focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply flex h-10 w-full items-center justify-between rounded-md border border-input bg-background dark:bg-gray-800 px-3 py-2
+    text-sm text-gray-900 dark:text-white ring-offset-background placeholder:text-muted-foreground
+    focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2
+    disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .checkbox {

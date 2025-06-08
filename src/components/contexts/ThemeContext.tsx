@@ -60,17 +60,22 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   // Update document and save theme when it changes
   useEffect(() => {
     if (isInitialized) {
-      // Appliquer le thème clair/sombre
+      // Apply dark/light theme using both class and data-attribute for maximum compatibility
       if (theme === "dark") {
         document.documentElement.classList.add("dark")
+        document.documentElement.setAttribute("data-theme", "dark")
       } else {
         document.documentElement.classList.remove("dark")
+        document.documentElement.setAttribute("data-theme", "light")
       }
 
-      // Appliquer le thème de couleur
+      // Apply color theme
       document.documentElement.setAttribute("data-color-theme", colorTheme)
 
-      // Enregistrer les préférences
+      // Update body class for additional styling hooks
+      document.body.className = `theme-${theme} color-${colorTheme}`;
+
+      // Save preferences
       try {
         localStorage.setItem("theme", theme)
         localStorage.setItem("colorTheme", colorTheme)
@@ -78,7 +83,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         console.error("Error saving theme to localStorage:", error)
       }
 
-      // Afficher des informations de débogage
+      // Debug information
       console.log("Theme updated:", { theme, colorTheme })
     }
   }, [theme, colorTheme, isInitialized])

@@ -3,6 +3,7 @@ import { isValidObjectId } from '../utils/index.js';
 import { CreatePostInput, UpdatePostInput, PostStatus } from '../types/post.types.js';
 import * as PostService from '../services/post.service.js';
 
+
 /**
  * Contrôleur pour récupérer tous les articles (avec pagination et filtres)
  */
@@ -191,11 +192,12 @@ export const updatePost = async (
  * Contrôleur pour supprimer un article
  */
 export const deletePost = async (
-  request: FastifyRequest<{ Params: { id: string } }>,
+  request: FastifyRequest<{ Params: { id: string }; Body?: { soft?: boolean } }>,
   reply: FastifyReply
 ) => {
   try {
     const { id } = request.params;
+    const { soft = true } = request.body || {}; // Par défaut, soft delete
     const currentUserId = request.user._id;
     const currentUserRole = request.user.role;
 
@@ -208,11 +210,12 @@ export const deletePost = async (
 
     // Utiliser le service pour supprimer l'article
     try {
-      await PostService.deletePost(id, currentUserId, currentUserRole);
+      await PostService.deletePost(id, currentUserId, currentUserRole, soft);
 
       // Retourner la réponse
       return reply.status(200).send({
-        message: 'Article supprimé avec succès',
+        message: soft ? 'Article supprimé avec succès' : 'Article supprimé définitivement',
+        data: { soft, deletedAt: new Date() }
       });
     } catch (error) {
       if (error instanceof Error) {
@@ -224,7 +227,12 @@ export const deletePost = async (
           return reply.status(404).send({
             message: error.message,
           });
-        } else if (error.message === 'Vous n\'êtes pas autorisé à supprimer cet article') {
+        } else if (error.message === 'Article déjà supprimé') {
+          return reply.status(409).send({
+            message: error.message,
+          });
+        } else if (error.message === 'Vous n\'êtes pas autorisé à supprimer cet article' ||
+                   error.message === 'Seuls les administrateurs peuvent supprimer définitivement un article') {
           return reply.status(403).send({
             message: error.message,
           });
@@ -265,7 +273,8 @@ export const likePost = async (
       // Retourner la réponse
       return reply.status(200).send({
         message: 'Article liké avec succès',
-        likeCount: result.likeCount,
+        likes: result.likes,
+        dislikes: result.dislikes,
       });
     } catch (error) {
       if (error instanceof Error) {
@@ -342,6 +351,60 @@ export const unlikePost = async (
     request.log.error(error);
     return reply.status(500).send({
       message: 'Une erreur est survenue lors du unlike de l\'article',
+    });
+  }
+};
+
+/**
+ * Contrôleur pour disliker un article
+ */
+export const dislikePost = async (
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply
+) => {
+  try {
+    const { id } = request.params;
+    const userId = request.user._id;
+
+    // Vérifier si l'ID est valide
+    if (!isValidObjectId(id)) {
+      return reply.status(400).send({
+        message: 'ID article invalide',
+      });
+    }
+
+    // Utiliser le service pour disliker l'article
+    try {
+      const result = await PostService.dislikePost(id, userId);
+
+      // Retourner la réponse
+      return reply.status(200).send({
+        message: 'Article disliké avec succès',
+        likes: result.likes,
+        dislikes: result.dislikes,
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === 'ID article invalide') {
+          return reply.status(400).send({
+            message: error.message,
+          });
+        } else if (error.message === 'Article non trouvé') {
+          return reply.status(404).send({
+            message: error.message,
+          });
+        } else if (error.message === 'Vous avez déjà disliké cet article') {
+          return reply.status(400).send({
+            message: error.message,
+          });
+        }
+      }
+      throw error;
+    }
+  } catch (error) {
+    request.log.error(error);
+    return reply.status(500).send({
+      message: 'Une erreur est survenue lors du dislike de l\'article',
     });
   }
 };

@@ -115,11 +115,7 @@ export const AdminSettings: React.FC = () => {
   const [aiModel, setAiModel] = useState("gpt-3.5-turbo")
   
   // Fonction pour sauvegarder les paramètres
-  const saveSettings = () => {
-    // Simuler la sauvegarde des paramètres
-    alert("Les paramètres ont été enregistrés avec succès !")
-    
-    // Dans une implémentation réelle, vous enverriez ces données à l'API
+  const saveSettings = async () => {
     const settings = {
       registrationEnabled,
       emailVerificationRequired,
@@ -132,15 +128,20 @@ export const AdminSettings: React.FC = () => {
       aiEnabled,
       aiModel
     }
-    
-    console.log("Paramètres à sauvegarder:", settings)
-    
-    // Appel API qui serait fait dans une implémentation réelle
-    // await fetch('/api/settings', {
-    //   method: 'PUT',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(settings)
-    // })
+    try {
+      const response = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings)
+      })
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Erreur lors de la sauvegarde des paramètres")
+      }
+      alert("Les paramètres ont été enregistrés avec succès !")
+    } catch (err: any) {
+      alert("Erreur lors de la sauvegarde : " + (err.message || err))
+    }
   }
   
   return (

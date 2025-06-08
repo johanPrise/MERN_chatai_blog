@@ -63,11 +63,12 @@ export const getPostComments = async (
           .populate('author', '_id username profilePicture')
           .sort({ createdAt: 1 }) as IComment[];
 
-        // Ajouter le champ isLiked pour chaque réponse si l'utilisateur est connecté
+        // Ajouter les champs isLiked et isDisliked pour chaque réponse si l'utilisateur est connecté
         const repliesWithLikeStatus = replies.map(reply => {
           const replyObj = reply.toObject();
           if (currentUserId) {
-            replyObj.isLiked = reply.likedBy.includes(currentUserId);
+            replyObj.isLiked = reply.likedBy && reply.likedBy.includes(currentUserId);
+            replyObj.isDisliked = reply.dislikedBy && reply.dislikedBy.includes(currentUserId);
           }
           return replyObj;
         });
@@ -75,20 +76,22 @@ export const getPostComments = async (
         const commentObj = comment.toObject();
         commentObj.replies = repliesWithLikeStatus;
 
-        // Ajouter le champ isLiked pour le commentaire si l'utilisateur est connecté
+        // Ajouter les champs isLiked et isDisliked pour le commentaire si l'utilisateur est connecté
         if (currentUserId) {
-          commentObj.isLiked = comment.likedBy.includes(currentUserId);
+          commentObj.isLiked = comment.likedBy && comment.likedBy.includes(currentUserId);
+          commentObj.isDisliked = comment.dislikedBy && comment.dislikedBy.includes(currentUserId);
         }
 
         return commentObj;
       })
     );
   } else {
-    // Ajouter le champ isLiked pour chaque commentaire si l'utilisateur est connecté
+    // Ajouter les champs isLiked et isDisliked pour chaque commentaire si l'utilisateur est connecté
     commentsWithReplies = comments.map(comment => {
       const commentObj = comment.toObject();
       if (currentUserId) {
-        commentObj.isLiked = comment.likedBy.includes(currentUserId);
+        commentObj.isLiked = comment.likedBy && comment.likedBy.includes(currentUserId);
+        commentObj.isDisliked = comment.dislikedBy && comment.dislikedBy.includes(currentUserId);
       }
       return commentObj;
     });
@@ -123,9 +126,10 @@ export const getCommentById = async (id: string, currentUserId?: string) => {
   // Convertir en objet pour pouvoir ajouter des propriétés
   const commentObj = comment.toObject();
 
-  // Ajouter le champ isLiked si l'utilisateur est connecté
+  // Ajouter les champs isLiked et isDisliked si l'utilisateur est connecté
   if (currentUserId) {
-    commentObj.isLiked = comment.likedBy.includes(currentUserId);
+    commentObj.isLiked = comment.likedBy && comment.likedBy.includes(currentUserId);
+    commentObj.isDisliked = comment.dislikedBy && comment.dislikedBy.includes(currentUserId);
   }
 
   return commentObj;
@@ -284,17 +288,28 @@ export const likeComment = async (id: string, userId: string) => {
   }
 
   // Vérifier si l'utilisateur a déjà liké le commentaire
-  if (comment.likedBy.includes(userId)) {
-    throw new Error('Vous avez déjà liké ce commentaire');
+  if (comment.likedBy && comment.likedBy.includes(userId)) {
+    // Si déjà liké, on retire le like
+    comment.likedBy = comment.likedBy.filter(id => id.toString() !== userId);
+    comment.likeCount = Math.max(0, comment.likeCount - 1);
+  } else {
+    // Sinon, on ajoute le like
+    if (!comment.likedBy) comment.likedBy = [];
+    comment.likedBy.push(userId);
+    comment.likeCount += 1;
+
+    // Si l'utilisateur avait disliké, on retire le dislike
+    if (comment.dislikedBy && comment.dislikedBy.includes(userId)) {
+      comment.dislikedBy = comment.dislikedBy.filter(id => id.toString() !== userId);
+      comment.dislikeCount = Math.max(0, (comment.dislikeCount || 0) - 1);
+    }
   }
 
-  // Ajouter l'utilisateur à la liste des likes et incrémenter le compteur
-  comment.likedBy.push(userId);
-  comment.likeCount += 1;
   await comment.save();
 
   return {
-    likeCount: comment.likeCount,
+    likes: comment.likedBy || [],
+    dislikes: comment.dislikedBy || [],
   };
 };
 
@@ -327,5 +342,48 @@ export const unlikeComment = async (id: string, userId: string) => {
 
   return {
     likeCount: comment.likeCount,
+  };
+};
+
+/**
+ * Service pour disliker un commentaire
+ */
+export const dislikeComment = async (id: string, userId: string) => {
+  // Vérifier si l'ID est valide
+  if (!isValidObjectId(id)) {
+    throw new Error('ID commentaire invalide');
+  }
+
+  // Récupérer le commentaire
+  const comment = await Comment.findById(id) as IComment;
+
+  // Vérifier si le commentaire existe
+  if (!comment) {
+    throw new Error('Commentaire non trouvé');
+  }
+
+  // Vérifier si l'utilisateur a déjà disliké le commentaire
+  if (comment.dislikedBy && comment.dislikedBy.includes(userId)) {
+    // Si déjà disliké, on retire le dislike
+    comment.dislikedBy = comment.dislikedBy.filter(id => id.toString() !== userId);
+    comment.dislikeCount = Math.max(0, (comment.dislikeCount || 0) - 1);
+  } else {
+    // Sinon, on ajoute le dislike
+    if (!comment.dislikedBy) comment.dislikedBy = [];
+    comment.dislikedBy.push(userId);
+    comment.dislikeCount = (comment.dislikeCount || 0) + 1;
+
+    // Si l'utilisateur avait liké, on retire le like
+    if (comment.likedBy && comment.likedBy.includes(userId)) {
+      comment.likedBy = comment.likedBy.filter(id => id.toString() !== userId);
+      comment.likeCount = Math.max(0, comment.likeCount - 1);
+    }
+  }
+
+  await comment.save();
+
+  return {
+    likes: comment.likedBy || [],
+    dislikes: comment.dislikedBy || [],
   };
 };

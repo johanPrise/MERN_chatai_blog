@@ -45,7 +45,7 @@ const contentSchema = new Schema<IContent>(
 );
 
 // Index pour améliorer les performances des recherches
-contentSchema.index({ slug: 1 });
+// Note: slug index is automatically created by unique: true
 contentSchema.index({ type: 1, position: 1 });
 contentSchema.index({ isActive: 1 });
 

@@ -37,7 +37,7 @@ const categorySchema = new Schema<ICategory>(
 );
 
 // Index pour améliorer les performances des recherches
-categorySchema.index({ slug: 1 });
+// Note: slug index is automatically created by unique: true
 categorySchema.index({ parent: 1 });
 
 // Créer et exporter le modèle Category

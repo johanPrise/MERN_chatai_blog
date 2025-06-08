@@ -1,9 +1,13 @@
+// @ts-ignore
 /**
  * Configuration des URLs de l'API
  */
 
 // URL de base de l'API - utilise la variable d'environnement ou le proxy Vite
 export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+
+// URL de base du serveur (pour les fichiers statiques comme les images)
+export const SERVER_BASE_URL = import.meta.env.VITE_IMAGE_BASE_URL || 'http://localhost:4200';
 
 // Endpoints de l'API
 export const API_ENDPOINTS = {
@@ -40,17 +44,24 @@ export const API_ENDPOINTS = {
     update: (id: string) => `${API_BASE_URL}/posts/${id}`,
     delete: (id: string) => `${API_BASE_URL}/posts/${id}`,
     search: `${API_BASE_URL}/posts/search`,
+    like: (id: string) => `${API_BASE_URL}/posts/${id}/like`,
+    dislike: (id: string) => `${API_BASE_URL}/posts/${id}/dislike`,
+    unlike: (id: string) => `${API_BASE_URL}/posts/${id}/unlike`,
+    stats: (id: string) => `${API_BASE_URL}/posts/${id}/stats`,
   },
 
-  // Commentaires
+// Commentaires
   comments: {
     list: `${API_BASE_URL}/comments`,
+    byPost: (postId: string) => `${API_BASE_URL}/comments/post/${postId}`, // Ajouter cette ligne
     create: `${API_BASE_URL}/comments`,
     update: (id: string) => `${API_BASE_URL}/comments/${id}`,
     delete: (id: string) => `${API_BASE_URL}/comments/${id}`,
     like: (id: string) => `${API_BASE_URL}/comments/${id}/like`,
     unlike: (id: string) => `${API_BASE_URL}/comments/${id}/unlike`,
+    dislike: (id: string) => `${API_BASE_URL}/comments/${id}/dislike`,
   },
+
 
   // Catégories
   categories: {
@@ -79,3 +90,18 @@ export const API_ENDPOINTS = {
   // Santé de l'API
   health: `${API_BASE_URL}/health`,
 };
+
+/**
+ * Construit l'URL complète d'une image à partir d'un chemin relatif
+ * @param imagePath Chemin relatif de l'image (ex: 'uploads/IHKq7irhQJ.png')
+ * @returns URL complète de l'image
+ */
+export function getImageUrl(imagePath: string): string {
+  // Si le chemin est déjà une URL complète, on le retourne tel quel
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath;
+  }
+  
+  // Construit l'URL en fonction de l'environnement
+  return `${SERVER_BASE_URL}/${imagePath.replace(/^\//, '')}`;
+}

@@ -47,6 +47,7 @@ export interface Post {
   dislikes: string[]
   featured?: boolean
   comments?: Comment[]
+  views?: number // Champ pour le compteur de vues (à implémenter côté API)
 }
 
 /**

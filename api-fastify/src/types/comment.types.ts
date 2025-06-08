@@ -12,6 +12,8 @@ export interface IComment extends Document {
   parent?: IComment['_id'];
   likeCount: number;
   likedBy: IUser['_id'][];
+  dislikeCount: number;
+  dislikedBy: IUser['_id'][];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,7 +37,7 @@ export type UpdateCommentInput = {
 /**
  * Type pour la réponse de commentaire
  */
-export type CommentResponse = Omit<IComment, 'likedBy'> & {
+export type CommentResponse = Omit<IComment, 'likedBy' | 'dislikedBy'> & {
   _id: string;
   author: {
     _id: string;
@@ -43,5 +45,6 @@ export type CommentResponse = Omit<IComment, 'likedBy'> & {
     profilePicture?: string;
   };
   isLiked?: boolean;
+  isDisliked?: boolean;
   replies?: CommentResponse[];
 };

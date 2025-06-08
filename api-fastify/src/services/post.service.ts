@@ -3,6 +3,7 @@ import { Category } from '../models/category.model.js';
 import { isValidObjectId, generateSlug, extractExcerpt } from '../utils/index.js';
 import { CreatePostInput, UpdatePostInput, PostStatus, IPost, PostResponse } from '../types/post.types.js';
 
+
 /**
  * Service pour récupérer tous les articles (avec pagination et filtres)
  */
@@ -21,6 +22,9 @@ export const getAllPosts = async (
 
   // Construire la requête de base
   let query: any = {};
+
+  // Exclure les articles supprimés (soft delete)
+  query.isDeleted = { $ne: true };
 
   // Ajouter le filtre de statut
   // Si l'utilisateur n'est pas connecté, ne montrer que les articles publiés
@@ -82,7 +86,7 @@ export const getAllPosts = async (
   const posts = await Post.find(query)
     .populate('author', '_id username profilePicture')
     .populate('categories', '_id name slug')
-    .sort({ createdAt: -1 })
+    .sort({ publishedAt: -1, createdAt: -1 })
     .skip(skip)
     .limit(limit);
 
@@ -132,6 +136,9 @@ export const getAllPosts = async (
 export const getPostByIdOrSlug = async (idOrSlug: string, currentUserId?: string, currentUserRole?: string) => {
   // Construire la requête
   let query: any = {};
+
+  // Exclure les articles supprimés (soft delete)
+  query.isDeleted = { $ne: true };
 
   // Vérifier si l'identifiant est un ID MongoDB ou un slug
   if (isValidObjectId(idOrSlug)) {
@@ -308,9 +315,16 @@ export const updatePost = async (
     updateData.excerpt = extractExcerpt(updateData.content);
   }
 
-  // Si le statut passe de brouillon à publié, définir la date de publication
-  if (updateData.status === PostStatus.PUBLISHED && post.status !== PostStatus.PUBLISHED) {
-    updateData.publishedAt = new Date();
+  // Gestion de la date de publication
+  if (updateData.status === PostStatus.PUBLISHED) {
+    if (post.status !== PostStatus.PUBLISHED) {
+      // Premier passage en statut publié : définir publishedAt
+      updateData.publishedAt = new Date();
+    }
+    // Si déjà publié et qu'on reste publié, garder la date de publication originale
+  } else if (updateData.status === PostStatus.DRAFT && post.status === PostStatus.PUBLISHED) {
+    // Si on repasse en brouillon, on peut choisir de garder ou supprimer publishedAt
+    // Ici on la garde pour l'historique, mais on pourrait la supprimer
   }
 
   // Compatibilité avec le frontend: si on reçoit 'category' au lieu de 'categories'
@@ -353,9 +367,9 @@ export const updatePost = async (
 };
 
 /**
- * Service pour supprimer un article
+ * Service pour supprimer un article (soft delete par défaut)
  */
-export const deletePost = async (id: string, currentUserId: string, currentUserRole: string) => {
+export const deletePost = async (id: string, currentUserId: string, currentUserRole: string, soft: boolean = true) => {
   // Vérifier si l'ID est valide
   if (!isValidObjectId(id)) {
     throw new Error('ID article invalide');
@@ -369,6 +383,11 @@ export const deletePost = async (id: string, currentUserId: string, currentUserR
     throw new Error('Article non trouvé');
   }
 
+  // Vérifier si l'article est déjà supprimé (soft delete)
+  if (post.isDeleted) {
+    throw new Error('Article déjà supprimé');
+  }
+
   // Vérifier si l'utilisateur actuel est autorisé à supprimer cet article
   const authorId = (post.author as unknown as { toString(): string }).toString();
   const isAuthor = authorId === currentUserId;
@@ -378,10 +397,21 @@ export const deletePost = async (id: string, currentUserId: string, currentUserR
     throw new Error('Vous n\'êtes pas autorisé à supprimer cet article');
   }
 
-  // Supprimer l'article
-  await Post.findByIdAndDelete(id);
-
-  // TODO: Supprimer également les commentaires associés à cet article
+  if (soft) {
+    // Soft delete - marquer comme supprimé
+    await Post.findByIdAndUpdate(id, {
+      isDeleted: true,
+      deletedAt: new Date(),
+      deletedBy: currentUserId,
+    });
+  } else {
+    // Hard delete - supprimer définitivement (admin uniquement)
+    if (currentUserRole !== 'admin') {
+      throw new Error('Seuls les administrateurs peuvent supprimer définitivement un article');
+    }
+    await Post.findByIdAndDelete(id);
+    // TODO: Supprimer également les commentaires associés à cet article
+  }
 
   return true;
 };
@@ -404,18 +434,29 @@ export const likePost = async (id: string, userId: string) => {
   }
 
   // Vérifier si l'utilisateur a déjà liké l'article
-  if (post.likedBy.includes(userId)) {
-    throw new Error('Vous avez déjà liké cet article');
-  }
+    if (post.likedBy && post.likedBy.includes(userId)) {
+      // Si déjà liké, on retire le like
+      post.likedBy = post.likedBy.filter(id => id.toString() !== userId);
+      post.likeCount = Math.max(0, post.likeCount - 1);
+    } else {
+      // Sinon, on ajoute le like
+      if (!post.likedBy) post.likedBy = [];
+      post.likedBy.push(userId);
+      post.likeCount += 1;
 
-  // Ajouter l'utilisateur à la liste des likes et incrémenter le compteur
-  post.likedBy.push(userId);
-  post.likeCount += 1;
-  await post.save();
+      // Si l'utilisateur avait disliké, on retire le dislike
+      if (post.dislikedBy && post.dislikedBy.includes(userId)) {
+        post.dislikedBy = post.dislikedBy.filter(id => id.toString() !== userId);
+        post.dislikeCount = Math.max(0, (post.dislikeCount || 0) - 1);
+      }
+    }
 
-  return {
-    likeCount: post.likeCount,
-  };
+    await post.save();
+
+    return {
+      likes: post.likedBy || [],
+      dislikes: post.dislikedBy || [],
+    };
 };
 
 /**
@@ -449,5 +490,48 @@ export const unlikePost = async (id: string, userId: string) => {
 
   return {
     likeCount: post.likeCount,
+  };
+};
+
+/**
+ * Service pour disliker un article
+ */
+export const dislikePost = async (id: string, userId: string) => {
+  // Vérifier si l'ID est valide
+  if (!isValidObjectId(id)) {
+    throw new Error('ID article invalide');
+  }
+
+  // Récupérer l'article
+  const post = await Post.findById(id) as IPost;
+
+  // Vérifier si l'article existe
+  if (!post) {
+    throw new Error('Article non trouvé');
+  }
+
+  // Vérifier si l'utilisateur a déjà disliké l'article
+  if (post.dislikedBy && post.dislikedBy.includes(userId)) {
+    // Si déjà disliké, on retire le dislike
+    post.dislikedBy = post.dislikedBy.filter(id => id.toString() !== userId);
+    post.dislikeCount = Math.max(0, (post.dislikeCount || 0) - 1);
+  } else {
+    // Sinon, on ajoute le dislike
+    if (!post.dislikedBy) post.dislikedBy = [];
+    post.dislikedBy.push(userId);
+    post.dislikeCount = (post.dislikeCount || 0) + 1;
+
+    // Si l'utilisateur avait liké, on retire le like
+    if (post.likedBy && post.likedBy.includes(userId)) {
+      post.likedBy = post.likedBy.filter(id => id.toString() !== userId);
+      post.likeCount = Math.max(0, post.likeCount - 1);
+    }
+  }
+
+  await post.save();
+
+  return {
+    likes: post.likedBy || [],
+    dislikes: post.dislikedBy || [],
   };
 };

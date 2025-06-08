@@ -1,5 +1,6 @@
 import { config } from 'dotenv';
 import { buildServer } from './server.js';
+import './models/settings.model';
 
 // Charger les variables d'environnement
 config();

@@ -41,7 +41,9 @@ export const getCommentsSchema: FastifySchema = {
               },
               parent: { type: 'string', nullable: true },
               likeCount: { type: 'number' },
+              dislikeCount: { type: 'number' },
               isLiked: { type: 'boolean', nullable: true },
+              isDisliked: { type: 'boolean', nullable: true },
               createdAt: { type: 'string', format: 'date-time' },
               updatedAt: { type: 'string', format: 'date-time' },
               replies: {
@@ -62,7 +64,9 @@ export const getCommentsSchema: FastifySchema = {
                     },
                     parent: { type: 'string' },
                     likeCount: { type: 'number' },
+                    dislikeCount: { type: 'number' },
                     isLiked: { type: 'boolean', nullable: true },
+                    isDisliked: { type: 'boolean', nullable: true },
                     createdAt: { type: 'string', format: 'date-time' },
                     updatedAt: { type: 'string', format: 'date-time' },
                   },
@@ -117,7 +121,9 @@ export const getCommentSchema: FastifySchema = {
             },
             parent: { type: 'string', nullable: true },
             likeCount: { type: 'number' },
+            dislikeCount: { type: 'number' },
             isLiked: { type: 'boolean', nullable: true },
+            isDisliked: { type: 'boolean', nullable: true },
             createdAt: { type: 'string', format: 'date-time' },
             updatedAt: { type: 'string', format: 'date-time' },
           },
@@ -290,7 +296,14 @@ export const likeCommentSchema: FastifySchema = {
       type: 'object',
       properties: {
         message: { type: 'string' },
-        likeCount: { type: 'number' },
+        likes: {
+          type: 'array',
+          items: { type: 'string' },
+        },
+        dislikes: {
+          type: 'array',
+          items: { type: 'string' },
+        },
       },
     },
     400: {
@@ -325,6 +338,47 @@ export const unlikeCommentSchema: FastifySchema = {
       properties: {
         message: { type: 'string' },
         likeCount: { type: 'number' },
+      },
+    },
+    400: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+      },
+    },
+    404: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+      },
+    },
+  },
+};
+
+/**
+ * Schéma pour la validation du dislike d'un commentaire
+ */
+export const dislikeCommentSchema: FastifySchema = {
+  params: {
+    type: 'object',
+    required: ['id'],
+    properties: {
+      id: { type: 'string' },
+    },
+  },
+  response: {
+    200: {
+      type: 'object',
+      properties: {
+        message: { type: 'string' },
+        likes: {
+          type: 'array',
+          items: { type: 'string' },
+        },
+        dislikes: {
+          type: 'array',
+          items: { type: 'string' },
+        },
       },
     },
     400: {

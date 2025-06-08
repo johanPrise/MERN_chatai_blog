@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom"
 import { Container } from "../components/ui/container"
 import { H1, H3 } from "../components/ui/typography"
 import { API_ENDPOINTS } from "../config/api.config"
-import { formatDate } from "../lib/utils"
+import { formatDate, getImageUrl } from "../lib/utils"
 import { Link } from "react-router-dom"
 import { Search as SearchIcon } from "lucide-react"
 import AnimateOnView from "../components/AnimateOnView"
@@ -69,12 +69,6 @@ const Search: React.FC = () => {
     fetchSearchResults()
   }, [query])
 
-  const formatImagePath = (path: string) => {
-    if (!path) return "/placeholder-image.jpg"
-    if (path.startsWith("http")) return path
-    return `/uploads/${path}`
-  }
-
   // Fonction pour mettre en évidence les termes de recherche dans le texte
   const highlightSearchTerm = (text: string, searchTerm: string) => {
     if (!searchTerm || !text) return text
@@ -115,14 +109,14 @@ const Search: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {posts.map((post) => (
-              <AnimateOnView key={post._id} animation="fade-up" className="h-full">
+              <AnimateOnView key={post._id} animation="slide-up" className="h-full">
                 <Link
                   to={`/Post/${post._id}`}
                   className="block h-full overflow-hidden rounded-lg border bg-card shadow-sm transition-all hover:shadow-md"
                 >
                   <div className="aspect-video w-full overflow-hidden">
                     <img
-                      src={formatImagePath(post.cover)}
+                      src={getImageUrl(post.cover)}
                       alt={post.title}
                       className="h-full w-full object-cover transition-transform hover:scale-105"
                     />

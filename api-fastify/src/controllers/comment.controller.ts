@@ -315,7 +315,8 @@ export const likeComment = async (
       // Retourner la réponse
       return reply.status(200).send({
         message: 'Commentaire liké avec succès',
-        likeCount: result.likeCount,
+        likes: result.likes,
+        dislikes: result.dislikes,
       });
     } catch (error) {
       if (error instanceof Error) {
@@ -392,6 +393,60 @@ export const unlikeComment = async (
     request.log.error(error);
     return reply.status(500).send({
       message: 'Une erreur est survenue lors du unlike du commentaire',
+    });
+  }
+};
+
+/**
+ * Contrôleur pour disliker un commentaire
+ */
+export const dislikeComment = async (
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply
+) => {
+  try {
+    const { id } = request.params;
+    const userId = request.user._id;
+
+    // Vérifier si l'ID est valide
+    if (!isValidObjectId(id)) {
+      return reply.status(400).send({
+        message: 'ID commentaire invalide',
+      });
+    }
+
+    try {
+      // Utiliser le service pour disliker le commentaire
+      const result = await CommentService.dislikeComment(id, userId);
+
+      // Retourner la réponse
+      return reply.status(200).send({
+        message: 'Commentaire disliké avec succès',
+        likes: result.likes,
+        dislikes: result.dislikes,
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === 'ID commentaire invalide') {
+          return reply.status(400).send({
+            message: error.message,
+          });
+        } else if (error.message === 'Commentaire non trouvé') {
+          return reply.status(404).send({
+            message: error.message,
+          });
+        } else if (error.message === 'Vous avez déjà disliké ce commentaire') {
+          return reply.status(400).send({
+            message: error.message,
+          });
+        }
+      }
+      throw error;
+    }
+  } catch (error) {
+    request.log.error(error);
+    return reply.status(500).send({
+      message: 'Une erreur est survenue lors du dislike du commentaire',
     });
   }
 };

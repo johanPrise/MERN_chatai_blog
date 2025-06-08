@@ -33,6 +33,14 @@ const commentSchema = new Schema<IComment>(
       type: Schema.Types.ObjectId,
       ref: 'User',
     }],
+    dislikeCount: {
+      type: Number,
+      default: 0,
+    },
+    dislikedBy: [{
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+    }],
   },
   {
     timestamps: true,

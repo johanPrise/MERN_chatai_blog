@@ -1,8 +1,61 @@
 /* Styles pour le contenu Markdown */
+/* Variables CSS pour le contenu Markdown avec spécificité accrue */
+html:root {
+  --md-text-heading: #111827 !important; /* Noir pour les titres en mode clair */
+  --md-text-body: #374151 !important;   /* Gris foncé pour le texte en mode clair */
+  --md-border: #e5e7eb !important;      /* Gris clair pour les bordures en mode clair */
+  --md-link: #16a34a;         /* Couleur des liens en mode clair */
+  --md-link-hover: #15803d;   /* Couleur des liens au survol en mode clair */
+  --md-blockquote-bg: #f9f9f9; /* Fond des citations en mode clair */
+  --md-blockquote-border: #22c55e; /* Bordure des citations en mode clair */
+  --md-blockquote-text: #555;  /* Texte des citations en mode clair */
+  --md-code-bg: rgba(27, 31, 35, 0.05); /* Fond du code inline en mode clair */
+  --md-code-block-bg: var(--syntax-background, #f0f0f0); /* Fond des blocs de code en mode clair */
+  --md-code-block-border: var(--syntax-border, #ddd); /* Bordure des blocs de code en mode clair */
+  --md-table-border: #e2e8f0; /* Bordure des tableaux en mode clair */
+  --md-table-header-bg: #f8fafc; /* Fond de l'en-tête des tableaux en mode clair */
+  --md-table-row-hover: #f1f5f9; /* Fond des lignes au survol en mode clair */
+  --md-copy-button-bg: rgba(255, 255, 255, 0.1); /* Fond du bouton de copie en mode clair */
+  --md-copy-button-color: #555; /* Couleur du bouton de copie en mode clair */
+  --md-copy-button-hover: rgba(0, 0, 0, 0.1); /* Fond du bouton de copie au survol en mode clair */
+}
+
+/* Mode sombre avec sélecteurs explicites et spécificité accrue */
+html.dark:root, 
+html[data-theme="dark"]:root, 
+html[data-mode="dark"]:root {
+  --md-text-heading: #f5f5f5 !important; /* Blanc pour les titres en mode sombre */
+  --md-text-body: #d4d4d4 !important;    /* Gris clair pour le texte en mode sombre */
+  --md-border: #333 !important;          /* Gris foncé pour les bordures en mode sombre */
+  --md-link: #4ade80;         /* Couleur des liens en mode sombre */
+  --md-link-hover: #86efac;   /* Couleur des liens au survol en mode sombre */
+  --md-blockquote-bg: #222;   /* Fond des citations en mode sombre */
+  --md-blockquote-border: #22c55e; /* Bordure des citations en mode sombre */
+  --md-blockquote-text: #b0b0b0; /* Texte des citations en mode sombre */
+  --md-code-bg: rgba(240, 246, 252, 0.1); /* Fond du code inline en mode sombre */
+  --md-code-block-bg: var(--syntax-background, #1a1a1a); /* Fond des blocs de code en mode sombre */
+  --md-code-block-border: var(--syntax-border, #333); /* Bordure des blocs de code en mode sombre */
+  --md-table-border: #333; /* Bordure des tableaux en mode sombre */
+  --md-table-header-bg: #222; /* Fond de l'en-tête des tableaux en mode sombre */
+  --md-table-row-hover: #2a2a2a; /* Fond des lignes au survol en mode sombre */
+  --md-copy-button-bg: rgba(0, 0, 0, 0.3); /* Fond du bouton de copie en mode sombre */
+  --md-copy-button-color: #aaa; /* Couleur du bouton de copie en mode sombre */
+  --md-copy-button-hover: rgba(255, 255, 255, 0.1); /* Fond du bouton de copie au survol en mode sombre */
+}
+
+/* Media query pour le mode sombre système */
+@media (prefers-color-scheme: dark) {
+  body:not(.light):not([data-theme="light"]):not([data-mode="light"]) {
+    --md-text-heading: #f5f5f5;
+    --md-text-body: #d4d4d4;
+    --md-border: #333;
+  }
+}
+
 .markdown-content {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   line-height: 1.8;
-  color: #1a1a1a; /* Texte plus foncé pour un meilleur contraste */
+  color: var(--md-text-body);
   font-weight: 400;
   font-size: 1.125rem;
   letter-spacing: -0.011em;
@@ -28,20 +81,20 @@
   margin-bottom: 1.25rem;
   font-weight: 700;
   line-height: 1.3;
-  color: #111;
+  color: var(--md-text-heading);
   letter-spacing: -0.02em;
 }
 
 .markdown-body h1 {
   font-size: 2.25em;
-  border-bottom: 2px solid #f0f0f0;
+  border-bottom: 2px solid var(--md-border);
   padding-bottom: 0.5em;
   margin-top: 0;
 }
 
 .markdown-body h2 {
   font-size: 1.75em;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--md-border);
   padding-bottom: 0.4em;
 }
 
@@ -59,7 +112,7 @@
 
 .markdown-body h6 {
   font-size: 0.9em;
-  color: #555;
+  color: var(--md-text-body);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -68,7 +121,7 @@
 .markdown-body p {
   margin-top: 0;
   margin-bottom: 1.5rem;
-  color: #333;
+  color: var(--md-text-body);
   font-size: 1.125rem;
   line-height: 1.8;
 }
@@ -76,13 +129,14 @@
 /* Citations */
 .markdown-body blockquote {
   padding: 1.2rem 1.5rem;
-  color: #555;
-  background-color: #f9f9f9;
-  border-left: 4px solid #22c55e;
+  color: var(--md-blockquote-text);
+  background-color: var(--md-blockquote-bg);
+  border-left: 4px solid var(--md-blockquote-border);
   margin: 1.5rem 0;
   border-radius: 0 0.25rem 0.25rem 0;
   font-style: italic;
   position: relative;
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
 .markdown-body blockquote::before {
@@ -91,8 +145,10 @@
   position: absolute;
   left: 0.5rem;
   top: -0.5rem;
-  color: rgba(34, 197, 94, 0.2);
+  color: var(--md-blockquote-border, rgba(34, 197, 94, 0.2));
+  opacity: 0.2;
   font-family: Georgia, serif;
+  transition: color 0.3s ease;
 }
 
 .markdown-body blockquote p {
@@ -124,14 +180,41 @@
 /* Blocs de code */
 .markdown-body pre {
   margin: 1.5rem 0;
-  padding: 1.25rem;
+  padding: 1.25rem 1.25rem 1.25rem 0; /* Padding réduit à gauche pour les numéros de ligne */
   overflow: auto;
   font-size: 0.9rem;
   line-height: 1.6;
-  background-color: #f0f0f0;
+  background-color: var(--md-code-block-bg);
   border-radius: 0.5rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--md-code-block-border);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  position: relative; /* Pour le positionnement du bouton de copie */
+}
+
+/* Bouton de copie du code */
+.markdown-body .code-copy-button {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background-color: var(--md-copy-button-bg);
+  color: var(--md-copy-button-color);
+  border: none;
+  border-radius: 0.25rem;
+  padding: 0.3rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease, background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.markdown-body pre:hover .code-copy-button {
+  opacity: 1;
+}
+
+.markdown-body .code-copy-button:hover {
+  background-color: var(--md-copy-button-hover);
 }
 
 .markdown-body code {
@@ -141,7 +224,7 @@
   background-color: rgba(27, 31, 35, 0.05);
   border-radius: 0.25rem;
   font-family: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-  color: #333;
+  color: var(--syntax-foreground, #333);
 }
 
 .markdown-body pre code {
@@ -155,7 +238,7 @@
   display: inline;
   overflow: visible;
   line-height: inherit;
-  color: #333;
+  color: var(--syntax-foreground, #333);
 }
 
 /* Images */
@@ -176,17 +259,54 @@
 
 /* Liens */
 .markdown-body a {
-  color: #16a34a;
+  color: var(--md-link);
   text-decoration: none;
   border-bottom: 1px solid rgba(22, 163, 74, 0.2);
   padding-bottom: 1px;
-  transition: border-color 0.2s ease, color 0.2s ease;
+  transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+  position: relative;
+  z-index: 1;
 }
 
 .markdown-body a:hover {
-  color: #15803d;
-  border-bottom-color: rgba(21, 128, 61, 0.4);
+  color: var(--md-link-hover);
+  border-bottom-color: currentColor;
   text-decoration: none;
+  background-color: rgba(22, 163, 74, 0.05);
+}
+
+/* Animation subtile pour les liens */
+.markdown-body a::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background-color: currentColor;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.3s ease;
+  z-index: -1;
+}
+
+.markdown-body a:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+html.dark .markdown-body a,
+[data-theme="dark"] .markdown-body a,
+[data-mode="dark"] .markdown-body a {
+  color: var(--primary, #4ade80);
+  border-bottom-color: rgba(74, 222, 128, 0.2);
+}
+
+html.dark .markdown-body a:hover,
+[data-theme="dark"] .markdown-body a:hover,
+[data-mode="dark"] .markdown-body a:hover {
+  color: var(--primary-hover, #86efac);
+  border-bottom-color: rgba(134, 239, 172, 0.4);
 }
 
 /* Séparateurs */
@@ -212,89 +332,162 @@
   font-size: 1.2rem;
 }
 
-/* Mode sombre */
-@media (prefers-color-scheme: dark) {
-  .markdown-content {
-    color: #e0e0e0;
-  }
-
-  .markdown-body {
-    color: #e0e0e0;
-  }
-
-  .markdown-body h1,
-  .markdown-body h2,
-  .markdown-body h3,
-  .markdown-body h4,
-  .markdown-body h5,
-  .markdown-body h6 {
-    color: #f5f5f5;
-  }
-
-  .markdown-body p {
-    color: #d4d4d4;
-  }
-
-  .markdown-body h1,
-  .markdown-body h2 {
-    border-bottom-color: #333;
-  }
-
-  .markdown-body blockquote {
+  /* Styles pour le mode sombre avec media query */
+  @media (prefers-color-scheme: dark) {
+  body:not(.light):not([data-theme="light"]):not([data-mode="light"]) .markdown-body blockquote {
     color: #b0b0b0;
     background-color: #222;
     border-left-color: #22c55e;
   }
 
-  .markdown-body blockquote::before {
+  body:not(.light):not([data-theme="light"]):not([data-mode="light"]) .markdown-body blockquote::before {
     color: rgba(34, 197, 94, 0.15);
   }
 
-  .markdown-body pre {
+  body:not(.light):not([data-theme="light"]):not([data-mode="light"]) .markdown-body pre {
     background-color: #1a1a1a;
     border-color: #333;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   }
 
-  .markdown-body code {
+  body:not(.light):not([data-theme="light"]):not([data-mode="light"]) .markdown-body code {
     background-color: rgba(240, 246, 252, 0.1);
     color: #e0e0e0;
   }
 
-  .markdown-body pre code {
+  body:not(.light):not([data-theme="light"]):not([data-mode="light"]) .markdown-body pre code {
     color: #e0e0e0;
   }
 
-  .markdown-body img {
+  body:not(.light):not([data-theme="light"]):not([data-mode="light"]) .markdown-body img {
     background-color: #1a1a1a;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   }
 
-  .markdown-body img:hover {
+  body:not(.light):not([data-theme="light"]):not([data-mode="light"]) .markdown-body img:hover {
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
   }
 
-  .markdown-body hr {
+  body:not(.light):not([data-theme="light"]):not([data-mode="light"]) .markdown-body hr {
     background-color: #333;
   }
 
-  .markdown-body hr::after {
+  body:not(.light):not([data-theme="light"]):not([data-mode="light"]) .markdown-body hr::after {
     background-color: #1a1a1a;
   }
 
-  .markdown-body a {
+  body:not(.light):not([data-theme="light"]):not([data-mode="light"]) .markdown-body a {
     color: #4ade80;
     border-bottom-color: rgba(74, 222, 128, 0.2);
   }
 
-  .markdown-body a:hover {
+  body:not(.light):not([data-theme="light"]):not([data-mode="light"]) .markdown-body a:hover {
     color: #86efac;
     border-bottom-color: rgba(134, 239, 172, 0.4);
   }
 
-  .markdown-body ul li::marker {
+  body:not(.light):not([data-theme="light"]):not([data-mode="light"]) .markdown-body ul li::marker {
     color: #4ade80;
   }
+  }
+
+/* Styles spécifiques pour les éléments avec des classes pour une meilleure réactivité au thème */
+.md-heading {
+  color: var(--md-text-heading) !important;
+}
+
+.md-paragraph {
+  color: var(--md-text-body) !important;
+}
+
+/* Classe pour forcer le rafraîchissement des styles */
+.theme-refresh {
+  animation: refresh-theme 0.1s ease;
+}
+
+@keyframes refresh-theme {
+  0% { opacity: 0.99; }
+  100% { opacity: 1; }
+}
+
+html.dark .markdown-body blockquote,
+[data-theme="dark"] .markdown-body blockquote,
+[data-mode="dark"] .markdown-body blockquote {
+  color: #b0b0b0;
+  background-color: #222;
+  border-left-color: #22c55e;
+}
+
+html.dark .markdown-body blockquote::before,
+[data-theme="dark"] .markdown-body blockquote::before,
+[data-mode="dark"] .markdown-body blockquote::before {
+  color: rgba(34, 197, 94, 0.15);
+}
+
+html.dark .markdown-body pre,
+[data-theme="dark"] .markdown-body pre,
+[data-mode="dark"] .markdown-body pre {
+  background-color: #1a1a1a;
+  border-color: #333;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+html.dark .markdown-body code,
+[data-theme="dark"] .markdown-body code,
+[data-mode="dark"] .markdown-body code {
+  background-color: rgba(240, 246, 252, 0.1);
+  color: #e0e0e0;
+}
+
+html.dark .markdown-body pre code,
+[data-theme="dark"] .markdown-body pre code,
+[data-mode="dark"] .markdown-body pre code {
+  color: #e0e0e0;
+}
+
+html.dark .markdown-body img,
+[data-theme="dark"] .markdown-body img,
+[data-mode="dark"] .markdown-body img {
+  background-color: #1a1a1a;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .markdown-body img:hover,
+[data-theme="dark"] .markdown-body img:hover,
+[data-mode="dark"] .markdown-body img:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+html.dark .markdown-body hr,
+[data-theme="dark"] .markdown-body hr,
+[data-mode="dark"] .markdown-body hr {
+  background-color: #333;
+}
+
+html.dark .markdown-body hr::after,
+[data-theme="dark"] .markdown-body hr::after,
+[data-mode="dark"] .markdown-body hr::after {
+  background-color: #1a1a1a;
+}
+
+html.dark .markdown-body a,
+[data-theme="dark"] .markdown-body a,
+[data-mode="dark"] .markdown-body a {
+  color: #4ade80;
+  border-bottom-color: rgba(74, 222, 128, 0.2);
+}
+
+html.dark .markdown-body a:hover,
+[data-theme="dark"] .markdown-body a:hover,
+[data-mode="dark"] .markdown-body a:hover {
+  color: #86efac;
+  border-bottom-color: rgba(134, 239, 172, 0.4);
+}
+
+html.dark .markdown-body ul li::marker,
+[data-theme="dark"] .markdown-body ul li::marker,
+[data-mode="dark"] .markdown-body ul li::marker {
+  color: #4ade80;
 }
 
 /* Styles pour les numéros de ligne dans les blocs de code */
@@ -325,13 +518,13 @@
   margin-right: 0.5rem;
 }
 
-/* Coloration syntaxique pour le mode clair */
+/* Coloration syntaxique utilisant des variables CSS */
 .markdown-body pre code .hljs-keyword,
 .markdown-body pre code .hljs-selector-tag,
 .markdown-body pre code .hljs-built_in,
 .markdown-body pre code .hljs-name,
 .markdown-body pre code .hljs-tag {
-  color: #0000ff;
+  color: var(--syntax-keyword, #0000ff);
 }
 
 .markdown-body pre code .hljs-string,
@@ -342,24 +535,24 @@
 .markdown-body pre code .hljs-template-tag,
 .markdown-body pre code .hljs-template-variable,
 .markdown-body pre code .hljs-type {
-  color: #a31515;
+  color: var(--syntax-string, #a31515);
 }
 
 .markdown-body pre code .hljs-comment,
 .markdown-body pre code .hljs-quote,
 .markdown-body pre code .hljs-deletion {
-  color: #008000;
+  color: var(--syntax-comment, #008000);
 }
 
 .markdown-body pre code .hljs-number,
 .markdown-body pre code .hljs-regexp,
 .markdown-body pre code .hljs-literal {
-  color: #098658;
+  color: var(--syntax-number, #098658);
 }
 
 .markdown-body pre code .hljs-function,
 .markdown-body pre code .hljs-params {
-  color: #444;
+  color: var(--syntax-function, #444);
 }
 
 /* Styles pour les liens de titres */
@@ -403,19 +596,20 @@
   overflow: hidden;
   border-radius: 0.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--md-table-border);
 }
 
 .markdown-body .markdown-table th,
 .markdown-body .markdown-table td {
   padding: 0.75rem 1rem;
   text-align: left;
-  border-bottom: 1px solid #eaeaea;
+  border-bottom: 1px solid var(--md-table-border);
 }
 
 .markdown-body .markdown-table th {
-  background-color: #f9f9f9;
+  background-color: var(--md-table-header-bg);
   font-weight: 600;
-  color: #333;
+  color: var(--md-text-heading);
 }
 
 .markdown-body .markdown-table tr:last-child td {
@@ -423,7 +617,8 @@
 }
 
 .markdown-body .markdown-table tr:hover td {
-  background-color: #f5f5f5;
+  background-color: var(--md-table-row-hover);
+  transition: background-color 0.2s ease;
 }
 
 /* Styles pour le texte barré */
@@ -432,8 +627,8 @@
   color: #888;
 }
 
-/* Mode sombre pour les nouveaux éléments */
-@media (prefers-color-scheme: dark) {
+/* Mode sombre */
+[data-theme="dark"] {
   .markdown-body .line-number {
     color: #666;
     border-right-color: #444;

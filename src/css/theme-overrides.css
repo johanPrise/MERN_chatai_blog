@@ -1,0 +1,55 @@
+/**
+ * Surcharges de thème pour corriger les problèmes de compatibilité avec les styles du navigateur
+ */
+
+/* Forcer les couleurs pour le contenu Markdown indépendamment du thème du navigateur */
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  color: var(--md-text-heading) !important;
+}
+
+.markdown-body p,
+.markdown-body li,
+.markdown-body td {
+  color: var(--md-text-body) !important;
+}
+
+/* Styles forcés pour les blocs de code */
+.markdown-body pre {
+  background-color: var(--md-code-block-bg) !important;
+  border-color: var(--md-code-block-border) !important;
+}
+
+.markdown-body pre code {
+  color: var(--syntax-foreground) !important;
+  background-color: transparent !important;
+}
+
+/* Styles forcés pour les badges en mode sombre */
+html[data-theme="dark"] .badge-outline,
+html.dark .badge-outline,
+html[data-mode="dark"] .badge-outline {
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Styles améliorés pour les éléments UI */
+.badge {
+  font-weight: 600 !important;
+}
+
+/* Améliorations pour le contraste des badges */
+html[data-theme="dark"] [class*="bg-primary-900"],
+html.dark [class*="bg-primary-900"],
+html[data-mode="dark"] [class*="bg-primary-900"] {
+  background-color: rgba(22, 163, 74, 0.2) !important;
+}
+
+html[data-theme="dark"] [class*="text-primary-300"],
+html.dark [class*="text-primary-300"],
+html[data-mode="dark"] [class*="text-primary-300"] {
+  color: rgba(134, 239, 172, 1) !important;
+}
