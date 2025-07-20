@@ -11,7 +11,7 @@ export const Pagination = ({
 }) => {
   // Fonction pour générer les numéros de page à afficher
   const getPageNumbers = () => {
-    const pageNumbers = [];
+    const pageNumbers:(number|string)[]  = [];
     const maxPagesToShow = 5;
 
     if (totalPages <= maxPagesToShow) {

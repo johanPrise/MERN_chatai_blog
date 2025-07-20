@@ -10,14 +10,11 @@ import {
   LogOut,
   Settings,
   Home,
-  LayoutDashboard,
   Users,
   BarChart2,
-  FileText,
   Menu,
   X,
   ChevronDown,
-  HelpCircle,
 } from "lucide-react"
 
 interface AdminHeaderProps {
