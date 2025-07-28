@@ -7,13 +7,13 @@ export enum PostStatus {
   DRAFT = 'draft',
   PUBLISHED = 'published',
   ARCHIVED = 'archived',
-  SCHEDULED = 'scheduled'
+  SCHEDULED = 'scheduled',
 }
 
 export enum PostVisibility {
   PUBLIC = 'public',
   PRIVATE = 'private',
-  UNLISTED = 'unlisted'
+  UNLISTED = 'unlisted',
 }
 
 export interface Author {

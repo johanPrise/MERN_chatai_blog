@@ -18,18 +18,6 @@ export function truncateText(text: string, maxLength: number): string {
   return text.slice(0, maxLength) + "..."
 }
 
-export function getImageUrl(path?: string): string {
-  // If invalid or empty path, return a default placeholder image
-  if (!path) {
-    return "/placeholder.svg"
-  }
-  if (path.startsWith("http")) {
-    return path // Already a full URL
-  }
-  // Use localhost:4200 for uploaded images
-  return `http://localhost:4200/uploads/${path.replace(/^\//, '')}`
-}
-
 export function getOptimizedImageUrl(url: string, width = 800): string {
   return `${url}?width=${width}&quality=80&format=webp`
 }

@@ -1,5 +1,5 @@
 "use client"
-import { useTheme } from "../../components/contexts/ThemeContext"
+import { useTheme } from "../contexts/ThemeContext"
 import { Button } from "./button"
 import { Sun, Moon } from "lucide-react"
 import React from "react"

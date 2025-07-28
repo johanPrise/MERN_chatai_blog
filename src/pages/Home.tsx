@@ -255,16 +255,16 @@ export default function Home() {
           {/* Hero header */}
           <div className="text-center mb-12 lg:mb-16">
             <AnimateOnView animation="fade" delay={100}>
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-full text-sm font-medium mb-6">
-                <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-full text-sm font-medium mb-6 glass-effect">
+                <div className="w-2 h-2 bg-primary rounded-full pulse-glow"></div>
                 Latest from our blog
               </div>
             </AnimateOnView>
             <AnimateOnView animation="slide-up" delay={200}>
-              <H1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-foreground mb-6">
+              <H1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 gradient-text">
                 Discover Amazing
                 <br />
-                <span className="text-primary">Stories</span>
+                <span className="text-primary float-animation">Stories</span>
               </H1>
             </AnimateOnView>
             <AnimateOnView animation="slide-up" delay={300}>

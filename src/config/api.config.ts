@@ -48,6 +48,8 @@ export const API_ENDPOINTS = {
     dislike: (id: string) => `${API_BASE_URL}/posts/${id}/dislike`,
     unlike: (id: string) => `${API_BASE_URL}/posts/${id}/unlike`,
     stats: (id: string) => `${API_BASE_URL}/posts/${id}/stats`,
+    drafts: `${API_BASE_URL}/posts?status=draft`,
+    publish: (id: string) => `${API_BASE_URL}/posts/${id}/publish`,
   },
 
 // Commentaires
@@ -94,14 +96,156 @@ export const API_ENDPOINTS = {
 /**
  * Construit l'URL complète d'une image à partir d'un chemin relatif
  * @param imagePath Chemin relatif de l'image (ex: 'uploads/IHKq7irhQJ.png')
- * @returns URL complète de l'image
+ * @returns URL complète de l'image ou placeholder si invalide
  */
-export function getImageUrl(imagePath: string): string {
+export function getImageUrl(imagePath?: string | null): string {
+  // Si le chemin est vide, null ou undefined, retourner un placeholder
+  if (!imagePath || imagePath.trim() === '') {
+    return '/placeholder.svg';
+  }
+  
   // Si le chemin est déjà une URL complète, on le retourne tel quel
   if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
     return imagePath;
   }
   
+  // Si le chemin commence par 'data:', c'est une image base64
+  if (imagePath.startsWith('data:')) {
+    return imagePath;
+  }
+  
+  // Si le chemin commence par 'blob:', c'est une URL d'objet temporaire
+  if (imagePath.startsWith('blob:')) {
+    return imagePath;
+  }
+  
+  // Si le chemin commence par '/', c'est déjà un chemin absolu local
+  if (imagePath.startsWith('/')) {
+    return imagePath;
+  }
+  
+  // Nettoyer le chemin en supprimant les slashes en début
+  const cleanPath = imagePath.replace(/^\/+/, '');
+  
+  // Si le chemin ne commence pas par 'uploads/', l'ajouter
+  const finalPath = cleanPath.startsWith('uploads/') ? cleanPath : `uploads/${cleanPath}`;
+  
   // Construit l'URL en fonction de l'environnement
-  return `${SERVER_BASE_URL}/${imagePath.replace(/^\//, '')}`;
+  return `${SERVER_BASE_URL}/${finalPath}`;
+}
+
+/**
+ * Vérifie si une URL d'image est valide
+ * @param imageUrl URL de l'image à vérifier
+ * @returns Promise<boolean> true si l'image est accessible
+ */
+export function validateImageUrl(imageUrl: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (!imageUrl || imageUrl === '/placeholder.svg') {
+      resolve(false);
+      return;
+    }
+    
+    const img = new Image();
+    const timeout = setTimeout(() => {
+      resolve(false);
+    }, 5000); // 5 secondes de timeout
+    
+    img.onload = () => {
+      clearTimeout(timeout);
+      resolve(true);
+    };
+    
+    img.onerror = () => {
+      clearTimeout(timeout);
+      resolve(false);
+    };
+    
+    img.src = imageUrl;
+  });
+}
+
+/**
+ * Interface pour les options d'image
+ */
+export interface ImageOptions {
+  width?: number;
+  height?: number;
+  quality?: number;
+  format?: 'webp' | 'jpeg' | 'png';
+}
+
+/**
+ * Génère une URL d'image optimisée avec fallback
+ * @param imagePath Chemin de l'image
+ * @param options Options d'optimisation
+ * @returns URL optimisée ou fallback
+ */
+export function getOptimizedImageUrl(imagePath?: string | null, options?: ImageOptions): string {
+  const baseUrl = getImageUrl(imagePath);
+  
+  // Si c'est un placeholder, retourner tel quel
+  if (baseUrl === '/placeholder.svg') {
+    return baseUrl;
+  }
+  
+  // Si c'est une URL externe complète, retourner tel quel
+  if (baseUrl.startsWith('http://') && !baseUrl.includes('localhost') || 
+      baseUrl.startsWith('https://')) {
+    return baseUrl;
+  }
+  
+  // Pour les images locales, on peut ajouter des paramètres d'optimisation
+  if (options && Object.keys(options).length > 0) {
+    const params = new URLSearchParams();
+    if (options.width) params.append('w', options.width.toString());
+    if (options.height) params.append('h', options.height.toString());
+    if (options.quality) params.append('q', options.quality.toString());
+    if (options.format) params.append('f', options.format);
+    
+    const queryString = params.toString();
+    return queryString ? `${baseUrl}?${queryString}` : baseUrl;
+  }
+  
+  return baseUrl;
+}
+
+/**
+ * Système de fallback pour les images
+ */
+export const IMAGE_FALLBACKS = {
+  primary: '/placeholder.svg',
+  secondary: '/placeholder.jpg',
+  error: '/placeholder-logo.svg',
+  user: '/placeholder-user.jpg',
+} as const;
+
+/**
+ * Obtient l'URL de fallback appropriée selon le type d'image
+ * @param type Type de fallback
+ * @returns URL de fallback
+ */
+export function getFallbackImageUrl(type: keyof typeof IMAGE_FALLBACKS = 'primary'): string {
+  return IMAGE_FALLBACKS[type];
+}
+
+/**
+ * Teste une chaîne de fallbacks pour trouver une image valide
+ * @param imageUrls Liste d'URLs à tester
+ * @returns Promise<string> Première URL valide ou fallback final
+ */
+export async function getValidImageUrl(imageUrls: (string | null | undefined)[]): Promise<string> {
+  for (const url of imageUrls) {
+    if (!url) continue;
+    
+    const imageUrl = getImageUrl(url);
+    const isValid = await validateImageUrl(imageUrl);
+    
+    if (isValid) {
+      return imageUrl;
+    }
+  }
+  
+  // Si aucune image n'est valide, retourner le fallback principal
+  return getFallbackImageUrl('primary');
 }

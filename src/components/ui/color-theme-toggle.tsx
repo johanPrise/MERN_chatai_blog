@@ -1,5 +1,5 @@
 "use client"
-import React, { useState } from "react"
+import React, { useState, useRef, useEffect } from "react"
 import { useTheme } from "../contexts/ThemeContext"
 import { Button } from "./button"
 import { Palette } from "lucide-react"
@@ -8,10 +8,28 @@ import { cn } from "../../lib/utils"
 export function ColorThemeToggle() {
   const { colorTheme, setColorTheme } = useTheme()
   const [isOpen, setIsOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   const toggleDropdown = () => {
     setIsOpen(!isOpen)
   }
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isOpen])
 
   const handleColorThemeChange = (theme: "green" | "blue" | "purple" | "amber") => {
     console.log("Changing color theme to:", theme)
@@ -53,7 +71,7 @@ export function ColorThemeToggle() {
       </Button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-40 rounded-md border bg-card p-2 shadow-md z-50">
+        <div ref={dropdownRef} className="absolute right-0 mt-2 w-40 rounded-md border bg-card p-2 shadow-md z-50">
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => handleColorThemeChange("green")}

@@ -16,201 +16,378 @@ export class MarkdownService {
   }
 
   /**
-   * Convert markdown to HTML for display
+   * Convert markdown to HTML for display with improved formatting preservation
    */
   public markdownToHtml(markdown: string): string {
     if (!markdown) return '';
 
     let html = markdown;
 
-    // Escape HTML entities first
+    // Preserve existing HTML entities and escape only unescaped ones
     html = html
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
+      .replace(/&(?!amp;|lt;|gt;|quot;|#\d+;|#x[0-9a-fA-F]+;)/g, '&amp;')
+      .replace(/<(?![/]?[a-zA-Z][^>]*>)/g, '&lt;')
+      .replace(/(?<!<[^>]*)>(?![^<]*>)/g, '&gt;');
 
-    // Convert headers (must be first)
-    html = html.replace(/^######\s+(.*$)/gm, '<h6>$1</h6>');
-    html = html.replace(/^#####\s+(.*$)/gm, '<h5>$1</h5>');
-    html = html.replace(/^####\s+(.*$)/gm, '<h4>$1</h4>');
-    html = html.replace(/^###\s+(.*$)/gm, '<h3>$1</h3>');
-    html = html.replace(/^##\s+(.*$)/gm, '<h2>$1</h2>');
-    html = html.replace(/^#\s+(.*$)/gm, '<h1>$1</h1>');
+    // Process in order to avoid conflicts
+    
+    // 1. Convert code blocks first (to protect content from other conversions)
+    html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, (match, lang, code) => {
+      const cleanCode = code.trim();
+      return `<pre><code class="language-${lang || 'text'}">${cleanCode}</code></pre>`;
+    });
 
-    // Convert code blocks (before inline code)
-    html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code class="language-$1">$2</code></pre>');
+    // 2. Convert inline code (protect from other formatting)
+    html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
 
-    // Convert inline code
-    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    // 3. Convert headers with proper hierarchy preservation
+    html = html.replace(/^(#{1,6})\s+(.+)$/gm, (match, hashes, content) => {
+      const level = hashes.length;
+      const cleanContent = content.trim();
+      return `<h${level}>${cleanContent}</h${level}>`;
+    });
 
-    // Convert bold text
-    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    html = html.replace(/__(.*?)__/g, '<strong>$1</strong>');
+    // 4. Convert lists with proper nesting and numbering
+    html = this.convertLists(html);
 
-    // Convert italic text
-    html = html.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
-    html = html.replace(/_([^_\n]+)_/g, '<em>$1</em>');
+    // 5. Convert blockquotes with proper nesting
+    html = html.replace(/^>\s*(.+)$/gm, '<blockquote>$1</blockquote>');
+    html = html.replace(/(<blockquote>.*?<\/blockquote>)\s*(<blockquote>.*?<\/blockquote>)/gs, 
+      (match, first, second) => {
+        return first.replace('</blockquote>', '') + '\n' + second.replace('<blockquote>', '') + '</blockquote>';
+      });
 
-    // Convert strikethrough
-    html = html.replace(/~~(.*?)~~/g, '<del>$1</del>');
+    // 6. Convert horizontal rules
+    html = html.replace(/^(-{3,}|\*{3,}|_{3,})$/gm, '<hr />');
 
-    // Convert links
-    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    // 7. Convert text formatting (bold, italic, strikethrough)
+    html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>'); // Bold + Italic
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'); // Bold
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>'); // Italic
+    html = html.replace(/___(.+?)___/g, '<strong><em>$1</em></strong>'); // Bold + Italic
+    html = html.replace(/__(.+?)__/g, '<strong>$1</strong>'); // Bold
+    html = html.replace(/_(.+?)_/g, '<em>$1</em>'); // Italic
+    html = html.replace(/~~(.+?)~~/g, '<del>$1</del>'); // Strikethrough
 
-    // Convert images
-    html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img alt="$1" src="$2" class="markdown-image" />');
+    // 8. Convert links and images
+    html = html.replace(/!\[([^\]]*)\]\(([^)]+)(?:\s+"([^"]*)")?\)/g, 
+      '<img alt="$1" src="$2" title="$3" class="markdown-image" />');
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)(?:\s+"([^"]*)")?\)/g, 
+      '<a href="$2" title="$3" target="_blank" rel="noopener noreferrer">$1</a>');
 
-    // Convert blockquotes
-    html = html.replace(/^>\s+(.*$)/gm, '<blockquote>$1</blockquote>');
+    // 9. Convert paragraphs and line breaks
+    html = this.convertParagraphs(html);
 
-    // Convert horizontal rules
-    html = html.replace(/^---+$/gm, '<hr />');
-
-    // Convert unordered lists
-    html = html.replace(/^[\*\-\+]\s+(.*$)/gm, '<li>$1</li>');
-    html = html.replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>');
-
-    // Convert ordered lists
-    html = html.replace(/^\d+\.\s+(.*$)/gm, '<li>$1</li>');
-    // Note: This will conflict with unordered lists, need better logic
-
-    // Convert line breaks and paragraphs
-    html = html.split('\n\n').map(paragraph => {
-      const trimmed = paragraph.trim();
-      if (!trimmed) return '';
-      
-      // Don't wrap if already has HTML tags
-      if (trimmed.match(/^<(h[1-6]|ul|ol|blockquote|pre|hr)/)) {
-        return trimmed;
-      }
-      
-      // Convert single line breaks to <br>
-      const withBreaks = trimmed.replace(/\n/g, '<br />');
-      return `<p>${withBreaks}</p>`;
-    }).filter(Boolean).join('\n\n');
-
-    // Clean up nested lists and fix HTML structure
+    // 10. Clean up and fix HTML structure
     html = this.cleanupHtml(html);
 
-    // Unescape HTML entities in content
+    // 11. Restore HTML entities in final content
     html = html.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 
     return html;
   }
 
   /**
-   * Convert HTML to markdown for editing
+   * Convert HTML to markdown for editing with improved formatting preservation
    */
   public htmlToMarkdown(html: string): string {
     if (!html) return '';
 
     let markdown = html;
 
-    // Remove empty paragraphs and normalize whitespace
-    markdown = markdown.replace(/<p[^>]*>\s*<\/p>/gi, '');
-    markdown = markdown.replace(/<p[^>]*><br[^>]*><\/p>/gi, '\n\n');
+    // Normalize HTML first
+    markdown = markdown.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
-    // Convert headers
-    markdown = markdown.replace(/<h([1-6])[^>]*>(.*?)<\/h[1-6]>/gi, (match, level, content) => {
-      const hashes = '#'.repeat(parseInt(level));
-      return `${hashes} ${content.trim()}`;
+    // Convert in specific order to preserve structure
+
+    // 1. Convert code blocks first (preserve content)
+    markdown = markdown.replace(/<pre><code[^>]*class="language-(\w+)"[^>]*>([\s\S]*?)<\/code><\/pre>/gi, (match, lang, code) => {
+      const cleanCode = code.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+      return `\n\`\`\`${lang}\n${cleanCode.trim()}\n\`\`\`\n`;
+    });
+    
+    markdown = markdown.replace(/<pre><code[^>]*>([\s\S]*?)<\/code><\/pre>/gi, (match, code) => {
+      const cleanCode = code.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+      return `\n\`\`\`\n${cleanCode.trim()}\n\`\`\`\n`;
     });
 
-    // Convert code blocks
-    markdown = markdown.replace(/<pre><code[^>]*class="language-(\w+)"[^>]*>([\s\S]*?)<\/code><\/pre>/gi, '```$1\n$2\n```');
-    markdown = markdown.replace(/<pre><code[^>]*>([\s\S]*?)<\/code><\/pre>/gi, '```\n$1\n```');
-
-    // Convert inline code
+    // 2. Convert inline code
     markdown = markdown.replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`');
 
-    // Convert bold
+    // 3. Convert headers with proper spacing
+    markdown = markdown.replace(/<h([1-6])[^>]*>(.*?)<\/h[1-6]>/gi, (match, level, content) => {
+      const hashes = '#'.repeat(parseInt(level));
+      const cleanContent = content.replace(/<[^>]*>/g, '').trim();
+      return `\n${hashes} ${cleanContent}\n`;
+    });
+
+    // 4. Convert lists with proper structure preservation
+    markdown = this.convertHtmlListsToMarkdown(markdown);
+
+    // 5. Convert blockquotes with proper nesting
+    markdown = markdown.replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, (match, content) => {
+      const lines = content.split('\n');
+      const quotedLines = lines.map(line => {
+        const trimmed = line.trim();
+        return trimmed ? `> ${trimmed}` : '>';
+      });
+      return `\n${quotedLines.join('\n')}\n`;
+    });
+
+    // 6. Convert horizontal rules
+    markdown = markdown.replace(/<hr[^>]*\/?>/gi, '\n---\n');
+
+    // 7. Convert text formatting (preserve nested formatting)
+    markdown = markdown.replace(/<strong[^>]*><em[^>]*>(.*?)<\/em><\/strong>/gi, '***$1***');
+    markdown = markdown.replace(/<em[^>]*><strong[^>]*>(.*?)<\/strong><\/em>/gi, '***$1***');
     markdown = markdown.replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**');
     markdown = markdown.replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**');
-
-    // Convert italic
     markdown = markdown.replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*');
     markdown = markdown.replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*');
-
-    // Convert strikethrough
     markdown = markdown.replace(/<del[^>]*>(.*?)<\/del>/gi, '~~$1~~');
 
-    // Convert links
+    // 8. Convert links and images
+    markdown = markdown.replace(/<img[^>]*alt="([^"]*)"[^>]*src="([^"]*)"[^>]*title="([^"]*)"[^>]*\/?>/gi, '![$1]($2 "$3")');
+    markdown = markdown.replace(/<img[^>]*alt="([^"]*)"[^>]*src="([^"]*)"[^>]*\/?>/gi, '![$1]($2)');
+    markdown = markdown.replace(/<img[^>]*src="([^"]*)"[^>]*alt="([^"]*)"[^>]*\/?>/gi, '![$2]($1)');
+    
+    markdown = markdown.replace(/<a[^>]*href="([^"]*)"[^>]*title="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$3]($1 "$2")');
     markdown = markdown.replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)');
 
-    // Convert images
-    markdown = markdown.replace(/<img[^>]*alt="([^"]*)"[^>]*src="([^"]*)"[^>]*\/?>/gi, '![$1]($2)');
-
-    // Convert blockquotes
-    markdown = markdown.replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gi, '> $1');
-
-    // Convert horizontal rules
-    markdown = markdown.replace(/<hr[^>]*\/?>/gi, '---');
-
-    // Convert lists
-    markdown = markdown.replace(/<ul[^>]*>([\s\S]*?)<\/ul>/gi, (match, content) => {
-      return content.replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1');
+    // 9. Convert paragraphs with proper spacing
+    markdown = markdown.replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, (match, content) => {
+      // Handle line breaks within paragraphs
+      const processedContent = content.replace(/<br[^>]*\/?>/gi, '\n');
+      const cleanContent = processedContent.replace(/<[^>]*>/g, '').trim();
+      return cleanContent ? `\n${cleanContent}\n` : '';
     });
 
-    markdown = markdown.replace(/<ol[^>]*>([\s\S]*?)<\/ol>/gi, (match, content) => {
-      let counter = 1;
-      return content.replace(/<li[^>]*>(.*?)<\/li>/gi, () => `${counter++}. $1`);
-    });
-
-    // Convert paragraphs
-    markdown = markdown.replace(/<p[^>]*>(.*?)<\/p>/gi, (match, content) => {
-      const cleaned = content.replace(/<br[^>]*\/?>/gi, '\n').trim();
-      return cleaned ? cleaned + '\n\n' : '';
-    });
-
-    // Convert line breaks
+    // 10. Convert remaining line breaks
     markdown = markdown.replace(/<br[^>]*\/?>/gi, '\n');
 
-    // Clean up extra whitespace and HTML artifacts
-    markdown = markdown.replace(/<[^>]+>/g, ''); // Remove any remaining HTML tags
+    // 11. Clean up remaining HTML tags
+    markdown = markdown.replace(/<[^>]+>/g, '');
+
+    // 12. Normalize whitespace and line breaks
     markdown = markdown.replace(/\n\s*\n\s*\n+/g, '\n\n'); // Fix multiple line breaks
     markdown = markdown.replace(/^\s+|\s+$/g, ''); // Trim
+    markdown = markdown.replace(/\n{3,}/g, '\n\n'); // Limit consecutive line breaks
 
     return markdown;
   }
 
   /**
-   * Validate markdown content
+   * Convert HTML lists to markdown with proper numbering preservation
+   */
+  private convertHtmlListsToMarkdown(html: string): string {
+    // Convert ordered lists with proper numbering
+    html = html.replace(/<ol[^>]*>([\s\S]*?)<\/ol>/gi, (match, content) => {
+      const items = content.match(/<li[^>]*>([\s\S]*?)<\/li>/gi) || [];
+      let counter = 1;
+      const markdownItems = items.map(item => {
+        const cleanContent = item.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, '$1').replace(/<[^>]*>/g, '').trim();
+        return `${counter++}. ${cleanContent}`;
+      });
+      return `\n${markdownItems.join('\n')}\n`;
+    });
+
+    // Convert unordered lists
+    html = html.replace(/<ul[^>]*>([\s\S]*?)<\/ul>/gi, (match, content) => {
+      const items = content.match(/<li[^>]*>([\s\S]*?)<\/li>/gi) || [];
+      const markdownItems = items.map(item => {
+        const cleanContent = item.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, '$1').replace(/<[^>]*>/g, '').trim();
+        return `- ${cleanContent}`;
+      });
+      return `\n${markdownItems.join('\n')}\n`;
+    });
+
+    return html;
+  }
+
+  /**
+   * Validate markdown content with improved error detection and specific messages
    */
   public validateMarkdown(markdown: string): ValidationResult {
-    const errors: string[] = [];
-    const warnings: string[] = [];
+    const errors: Array<{ line: number; column: number; message: string; severity: 'error'; rule: string }> = [];
+    const warnings: Array<{ line: number; column: number; message: string; severity: 'warning'; rule: string }> = [];
 
     if (!markdown || markdown.trim().length === 0) {
-      errors.push('Content cannot be empty');
+      errors.push({
+        line: 1,
+        column: 1,
+        message: 'Le contenu ne peut pas être vide. Veuillez ajouter du texte.',
+        severity: 'error',
+        rule: 'content-required'
+      });
+      return {
+        isValid: false,
+        errors,
+        warnings
+      };
     }
 
-    // Check for unmatched code blocks
-    const codeBlockMatches = markdown.match(/```/g);
-    if (codeBlockMatches && codeBlockMatches.length % 2 !== 0) {
-      errors.push('Unmatched code block delimiters');
+    const lines = markdown.split('\n');
+
+    // Check for unmatched code blocks with line numbers
+    let codeBlockCount = 0;
+    let lastCodeBlockLine = -1;
+    lines.forEach((line, index) => {
+      const matches = line.match(/```/g);
+      if (matches) {
+        codeBlockCount += matches.length;
+        lastCodeBlockLine = index + 1;
+      }
+    });
+
+    if (codeBlockCount % 2 !== 0) {
+      errors.push({
+        line: lastCodeBlockLine,
+        column: 1,
+        message: 'Bloc de code non fermé. Ajoutez ``` pour fermer le bloc de code.',
+        severity: 'error',
+        rule: 'unmatched-code-block'
+      });
     }
 
-    // Check for unmatched inline code
-    const inlineCodeMatches = markdown.match(/`/g);
-    if (inlineCodeMatches && inlineCodeMatches.length % 2 !== 0) {
-      warnings.push('Unmatched inline code delimiters');
-    }
+    // Check for unmatched inline code with line numbers
+    lines.forEach((line, index) => {
+      const inlineCodeMatches = line.match(/`/g);
+      if (inlineCodeMatches && inlineCodeMatches.length % 2 !== 0) {
+        warnings.push({
+          line: index + 1,
+          column: line.indexOf('`') + 1,
+          message: 'Code inline non fermé. Ajoutez ` pour fermer le code inline.',
+          severity: 'warning',
+          rule: 'unmatched-inline-code'
+        });
+      }
+    });
 
-    // Check for unmatched bold/italic markers
-    const boldMatches = markdown.match(/\*\*/g);
-    if (boldMatches && boldMatches.length % 2 !== 0) {
-      warnings.push('Unmatched bold text markers');
-    }
+    // Check for unmatched bold/italic markers with line numbers
+    lines.forEach((line, index) => {
+      // Check bold markers (**)
+      const boldMatches = line.match(/\*\*/g);
+      if (boldMatches && boldMatches.length % 2 !== 0) {
+        warnings.push({
+          line: index + 1,
+          column: line.indexOf('**') + 1,
+          message: 'Marqueur de texte gras non fermé. Ajoutez ** pour fermer le texte gras.',
+          severity: 'warning',
+          rule: 'unmatched-bold'
+        });
+      }
 
-    const italicMatches = markdown.match(/(?<!\*)\*(?!\*)/g);
-    if (italicMatches && italicMatches.length % 2 !== 0) {
-      warnings.push('Unmatched italic text markers');
-    }
+      // Check italic markers (single *)
+      const italicMatches = line.match(/(?<!\*)\*(?!\*)/g);
+      if (italicMatches && italicMatches.length % 2 !== 0) {
+        warnings.push({
+          line: index + 1,
+          column: line.search(/(?<!\*)\*(?!\*)/) + 1,
+          message: 'Marqueur de texte italique non fermé. Ajoutez * pour fermer le texte italique.',
+          severity: 'warning',
+          rule: 'unmatched-italic'
+        });
+      }
+
+      // Check strikethrough markers (~~)
+      const strikethroughMatches = line.match(/~~/g);
+      if (strikethroughMatches && strikethroughMatches.length % 2 !== 0) {
+        warnings.push({
+          line: index + 1,
+          column: line.indexOf('~~') + 1,
+          message: 'Marqueur de texte barré non fermé. Ajoutez ~~ pour fermer le texte barré.',
+          severity: 'warning',
+          rule: 'unmatched-strikethrough'
+        });
+      }
+    });
+
+    // Check for malformed headers
+    lines.forEach((line, index) => {
+      const headerMatch = line.match(/^(#{1,6})\s*(.*)$/);
+      if (headerMatch) {
+        const [, hashes, content] = headerMatch;
+        if (!content.trim()) {
+          warnings.push({
+            line: index + 1,
+            column: hashes.length + 1,
+            message: 'Titre vide. Ajoutez du contenu après les #.',
+            severity: 'warning',
+            rule: 'empty-header'
+          });
+        }
+        if (hashes.length > 6) {
+          warnings.push({
+            line: index + 1,
+            column: 1,
+            message: 'Niveau de titre trop élevé. Utilisez au maximum 6 # pour les titres.',
+            severity: 'warning',
+            rule: 'invalid-header-level'
+          });
+        }
+      }
+    });
+
+    // Check for malformed links
+    lines.forEach((line, index) => {
+      const linkMatches = line.matchAll(/\[([^\]]*)\]\(([^)]*)\)/g);
+      for (const match of linkMatches) {
+        const [fullMatch, text, url] = match;
+        if (!text.trim()) {
+          warnings.push({
+            line: index + 1,
+            column: (match.index || 0) + 1,
+            message: 'Texte de lien vide. Ajoutez du texte entre les crochets [].',
+            severity: 'warning',
+            rule: 'empty-link-text'
+          });
+        }
+        if (!url.trim()) {
+          warnings.push({
+            line: index + 1,
+            column: (match.index || 0) + text.length + 3,
+            message: 'URL de lien vide. Ajoutez une URL entre les parenthèses ().',
+            severity: 'warning',
+            rule: 'empty-link-url'
+          });
+        }
+      }
+    });
+
+    // Check for malformed images
+    lines.forEach((line, index) => {
+      const imageMatches = line.matchAll(/!\[([^\]]*)\]\(([^)]*)\)/g);
+      for (const match of imageMatches) {
+        const [fullMatch, alt, src] = match;
+        if (!src.trim()) {
+          errors.push({
+            line: index + 1,
+            column: (match.index || 0) + alt.length + 4,
+            message: 'Source d\'image vide. Ajoutez une URL d\'image entre les parenthèses ().',
+            severity: 'error',
+            rule: 'empty-image-src'
+          });
+        }
+      }
+    });
+
+    // Check for very long lines (readability warning)
+    lines.forEach((line, index) => {
+      if (line.length > 120) {
+        warnings.push({
+          line: index + 1,
+          column: 121,
+          message: 'Ligne très longue. Considérez diviser cette ligne pour améliorer la lisibilité.',
+          severity: 'warning',
+          rule: 'long-line'
+        });
+      }
+    });
 
     return {
       isValid: errors.length === 0,
-      errors: errors.map(msg => ({ line: 0, column: 0, message: msg, severity: 'error' as const, rule: 'syntax' })),
-      warnings: warnings.map(msg => ({ line: 0, column: 0, message: msg, severity: 'warning' as const, rule: 'syntax' }))
+      errors,
+      warnings
     };
   }
 
@@ -300,10 +477,165 @@ export class MarkdownService {
     return markdownPatterns.some(pattern => pattern.test(content));
   }
 
+  /**
+   * Convert lists with proper nesting and numbering preservation
+   */
+  private convertLists(html: string): string {
+    const lines = html.split('\n');
+    const result: string[] = [];
+    let inList = false;
+    let listType: 'ul' | 'ol' | null = null;
+    let listItems: string[] = [];
+    let currentIndent = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmedLine = line.trim();
+
+      // Check for ordered list item
+      const orderedMatch = trimmedLine.match(/^(\d+)\.\s+(.+)$/);
+      // Check for unordered list item
+      const unorderedMatch = trimmedLine.match(/^[\*\-\+]\s+(.+)$/);
+
+      if (orderedMatch) {
+        if (!inList || listType !== 'ol') {
+          if (inList) {
+            // Close previous list
+            result.push(`</${listType}>`);
+          }
+          // Start new ordered list
+          result.push('<ol>');
+          listType = 'ol';
+          inList = true;
+          listItems = [];
+        }
+        result.push(`<li>${orderedMatch[2]}</li>`);
+      } else if (unorderedMatch) {
+        if (!inList || listType !== 'ul') {
+          if (inList) {
+            // Close previous list
+            result.push(`</${listType}>`);
+          }
+          // Start new unordered list
+          result.push('<ul>');
+          listType = 'ul';
+          inList = true;
+          listItems = [];
+        }
+        result.push(`<li>${unorderedMatch[1]}</li>`);
+      } else {
+        // Not a list item
+        if (inList) {
+          // Close current list
+          result.push(`</${listType}>`);
+          inList = false;
+          listType = null;
+        }
+        result.push(line);
+      }
+    }
+
+    // Close any remaining open list
+    if (inList && listType) {
+      result.push(`</${listType}>`);
+    }
+
+    return result.join('\n');
+  }
+
+  /**
+   * Convert paragraphs and line breaks with proper formatting preservation
+   */
+  private convertParagraphs(html: string): string {
+    const lines = html.split('\n');
+    const result: string[] = [];
+    let currentParagraph: string[] = [];
+    let inCodeBlock = false;
+    let inList = false;
+    let inBlockquote = false;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmedLine = line.trim();
+
+      // Check if we're entering/leaving a code block
+      if (trimmedLine.startsWith('<pre>')) {
+        inCodeBlock = true;
+      } else if (trimmedLine.endsWith('</pre>')) {
+        inCodeBlock = false;
+      }
+
+      // Check if we're in a list
+      if (trimmedLine.startsWith('<ul>') || trimmedLine.startsWith('<ol>')) {
+        inList = true;
+      } else if (trimmedLine.startsWith('</ul>') || trimmedLine.startsWith('</ol>')) {
+        inList = false;
+      }
+
+      // Check if we're in a blockquote
+      if (trimmedLine.startsWith('<blockquote>')) {
+        inBlockquote = true;
+      } else if (trimmedLine.endsWith('</blockquote>')) {
+        inBlockquote = false;
+      }
+
+      // Skip processing if we're in special blocks
+      if (inCodeBlock || inList || inBlockquote || 
+          trimmedLine.startsWith('<h') || 
+          trimmedLine.startsWith('<hr') ||
+          trimmedLine.startsWith('<li>')) {
+        // Flush current paragraph if any
+        if (currentParagraph.length > 0) {
+          const paragraphContent = currentParagraph.join(' ').trim();
+          if (paragraphContent) {
+            result.push(`<p>${paragraphContent}</p>`);
+          }
+          currentParagraph = [];
+        }
+        result.push(line);
+        continue;
+      }
+
+      // Handle empty lines
+      if (!trimmedLine) {
+        if (currentParagraph.length > 0) {
+          const paragraphContent = currentParagraph.join(' ').trim();
+          if (paragraphContent) {
+            result.push(`<p>${paragraphContent}</p>`);
+          }
+          currentParagraph = [];
+        }
+        continue;
+      }
+
+      // Add to current paragraph
+      currentParagraph.push(trimmedLine);
+    }
+
+    // Flush any remaining paragraph
+    if (currentParagraph.length > 0) {
+      const paragraphContent = currentParagraph.join(' ').trim();
+      if (paragraphContent) {
+        result.push(`<p>${paragraphContent}</p>`);
+      }
+    }
+
+    return result.join('\n');
+  }
+
   private cleanupHtml(html: string): string {
     // Fix nested lists and other HTML structure issues
     html = html.replace(/(<\/ul>)\s*(<ul>)/g, ''); // Merge adjacent ul tags
     html = html.replace(/(<\/ol>)\s*(<ol>)/g, ''); // Merge adjacent ol tags
+    
+    // Fix empty list items
+    html = html.replace(/<li>\s*<\/li>/g, '');
+    
+    // Fix nested blockquotes
+    html = html.replace(/(<\/blockquote>)\s*(<blockquote>)/g, '\n');
+    
+    // Clean up extra whitespace
+    html = html.replace(/\n\s*\n\s*\n+/g, '\n\n');
     
     return html;
   }

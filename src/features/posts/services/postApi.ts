@@ -71,7 +71,26 @@ export class PostApiService {
         throw new Error(`Failed to fetch posts: ${response.status}`);
       }
 
-      return await response.json();
+      const result = await response.json();
+      
+      // Transform _id to id for frontend compatibility in posts array
+      if (result.data && result.data.posts && Array.isArray(result.data.posts)) {
+        result.data.posts = result.data.posts.map((post: any) => {
+          if (post._id) {
+            post.id = post._id;
+          }
+          return post;
+        });
+      } else if (result.posts && Array.isArray(result.posts)) {
+        result.posts = result.posts.map((post: any) => {
+          if (post._id) {
+            post.id = post._id;
+          }
+          return post;
+        });
+      }
+      
+      return result;
     } catch (error) {
       console.error('Error fetching posts:', error);
       throw this.handleError(error);
@@ -93,7 +112,14 @@ export class PostApiService {
       }
 
       const result = await response.json();
-      return result.post || result.data || result;
+      const postData = result.post || result.data || result;
+      
+      // Transform _id to id for frontend compatibility
+      if (postData && postData._id) {
+        postData.id = postData._id;
+      }
+      
+      return postData;
     } catch (error) {
       console.error('Error fetching post:', error);
       throw this.handleError(error);
@@ -123,9 +149,16 @@ export class PostApiService {
         };
       }
 
+      const postData = result.post || result.data;
+      
+      // Transform _id to id for frontend compatibility
+      if (postData && postData._id) {
+        postData.id = postData._id;
+      }
+      
       return {
         success: true,
-        data: result.post || result.data
+        data: postData
       };
     } catch (error) {
       console.error('Error creating post:', error);
@@ -159,9 +192,16 @@ export class PostApiService {
         };
       }
 
+      const postData = result.post || result.data;
+      
+      // Transform _id to id for frontend compatibility
+      if (postData && postData._id) {
+        postData.id = postData._id;
+      }
+      
       return {
         success: true,
-        data: result.post || result.data
+        data: postData
       };
     } catch (error) {
       console.error('Error updating post:', error);
@@ -363,6 +403,47 @@ export class PostApiService {
     } catch (error) {
       console.error('Error fetching tag suggestions:', error);
       return [];
+    }
+  }
+
+  /**
+   * Publish a draft post
+   */
+  async publishPost(id: string): Promise<PostOperationResult> {
+    try {
+      const response = await this.fetchWithAuth(API_ENDPOINTS.posts.publish(id), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        return {
+          success: false,
+          error: result.message || 'Failed to publish post'
+        };
+      }
+
+      const postData = result.post || result.data;
+      
+      // Transform _id to id for frontend compatibility
+      if (postData && postData._id) {
+        postData.id = postData._id;
+      }
+      
+      return {
+        success: true,
+        data: postData
+      };
+    } catch (error) {
+      console.error('Error publishing post:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to publish post'
+      };
     }
   }
 

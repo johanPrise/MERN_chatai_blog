@@ -106,4 +106,16 @@ export async function commentRoutes(fastify: FastifyInstance): Promise<void> {
     },
     CommentController.unlikeComment
   );
+
+  // Route pour disliker un commentaire (authentifié)
+  fastify.post<{
+    Params: { id: string }
+  }>(
+    '/:id/dislike',
+    {
+      schema: likeCommentSchema, // Réutiliser le même schéma que like
+      preHandler: [authenticate],
+    },
+    CommentController.dislikeComment
+  );
 }

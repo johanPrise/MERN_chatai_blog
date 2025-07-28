@@ -1,28 +1,29 @@
 /**
  * Enhanced Edit Post Page
- * Uses the new post management system
+ * Uses the new post management system with safe navigation
  */
 
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { PostForm } from '../components/PostForm';
 import { PostProvider, usePostContext } from '../context/PostContext';
-import { UpdatePostInput } from '../types/post.types';
+import { UpdatePostInput, CreatePostInput } from '../types/post.types';
+import { useNavigation } from '../hooks/useNavigation';
 import { toast } from 'sonner';
 import { Loader2, AlertCircle } from 'lucide-react';
 
 function EditPostContent() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const { navigateToPost, navigateToHome, validatePostId } = useNavigation();
   const { state, actions } = usePostContext();
   const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   // Load post data on mount
   useEffect(() => {
     const loadPost = async () => {
-      if (!id) {
+      if (!id || !validatePostId(id)) {
         toast.error('Post ID is required');
-        navigate('/');
+        navigateToHome();
         return;
       }
 
@@ -37,20 +38,34 @@ function EditPostContent() {
     };
 
     loadPost();
-  }, [id, actions, navigate]);
+  }, [id, actions, navigateToHome, validatePostId]);
 
   // Handle form submission
-  const handleSubmit = async (data: UpdatePostInput) => {
+  const handleSubmit = async (data: UpdatePostInput | CreatePostInput) => {
     if (!id) return;
 
     try {
-      const result = await actions.updatePost(id, data);
+      // Since we're in edit mode, we need to ensure we have the id
+      const updateData: UpdatePostInput = {
+        ...data,
+        id: id
+      };
+
+      const result = await actions.updatePost(id, updateData);
       
-      if (result) {
-        toast.success('Post updated successfully!');
-        navigate(`/post/${result.id}`);
+      if (result && result.id) {
+        // Validate the post ID before navigation
+        if (validatePostId(result.id)) {
+          toast.success('Post updated successfully!');
+          navigateToPost(result.id, { fallbackRoute: '/' });
+        } else {
+          console.error('Invalid post ID returned from API:', result.id);
+          toast.success('Post updated successfully!');
+          navigateToHome({ replace: true });
+        }
       } else {
         toast.error('Failed to update post. Please try again.');
+        console.error('Post update failed - no result or ID:', result);
       }
     } catch (error) {
       console.error('Update post error:', error);
@@ -60,10 +75,10 @@ function EditPostContent() {
 
   // Handle cancel
   const handleCancel = () => {
-    if (state.currentPost) {
-      navigate(`/post/${state.currentPost.id}`);
+    if (state.currentPost && validatePostId(state.currentPost.id)) {
+      navigateToPost(state.currentPost.id, { fallbackRoute: '/' });
     } else {
-      navigate('/');
+      navigateToHome();
     }
   };
 
@@ -93,7 +108,7 @@ function EditPostContent() {
           </p>
           <div className="space-x-3">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigateToHome()}
               className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
             >
               Go Home
@@ -101,7 +116,7 @@ function EditPostContent() {
             <button
               onClick={() => {
                 actions.clearErrors();
-                if (id) {
+                if (id && validatePostId(id)) {
                   actions.fetchPost(id);
                 }
               }}
@@ -114,6 +129,8 @@ function EditPostContent() {
       </div>
     );
   }
+
+
 
   // Show updating state
   if (state.loading.isUpdating) {

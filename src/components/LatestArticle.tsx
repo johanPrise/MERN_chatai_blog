@@ -3,7 +3,9 @@ import { Link } from "react-router-dom"
 import { Button } from "./ui/button"
 import type { Post as PostType } from "../types/PostType"
 import AnimateOnView from "./AnimateOnView"
-import { formatDate, getImageUrl, getOptimizedImageUrl } from "../lib/utils"
+import { formatDate, getOptimizedImageUrl } from "../lib/utils"
+import { getImageUrl } from "../config/api.config"
+import SafeImage from "./SafeImage"
 import { CalendarIcon, User2, Clock } from "lucide-react"
 import { Badge } from "./ui/badge"
 
@@ -23,10 +25,12 @@ const LatestArticle: React.FC<LatestArticleProps> = ({ post }) => {
         <AnimateOnView animation="slide-right" className="md:w-1/2" delay={100}>
           <div className="relative">
             <div className="absolute -inset-1 rounded-xl bg-gradient-to-r from-green-300 to-emerald-500 opacity-70 blur-sm"></div>
-            <img
-              src={getOptimizedImageUrl(getImageUrl(cover)) || "/placeholder.svg"}
+            <SafeImage
+              src={cover}
               alt={title}
               className="relative w-full md:h-[350px] object-cover rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300"
+              height={350}
+              loading="eager"
             />
           </div>
         </AnimateOnView>

@@ -106,4 +106,16 @@ export async function postRoutes(fastify: FastifyInstance): Promise<void> {
     },
     PostController.unlikePost
   );
+
+  // Route pour disliker un article (authentifié)
+  fastify.post<{
+    Params: { id: string }
+  }>(
+    '/:id/dislike',
+    {
+      schema: likePostSchema, // Réutiliser le même schéma que like
+      preHandler: [authenticate],
+    },
+    PostController.dislikePost
+  );
 }

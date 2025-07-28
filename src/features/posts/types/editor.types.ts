@@ -110,6 +110,8 @@ export interface EditorCallbacks {
   onKeyDown?: (event: KeyboardEvent) => void;
   onPaste?: (event: ClipboardEvent) => void;
   onDrop?: (event: DragEvent) => void;
+  onScroll?: (scrollTop: number) => void;
+  onEditorReady?: (actions: any) => void;
 }
 
 export interface EditorProps {

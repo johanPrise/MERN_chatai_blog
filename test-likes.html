@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Likes/Dislikes</title>
+</head>
+<body>
+    <h1>Test du système de likes/dislikes</h1>
+    
+    <div>
+        <h2>Test Posts</h2>
+        <button onclick="testPostLike()">Test Like Post</button>
+        <button onclick="testPostDislike()">Test Dislike Post</button>
+        <div id="post-result"></div>
+    </div>
+    
+    <div>
+        <h2>Test Comments</h2>
+        <button onclick="testCommentLike()">Test Like Comment</button>
+        <button onclick="testCommentDislike()">Test Dislike Comment</button>
+        <div id="comment-result"></div>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+        
+        async function testPostLike() {
+            try {
+                const response = await fetch(`${API_BASE}/posts/test-id/like`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                const result = await response.json();
+                document.getElementById('post-result').innerHTML = 
+                    `<p>Like Post: ${response.status} - ${JSON.stringify(result)}</p>`;
+            } catch (error) {
+                document.getElementById('post-result').innerHTML = 
+                    `<p>Like Post Error: ${error.message}</p>`;
+            }
+        }
+        
+        async function testPostDislike() {
+            try {
+                const response = await fetch(`${API_BASE}/posts/test-id/dislike`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                const result = await response.json();
+                document.getElementById('post-result').innerHTML = 
+                    `<p>Dislike Post: ${response.status} - ${JSON.stringify(result)}</p>`;
+            } catch (error) {
+                document.getElementById('post-result').innerHTML = 
+                    `<p>Dislike Post Error: ${error.message}</p>`;
+            }
+        }
+        
+        async function testCommentLike() {
+            try {
+                const response = await fetch(`${API_BASE}/comments/test-id/like`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                const result = await response.json();
+                document.getElementById('comment-result').innerHTML = 
+                    `<p>Like Comment: ${response.status} - ${JSON.stringify(result)}</p>`;
+            } catch (error) {
+                document.getElementById('comment-result').innerHTML = 
+                    `<p>Like Comment Error: ${error.message}</p>`;
+            }
+        }
+        
+        async function testCommentDislike() {
+            try {
+                const response = await fetch(`${API_BASE}/comments/test-id/dislike`, {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                const result = await response.json();
+                document.getElementById('comment-result').innerHTML = 
+                    `<p>Dislike Comment: ${response.status} - ${JSON.stringify(result)}</p>`;
+            } catch (error) {
+                document.getElementById('comment-result').innerHTML = 
+                    `<p>Dislike Comment Error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

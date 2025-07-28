@@ -7,16 +7,19 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PostData } from '../../types/post.types';
 import { cn } from '../../../../lib/utils';
+import SafeImage from '../../../../components/SafeImage';
+import { useLazyLoading } from '../../../../hooks/useLazyLoading';
+import { isMobileDevice } from '../../../../utils/mobileOptimizations';
 import { 
   Calendar, 
   User, 
   Eye, 
   Heart, 
-  MessageCircle, 
   Edit, 
   Trash2, 
   MoreVertical,
-  ExternalLink
+  ExternalLink,
+  Globe
 } from 'lucide-react';
 
 interface PostCardProps {
@@ -24,7 +27,9 @@ interface PostCardProps {
   layout?: 'grid' | 'list';
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
+  onPublish?: (id: string) => void;
   showActions?: boolean;
+  isPublishing?: boolean;
   className?: string;
 }
 
@@ -33,7 +38,9 @@ export function PostCard({
   layout = 'grid',
   onEdit,
   onDelete,
+  onPublish,
   showActions = true,
+  isPublishing = false,
   className = '',
 }: PostCardProps) {
   const [showMenu, setShowMenu] = useState(false);
@@ -69,6 +76,17 @@ export function PostCard({
     setShowMenu(false);
   };
 
+  // Handle publish
+  const handlePublish = async () => {
+    if (!onPublish) return;
+    
+    try {
+      await onPublish(post.id);
+    } finally {
+      setShowMenu(false);
+    }
+  };
+
   if (layout === 'list') {
     return (
       <div className={cn(
@@ -79,10 +97,16 @@ export function PostCard({
           {/* Cover Image */}
           {post.coverImage && (
             <Link to={`/posts/${post.id}`} className="flex-shrink-0">
-              <img
+              <SafeImage
                 src={post.coverImage}
                 alt={post.title}
                 className="w-24 h-24 object-cover rounded-lg"
+                width={96}
+                height={96}
+                loading="lazy"
+                quality={isMobileDevice() ? 70 : 80}
+                format="auto"
+                responsive={true}
               />
             </Link>
           )}
@@ -119,12 +143,12 @@ export function PostCard({
 
                   <div className="flex items-center">
                     <Eye className="h-4 w-4 mr-1" />
-                    {post.viewCount || 0}
+                    {post.stats?.viewCount || 0}
                   </div>
 
                   <div className="flex items-center">
                     <Heart className="h-4 w-4 mr-1" />
-                    {post.likeCount || 0}
+                    {post.stats?.likeCount || 0}
                   </div>
                 </div>
               </div>
@@ -161,6 +185,17 @@ export function PostCard({
                           </button>
                         )}
                         
+                        {onPublish && post.status === 'draft' && (
+                          <button
+                            onClick={handlePublish}
+                            disabled={isPublishing}
+                            className="flex items-center w-full px-4 py-2 text-sm text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 disabled:opacity-50"
+                          >
+                            <Globe className="h-4 w-4 mr-2" />
+                            {isPublishing ? 'Publishing...' : 'Publish Post'}
+                          </button>
+                        )}
+                        
                         {onDelete && (
                           <button
                             onClick={handleDelete}
@@ -192,10 +227,16 @@ export function PostCard({
       {/* Cover Image */}
       {post.coverImage && (
         <Link to={`/posts/${post.id}`}>
-          <img
+          <SafeImage
             src={post.coverImage}
             alt={post.title}
             className="w-full h-48 object-cover"
+            height={192}
+            loading="lazy"
+            quality={isMobileDevice() ? 70 : 80}
+            format="auto"
+            responsive={true}
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
         </Link>
       )}
@@ -241,6 +282,17 @@ export function PostCard({
                       </button>
                     )}
                     
+                    {onPublish && post.status === 'draft' && (
+                      <button
+                        onClick={handlePublish}
+                        disabled={isPublishing}
+                        className="flex items-center w-full px-4 py-2 text-sm text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 disabled:opacity-50"
+                      >
+                        <Globe className="h-4 w-4 mr-2" />
+                        {isPublishing ? 'Publishing...' : 'Publish Post'}
+                      </button>
+                    )}
+                    
                     {onDelete && (
                       <button
                         onClick={handleDelete}
@@ -283,12 +335,12 @@ export function PostCard({
           <div className="flex items-center space-x-2">
             <div className="flex items-center">
               <Eye className="h-3 w-3 mr-1" />
-              {post.viewCount || 0}
+              {post.stats?.viewCount || 0}
             </div>
             
             <div className="flex items-center">
               <Heart className="h-3 w-3 mr-1" />
-              {post.likeCount || 0}
+              {post.stats?.likeCount || 0}
             </div>
           </div>
         </div>

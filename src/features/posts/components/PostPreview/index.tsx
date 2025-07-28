@@ -8,6 +8,7 @@ import { X, Calendar, User, Tag, Eye, Clock } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 import MarkdownRenderer from '../../../../components/MarkdownRenderer';
 import { getImageUrl } from '../../../../config/api.config';
+import SafeImage from '../../../../components/SafeImage';
 
 interface PostPreviewProps {
   title: string;
@@ -73,14 +74,12 @@ export function PostPreview({
             {/* Cover Image */}
             {coverImage && (
               <div className="mb-8 rounded-xl overflow-hidden shadow-lg">
-                <img
-                  src={getDisplayImageUrl(coverImage)}
+                <SafeImage
+                  src={coverImage}
                   alt={title || 'Image de couverture'}
                   className="w-full h-64 md:h-80 object-cover"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
-                  }}
+                  height={320}
+                  loading="eager"
                 />
               </div>
             )}

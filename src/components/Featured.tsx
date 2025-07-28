@@ -3,7 +3,9 @@ import { Link } from "react-router-dom"
 import { Button } from "./ui/button"
 import type { PostType } from "./Post"
 import AnimateOnView from "./AnimateOnView"
-import { formatDate, getImageUrl, getOptimizedImageUrl } from "../lib/utils"
+import { formatDate, getOptimizedImageUrl } from "../lib/utils"
+import { getImageUrl } from "../config/api.config"
+import SafeImage from "./SafeImage"
 import { CalendarIcon, User2 } from "lucide-react"
 import { Badge } from "./ui/badge"
 import { FeaturedProps } from "../types/FeaturedProps"
@@ -16,20 +18,22 @@ const Featured: React.FC<FeaturedProps> = ({ featured }) => {
   const { _id, title, summary, cover, author, createdAt } = featured
 
   return (
-    <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-950 dark:to-primary-900">
+    <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-950 dark:to-primary-900 w-full max-w-full">
       <div className="absolute inset-0 bg-[url('/patterns/grid.svg')] opacity-10"></div>
-      <div className="relative flex flex-col md:flex-row md:items-center p-6 md:p-10 gap-8">
-        <AnimateOnView animation="slide-right" className="md:w-1/2" delay={100}>
+      <div className="relative flex flex-col md:flex-row md:items-center p-6 md:p-10 gap-8 w-full min-w-0">
+        <AnimateOnView animation="slide-right" className="md:w-1/2 min-w-0" delay={100}>
           <div className="relative">
             <div className="absolute -inset-1 rounded-xl bg-gradient-to-r from-primary-300 to-primary-500 opacity-70 blur-sm"></div>
-            <img
-              src={getOptimizedImageUrl(getImageUrl(cover)) || "/placeholder.svg"}
+            <SafeImage
+              src={cover}
               alt={title}
               className="relative w-full md:h-[350px] object-cover rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300"
+              height={350}
+              loading="eager"
             />
           </div>
         </AnimateOnView>
-        <div className="mt-4 md:mt-0 md:w-1/2">
+        <div className="mt-4 md:mt-0 md:w-1/2 min-w-0 w-full">
           <AnimateOnView animation="fade" delay={200}>
             <Badge
               variant="outline"

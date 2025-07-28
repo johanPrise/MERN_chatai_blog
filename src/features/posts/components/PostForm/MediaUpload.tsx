@@ -11,6 +11,7 @@ import { UploadResponse } from '../../types/api.types';
 import { cn } from '../../../../lib/utils';
 import { Upload, X, Image, AlertCircle, CheckCircle, Check, Eye, ZoomIn, Edit, Link } from 'lucide-react';
 import { getImageUrl } from '../../../../config/api.config';
+import SafeImage from '../../../../components/SafeImage';
 import { ExternalImageInput } from './ExternalImageInput';
 
 interface MediaUploadProps {
@@ -399,10 +400,12 @@ export function MediaUpload({
           {previewUrl && isImage(previewUrl) && (
             <div className="border rounded-xl overflow-hidden bg-white dark:bg-gray-800 shadow-sm">
               <div className="h-64 relative">
-                <img
+                <SafeImage
                   src={previewUrl}
                   alt="Aperçu en cours de téléchargement"
                   className="w-full h-full object-cover"
+                  height={256}
+                  loading="eager"
                 />
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                   <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm rounded-xl p-6 min-w-[300px] shadow-xl">

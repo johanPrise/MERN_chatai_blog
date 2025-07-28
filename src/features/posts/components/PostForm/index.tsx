@@ -13,7 +13,8 @@ import { usePostContext } from '../../context/PostContext';
 import { useAutoSave } from '../../hooks/useAutoSave';
 import { CreatePostInput, UpdatePostInput, PostStatus, PostVisibility, PostData } from '../../types/post.types';
 import { cn } from '../../../../lib/utils';
-import { Save, Eye, Calendar, Globe, Lock, Archive } from 'lucide-react';
+import { useSimpleContentFilter } from '../../../../hooks/useContentFilter';
+import { Save, Eye, Calendar, Globe, Lock, Archive, AlertTriangle } from 'lucide-react';
 
 interface PostFormProps {
   mode: 'create' | 'edit';
@@ -31,6 +32,7 @@ export function PostForm({
   className = '',
 }: PostFormProps) {
   const { state, actions } = usePostContext();
+  
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
     summary: initialData?.summary || '',
@@ -45,6 +47,45 @@ export function PostForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [contentWarnings, setContentWarnings] = useState<{
+    title: string[];
+    summary: string[];
+    content: string[];
+  }>({ title: [], summary: [], content: [] });
+
+  // Content filtering
+  const { filterContent, testContent } = useSimpleContentFilter();
+
+  // Update form data when initialData changes (important for edit mode)
+  useEffect(() => {
+    if (initialData && initialData.id) {
+      const newFormData = {
+        title: initialData.title || '',
+        summary: initialData.summary || '',
+        content: initialData.content || '',
+        coverImage: initialData.coverImage || '',
+        category: initialData.categories?.[0]?.id || '',
+        tags: initialData.tags || [],
+        status: initialData.status || PostStatus.DRAFT,
+        visibility: initialData.visibility || PostVisibility.PUBLIC,
+      };
+      
+      setFormData(newFormData);
+      
+      // Clear any existing errors when loading new data
+      setErrors({});
+    }
+  }, [initialData?.id, initialData?.title, initialData?.summary, initialData?.content]);
+
+  // Additional effect to handle summary specifically (in case it comes later)
+  useEffect(() => {
+    if (initialData?.summary !== undefined && formData.summary !== initialData.summary) {
+      setFormData(prev => ({
+        ...prev,
+        summary: initialData.summary || ''
+      }));
+    }
+  }, [initialData?.summary]);
 
   // Auto-save for edit mode
   const {
@@ -69,14 +110,29 @@ export function PostForm({
     actions.fetchCategories();
   }, [actions]);
 
-  // Update form data
+  // Check content for inappropriate words
+  const checkContentFilter = useCallback((field: string, content: string) => {
+    const testResult = testContent(content);
+    setContentWarnings(prev => ({
+      ...prev,
+      [field]: testResult.flaggedWords,
+    }));
+  }, [testContent]);
+
+  // Update form data with content filtering
   const updateFormData = useCallback((field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    
     // Clear field error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
-  }, [errors]);
+
+    // Check for inappropriate content in text fields
+    if (typeof value === 'string' && ['title', 'summary', 'content'].includes(field)) {
+      checkContentFilter(field, value);
+    }
+  }, [errors, checkContentFilter]);
 
   // Validate form
   const validateForm = useCallback(() => {
@@ -121,8 +177,25 @@ export function PostForm({
     setIsSubmitting(true);
 
     try {
+      // Apply content filtering before submission
+      const titleResult = filterContent(formData.title);
+      const summaryResult = filterContent(formData.summary);
+      const contentResult = filterContent(formData.content);
+
+      // Show notification if content was filtered
+      if (titleResult.wasFiltered || summaryResult.wasFiltered || contentResult.wasFiltered) {
+        console.log('Content was filtered before submission:', {
+          title: titleResult.replacements,
+          summary: summaryResult.replacements,
+          content: contentResult.replacements,
+        });
+      }
+
       const submitData = {
         ...formData,
+        title: titleResult.filteredContent,
+        summary: summaryResult.filteredContent,
+        content: contentResult.filteredContent,
         status: status || formData.status,
         // Convert single category to categories array for backend compatibility
         categories: formData.category ? [formData.category] : [],
@@ -217,6 +290,12 @@ export function PostForm({
               {errors.title && (
                 <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.title}</p>
               )}
+              {contentWarnings.title.length > 0 && (
+                <div className="mt-1 flex items-center text-sm text-orange-600 dark:text-orange-400">
+                  <AlertTriangle className="h-4 w-4 mr-1" />
+                  <span>Content may be filtered: {contentWarnings.title.join(', ')}</span>
+                </div>
+              )}
             </div>
 
             {/* Summary */}
@@ -236,9 +315,22 @@ export function PostForm({
                   'border-gray-300 dark:border-gray-600',
                   errors.summary && 'border-red-500 focus:ring-red-500'
                 )}
+                required
               />
               {errors.summary && (
                 <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.summary}</p>
+              )}
+              {contentWarnings.summary.length > 0 && (
+                <div className="mt-1 flex items-center text-sm text-orange-600 dark:text-orange-400">
+                  <AlertTriangle className="h-4 w-4 mr-1" />
+                  <span>Content may be filtered: {contentWarnings.summary.join(', ')}</span>
+                </div>
+              )}
+              {/* Debug info for development - can be removed in production */}
+              {process.env.NODE_ENV === 'development' && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Summary length: {formData.summary.length} characters
+                </p>
               )}
             </div>
 
@@ -260,6 +352,12 @@ export function PostForm({
               </div>
               {errors.content && (
                 <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.content}</p>
+              )}
+              {contentWarnings.content.length > 0 && (
+                <div className="mt-1 flex items-center text-sm text-orange-600 dark:text-orange-400">
+                  <AlertTriangle className="h-4 w-4 mr-1" />
+                  <span>Content may be filtered: {contentWarnings.content.join(', ')}</span>
+                </div>
               )}
             </div>
           </div>

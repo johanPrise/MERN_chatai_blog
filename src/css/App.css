@@ -1,7 +1,15 @@
 #root {
+  width: 100%;
   max-width: 1600px;
   margin: 0 auto;
   display: grid;
+  overflow-x: hidden; /* Prevent horizontal scrolling */
+}
+
+/* Ensure all direct children respect container bounds */
+#root > * {
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 a {

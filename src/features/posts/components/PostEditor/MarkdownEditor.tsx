@@ -6,6 +6,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { MarkdownEditorProps, EditorSelection } from '../../types/editor.types';
 import { useMarkdown } from '../../hooks/useMarkdown';
 import { cn } from '../../../../lib/utils';
+import { AlertCircle } from 'lucide-react';
 
 export function MarkdownEditor({
   value,
@@ -151,6 +152,12 @@ export function MarkdownEditor({
     callbacks.onDrop?.(event.nativeEvent);
   }, [callbacks]);
 
+  // Handle scroll events
+  const handleScroll = useCallback((event: React.UIEvent<HTMLTextAreaElement>) => {
+    const scrollTop = event.currentTarget.scrollTop;
+    callbacks.onScroll?.(scrollTop);
+  }, [callbacks]);
+
   // Auto-focus if requested
   useEffect(() => {
     if (autoFocus && textareaRef.current) {
@@ -242,6 +249,7 @@ export function MarkdownEditor({
           onSelect={handleSelectionChange}
           onPaste={handlePaste}
           onDrop={handleDrop}
+          onScroll={handleScroll}
           placeholder={placeholder}
           readOnly={readOnly}
           className={cn(
@@ -255,18 +263,56 @@ export function MarkdownEditor({
           spellCheck={config.spellCheck !== false}
         />
 
-        {/* Validation Errors */}
-        {validation.errors.length > 0 && (
-          <div className="absolute bottom-2 right-2 bg-red-100 dark:bg-red-900 border border-red-300 dark:border-red-700 rounded p-2 text-xs">
-            <div className="font-medium text-red-800 dark:text-red-200">Validation Errors:</div>
-            <ul className="mt-1 text-red-700 dark:text-red-300">
-              {validation.errors.slice(0, 3).map((error, index) => (
-                <li key={index}>• {error.message}</li>
-              ))}
-              {validation.errors.length > 3 && (
-                <li>• ... and {validation.errors.length - 3} more</li>
-              )}
-            </ul>
+        {/* Validation Errors and Warnings */}
+        {(validation.errors.length > 0 || validation.warnings.length > 0) && (
+          <div className="absolute bottom-2 right-2 max-w-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg p-3 text-xs z-10">
+            {validation.errors.length > 0 && (
+              <div className="mb-2">
+                <div className="flex items-center font-medium text-red-800 dark:text-red-200 mb-1">
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  Erreurs ({validation.errors.length})
+                </div>
+                <ul className="text-red-700 dark:text-red-300 space-y-1">
+                  {validation.errors.slice(0, 2).map((error, index) => (
+                    <li key={index} className="flex items-start">
+                      <span className="text-red-500 mr-1">•</span>
+                      <span>
+                        <strong>Ligne {error.line}:</strong> {error.message}
+                      </span>
+                    </li>
+                  ))}
+                  {validation.errors.length > 2 && (
+                    <li className="text-red-600 dark:text-red-400 italic">
+                      ... et {validation.errors.length - 2} autres erreurs
+                    </li>
+                  )}
+                </ul>
+              </div>
+            )}
+            
+            {validation.warnings.length > 0 && (
+              <div>
+                <div className="flex items-center font-medium text-orange-800 dark:text-orange-200 mb-1">
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  Avertissements ({validation.warnings.length})
+                </div>
+                <ul className="text-orange-700 dark:text-orange-300 space-y-1">
+                  {validation.warnings.slice(0, 2).map((warning, index) => (
+                    <li key={index} className="flex items-start">
+                      <span className="text-orange-500 mr-1">•</span>
+                      <span>
+                        <strong>Ligne {warning.line}:</strong> {warning.message}
+                      </span>
+                    </li>
+                  ))}
+                  {validation.warnings.length > 2 && (
+                    <li className="text-orange-600 dark:text-orange-400 italic">
+                      ... et {validation.warnings.length - 2} autres avertissements
+                    </li>
+                  )}
+                </ul>
+              </div>
+            )}
           </div>
         )}
       </div>

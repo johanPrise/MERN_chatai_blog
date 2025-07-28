@@ -1,13 +1,13 @@
 /**
  * Enhanced Create Post Page
- * Uses the new post management system
+ * Uses the new post management system with safe navigation
  */
 
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { PostForm } from '../components/PostForm';
 import { PostProvider, usePostContext } from '../context/PostContext';
 import { CreatePostInput, UpdatePostInput } from '../types/post.types';
+import { useNavigation } from '../hooks/useNavigation';
 import { toast } from 'sonner';
 
 export function CreatePost() {
@@ -19,7 +19,7 @@ export function CreatePost() {
 }
 
 function CreatePostContent() {
-  const navigate = useNavigate();
+  const { navigateToPost, navigateToHome, validatePostId } = useNavigation();
   const { state, actions } = usePostContext();
 
   // Handle form submission
@@ -29,11 +29,19 @@ function CreatePostContent() {
       const createData = data as CreatePostInput;
       const result = await actions.createPost(createData);
       
-      if (result) {
-        toast.success('Post created successfully!');
-        navigate(`/post/${result.id}`);
+      if (result && result.id) {
+        // Validate the post ID before navigation
+        if (validatePostId(result.id)) {
+          toast.success('Post created successfully!');
+          navigateToPost(result.id, { fallbackRoute: '/' });
+        } else {
+          console.error('Invalid post ID returned from API:', result.id);
+          toast.success('Post created successfully!');
+          navigateToHome({ replace: true });
+        }
       } else {
         toast.error('Failed to create post. Please try again.');
+        console.error('Post creation failed - no result or ID:', result);
       }
     } catch (error) {
       console.error('Create post error:', error);
@@ -43,7 +51,7 @@ function CreatePostContent() {
 
   // Handle cancel
   const handleCancel = () => {
-    navigate('/');
+    navigateToHome();
   };
 
   // Show loading state
@@ -73,7 +81,7 @@ function CreatePostContent() {
           <button
             onClick={() => {
               actions.clearErrors();
-              navigate('/');
+              navigateToHome();
             }}
             className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
           >

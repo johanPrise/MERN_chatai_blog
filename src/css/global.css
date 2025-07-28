@@ -98,15 +98,230 @@
     @apply border-border;
   }
 
+  html, body {
+    overflow-x: hidden; /* Prevent horizontal scrolling */
+    width: 100%;
+    max-width: 100vw;
+    position: relative;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
     transition: background-color 0.3s ease, color 0.3s ease;
   }
 
+  /* Mobile-first responsive fixes */
+  * {
+    box-sizing: border-box;
+  }
+
+  /* Mobile performance optimizations */
+  * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+
+  /* Optimize scrolling performance */
+  html {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  body {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: manipulation;
+  }
+
+  /* Prevent elements from overflowing on mobile */
+  img, video, iframe, embed, object {
+    max-width: 100%;
+    height: auto;
+    /* Optimize image rendering */
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: optimize-contrast;
+  }
+
+  /* Lazy loading optimization */
+  img[loading="lazy"] {
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  img[loading="lazy"].loaded {
+    opacity: 1;
+  }
+
+  /* Ensure tables are responsive */
+  table {
+    width: 100%;
+    table-layout: fixed;
+    word-wrap: break-word;
+    overflow-x: auto;
+    display: block;
+    white-space: nowrap;
+  }
+
+  /* Fix for long words and URLs */
+  p, div, span, a {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    max-width: 100%;
+  }
+
+  /* Prevent code blocks from causing horizontal scroll */
+  pre, code {
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  /* Ensure all elements respect viewport width - Enhanced */
+  * {
+    max-width: 100vw;
+  }
+
+  /* Fix for elements that might cause horizontal scroll - Enhanced */
+  .container, .container-custom, main, section, article, div {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* Additional scroll fixes for specific elements */
+  header, nav, footer {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  /* Fix for grid layouts that might overflow */
+  .grid {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* Fix for flex layouts that might overflow */
+  .flex {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* Ensure cards and components don't overflow */
+  .card, [class*="card"] {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* Fix for buttons and interactive elements */
+  button, .btn, [role="button"] {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* Fix for form elements */
+  input, textarea, select {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* Mobile container improvements */
+  .container, .container-custom {
+    width: 100%;
+    max-width: 100%;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  @media (min-width: 640px) {
+    .container, .container-custom {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .container, .container-custom {
+      padding-left: 2rem;
+      padding-right: 2rem;
+    }
+  }
+
   /* Transitions fluides pour les éléments qui utilisent les couleurs du thème */
   a, button, input, select, textarea, .btn, .card, .badge {
-    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Enhanced hover effects */
+  .card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+
+  .dark .card:hover {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Button hover enhancements */
+  .btn {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+  }
+
+  .btn:hover::before {
+    left: 100%;
+  }
+
+  /* Link hover effects */
+  a {
+    position: relative;
+  }
+
+  a:not(.no-underline):hover {
+    text-decoration: none;
+  }
+
+  a:not(.no-underline)::after {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 2px;
+    bottom: -2px;
+    left: 0;
+    background-color: currentColor;
+    transition: width 0.3s ease;
+  }
+
+  a:not(.no-underline):hover::after {
+    width: 100%;
   }
 
   /* Assurer la visibilité du texte dans les inputs en mode sombre */
@@ -255,7 +470,11 @@
 
   /* Effet de transition pour le changement de thème */
   .theme-transition {
-    animation: theme-flash 1s ease;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease !important;
+  }
+
+  .theme-transition * {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease !important;
   }
 
   @keyframes theme-flash {
@@ -270,6 +489,81 @@
     }
   }
 
+  /* Advanced visual effects */
+  .glass-effect {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .dark .glass-effect {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* Gradient text effects */
+  .gradient-text {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Floating animation */
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+
+  .float-animation {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  /* Pulse glow effect */
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 5px hsl(var(--primary)/0.5); }
+    50% { box-shadow: 0 0 20px hsl(var(--primary)/0.8), 0 0 30px hsl(var(--primary)/0.6); }
+  }
+
+  .pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  /* Shimmer effect */
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .shimmer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+    transform: translateX(-100%);
+    animation: shimmer 2s infinite;
+  }
+
+  /* Morphing border effect */
+  @keyframes morph-border {
+    0%, 100% { border-radius: 1rem; }
+    25% { border-radius: 2rem 1rem 1rem 2rem; }
+    50% { border-radius: 1rem 2rem 2rem 1rem; }
+    75% { border-radius: 2rem 1rem 2rem 1rem; }
+  }
+
+  .morph-border {
+    animation: morph-border 4s ease-in-out infinite;
+  }
+
   /* Typography enhancements */
   h1,
   h2,
@@ -278,38 +572,63 @@
   h5,
   h6 {
     @apply font-sans font-semibold tracking-tight;
+    line-height: 1.2;
+    margin-bottom: 0.5em;
   }
 
   h1 {
-    @apply text-4xl md:text-5xl;
+    @apply text-4xl md:text-5xl lg:text-6xl;
+    background: linear-gradient(135deg, hsl(var(--foreground)) 0%, hsl(var(--primary)) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 
   h2 {
-    @apply text-3xl md:text-4xl;
+    @apply text-3xl md:text-4xl lg:text-5xl;
+    background: linear-gradient(135deg, hsl(var(--foreground)) 0%, hsl(var(--primary)) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 
   h3 {
-    @apply text-2xl md:text-3xl;
+    @apply text-2xl md:text-3xl lg:text-4xl;
   }
 
   h4 {
-    @apply text-xl md:text-2xl;
+    @apply text-xl md:text-2xl lg:text-3xl;
   }
 
   h5 {
-    @apply text-lg md:text-xl;
+    @apply text-lg md:text-xl lg:text-2xl;
   }
 
   h6 {
-    @apply text-base md:text-lg;
+    @apply text-base md:text-lg lg:text-xl;
   }
 
   p {
     @apply leading-7 [&:not(:first-child)]:mt-6;
+    font-size: 1.1rem;
+    line-height: 1.7;
   }
 
   blockquote {
-    @apply border-l-4 border-primary-300 pl-4 italic text-neutral-700 dark:text-neutral-300;
+    @apply border-l-4 border-primary-300 pl-6 py-4 italic text-neutral-700 dark:text-neutral-300;
+    background: linear-gradient(90deg, hsl(var(--primary)/0.05) 0%, transparent 100%);
+    border-radius: 0 0.5rem 0.5rem 0;
+    position: relative;
+  }
+
+  blockquote::before {
+    content: '"';
+    font-size: 4rem;
+    color: hsl(var(--primary)/0.3);
+    position: absolute;
+    top: -0.5rem;
+    left: 1rem;
+    font-family: serif;
   }
 
   /* Blog content styles */
@@ -523,6 +842,346 @@
     focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
     disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary
     data-[state=unchecked]:bg-input;
+  }
+
+  /* Mobile-specific component fixes */
+  .mobile-safe {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* Fix for mobile navigation and dropdowns */
+  @media (max-width: 768px) {
+    .dropdown-menu {
+      left: 0 !important;
+      right: 0 !important;
+      width: calc(100vw - 2rem) !important;
+      max-width: none !important;
+      margin: 0 1rem !important;
+    }
+
+    /* Ensure mobile menu doesn't cause horizontal scroll */
+    .mobile-menu {
+      width: 100%;
+      max-width: 100vw;
+      overflow-x: hidden;
+    }
+
+    /* Fix for wide content on mobile */
+    .prose {
+      max-width: 100% !important;
+      overflow-x: hidden;
+    }
+
+    .prose pre {
+      max-width: 100%;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .prose table {
+      display: block;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+
+    /* Fix for form elements on mobile */
+    input, textarea, select {
+      max-width: 100%;
+      width: 100%;
+    }
+
+    /* Fix for buttons and interactive elements */
+    button {
+      min-height: 44px; /* Minimum touch target size */
+      min-width: 44px;
+    }
+
+    /* Fix for cards and containers */
+    .card, .container, .container-custom {
+      margin-left: 0;
+      margin-right: 0;
+      max-width: 100%;
+    }
+
+    /* Fix for grid layouts - Enhanced */
+    .grid {
+      grid-template-columns: 1fr !important;
+      gap: 1rem;
+      max-width: 100% !important;
+      overflow-x: hidden !important;
+    }
+
+    /* Specific grid column fixes */
+    .grid-cols-2 {
+      grid-template-columns: 1fr !important;
+    }
+
+    .grid-cols-3 {
+      grid-template-columns: 1fr !important;
+    }
+
+    .grid-cols-4 {
+      grid-template-columns: 1fr !important;
+    }
+
+    /* Fix for flex layouts that might overflow */
+    .flex {
+      flex-wrap: wrap;
+      max-width: 100% !important;
+      overflow-x: hidden !important;
+    }
+
+    /* Ensure images don't cause overflow */
+    img {
+      max-width: 100% !important;
+      height: auto !important;
+      object-fit: contain;
+    }
+
+    /* Fix for wide content elements */
+    pre, code, table {
+      max-width: 100% !important;
+      overflow-x: auto !important;
+      word-break: break-all !important;
+    }
+
+    /* Fix for cards and containers that might overflow */
+    .card, [class*="card"], .container, [class*="container"] {
+      max-width: 100% !important;
+      overflow-x: hidden !important;
+      box-sizing: border-box !important;
+    }
+
+    /* Fix for blog header padding on mobile */
+    .blog-header {
+      padding: 2rem !important;
+    }
+
+    /* Fix for posts container padding on mobile */
+    .posts-container {
+      padding: 2rem !important;
+    }
+
+    /* Fix for categories container padding on mobile */
+    .Categories-container {
+      padding: 2rem !important;
+      padding-top: 0 !important;
+    }
+
+    /* Fix for search dropdown positioning on mobile */
+    .search-dropdown {
+      position: fixed !important;
+      top: 4rem !important;
+      left: 1rem !important;
+      right: 1rem !important;
+      width: auto !important;
+      max-width: none !important;
+      z-index: 9999 !important;
+    }
+
+    /* Fix for header elements that might overflow */
+    header .flex {
+      flex-wrap: nowrap;
+      overflow-x: hidden;
+    }
+
+    /* Fix for long text in navigation */
+    nav a, nav button {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 150px;
+    }
+
+    /* Fix for post cards on mobile */
+    .post-card {
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+    }
+
+    /* Fix for featured post layout on mobile */
+    .featured-post .grid {
+      grid-template-columns: 1fr !important;
+    }
+
+    /* Fix for category cards wrapping */
+    .category-cards {
+      flex-wrap: wrap !important;
+      justify-content: center !important;
+    }
+
+    /* Fix for pagination on mobile */
+    .pagination {
+      flex-wrap: wrap !important;
+      gap: 0.5rem !important;
+    }
+
+    /* Fix for comment sections */
+    .comment-section {
+      padding: 1rem !important;
+      max-width: 100% !important;
+    }
+
+    /* Fix for wide tables in content */
+    .content table {
+      font-size: 0.875rem !important;
+      overflow-x: auto !important;
+      display: block !important;
+      white-space: nowrap !important;
+    }
+
+    /* Fix for code blocks in content */
+    .content pre {
+      font-size: 0.75rem !important;
+      padding: 0.75rem !important;
+      overflow-x: auto !important;
+      max-width: 100% !important;
+    }
+
+    /* Additional fixes for specific components that might cause scroll */
+    .animate-on-view, [data-aos] {
+      max-width: 100% !important;
+      overflow-x: hidden !important;
+    }
+
+    /* Fix for modal and overlay components */
+    .modal, .overlay, .dropdown-menu {
+      max-width: calc(100vw - 2rem) !important;
+      overflow-x: hidden !important;
+    }
+
+    /* Fix for form elements that might be too wide */
+    form {
+      max-width: 100% !important;
+      overflow-x: hidden !important;
+    }
+
+    form input, form textarea, form select {
+      max-width: 100% !important;
+      box-sizing: border-box !important;
+    }
+  }
+
+  /* Additional mobile fixes for very small screens */
+  @media (max-width: 480px) {
+    .container, .container-custom {
+      padding-left: 0.75rem;
+      padding-right: 0.75rem;
+    }
+
+    /* Reduce font sizes slightly on very small screens */
+    h1 { @apply text-2xl; }
+    h2 { @apply text-xl; }
+    h3 { @apply text-lg; }
+    h4 { @apply text-base; }
+
+    /* Ensure touch targets are large enough */
+    a, button, input, select, textarea {
+      min-height: 44px;
+    }
+
+    /* Fix for modal and overlay positioning */
+    .fixed {
+      left: 0;
+      right: 0;
+      max-width: 100vw;
+    }
+
+    /* Extra small screen adjustments */
+    .blog-header {
+      padding: 1.5rem !important;
+    }
+
+    .posts-container {
+      padding: 1.5rem !important;
+    }
+
+    .Categories-container {
+      padding: 1.5rem !important;
+      padding-top: 0 !important;
+    }
+  }
+
+  /* Mobile performance optimizations */
+  @media (max-width: 768px) {
+    /* Reduce animations on mobile for better performance */
+    @media (prefers-reduced-motion: no-preference) {
+      * {
+        animation-duration: 0.2s !important;
+        transition-duration: 0.2s !important;
+      }
+    }
+
+    /* Optimize transforms for mobile */
+    .card:hover {
+      transform: none;
+    }
+
+    /* Reduce shadow complexity on mobile */
+    .card {
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    }
+
+    .dark .card {
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+    }
+
+    /* Optimize backdrop filters for mobile */
+    .glass-effect {
+      backdrop-filter: none;
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    .dark .glass-effect {
+      background: rgba(0, 0, 0, 0.8);
+    }
+
+    /* Disable complex animations on mobile */
+    .float-animation,
+    .pulse-glow,
+    .shimmer,
+    .morph-border {
+      animation: none !important;
+    }
+
+    /* Optimize image loading on mobile */
+    img {
+      will-change: auto;
+      transform: none;
+    }
+
+    /* Reduce blur effects on mobile */
+    .dropdown-menu {
+      backdrop-filter: none;
+    }
+  }
+
+  /* Performance optimizations for low-end devices */
+  @media (max-width: 768px) and (max-resolution: 150dpi) {
+    /* Further reduce effects for low-DPI mobile devices */
+    * {
+      box-shadow: none !important;
+      text-shadow: none !important;
+      filter: none !important;
+    }
+
+    .gradient-text {
+      background: none;
+      -webkit-background-clip: unset;
+      -webkit-text-fill-color: unset;
+      color: hsl(var(--primary));
+    }
+
+    h1, h2 {
+      background: none;
+      -webkit-background-clip: unset;
+      -webkit-text-fill-color: unset;
+      color: hsl(var(--foreground));
+    }
   }
 }
 

@@ -3,7 +3,8 @@ import { formatISO9075 } from "date-fns"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card"
 import { Badge } from "./ui/badge"
 import { Button } from "./ui/button"
-import { formatDate, getImageUrl, getOptimizedImageUrl, cn } from "../lib/utils"
+import { formatDate, getOptimizedImageUrl, cn } from "../lib/utils"
+import { getImageUrl } from "../config/api.config"
 import { CalendarIcon, User2, Eye, Heart, MessageCircle, Share2, BookmarkPlus, ExternalLink, Star, ThumbsDown } from "lucide-react"
 import { Post as PostType } from '../types/PostType'
 import React, { useState, useEffect } from "react"
@@ -419,9 +420,9 @@ export default function Post({
   // List variant - horizontal layout
   if (variant === "list") {
     return (
-      <Card className={cn("overflow-hidden", fixedHeight && "h-[250px]", className)}>
-        <div className="flex gap-4 p-4">
-          <Link to={`/Post/${_id}`} className="relative block w-48 flex-shrink-0 overflow-hidden rounded-lg">
+      <Card className={cn("overflow-hidden w-full max-w-full", fixedHeight && "h-[250px]", className)}>
+        <div className="flex flex-col sm:flex-row gap-4 p-4 w-full min-w-0">
+          <Link to={`/Post/${_id}`} className="relative block w-full sm:w-48 flex-shrink-0 overflow-hidden rounded-lg min-w-0">
             {isFavorite && (
               <div className="absolute top-2 right-2 z-10">
                 <span className="bg-yellow-500 text-white flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium shadow-md">
@@ -434,8 +435,8 @@ export default function Post({
               <PostImage className="h-full w-full object-cover transition-transform duration-300 hover:scale-105" />
             </AspectRatio>
           </Link>
-          <div className="flex-1 flex flex-col">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+          <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mb-2">
               <time dateTime={formatISO9075(new Date(createdAt))}>
                 <CalendarIcon className="h-3 w-3 inline mr-1" />
                 {formatDate(createdAt)}
@@ -449,15 +450,15 @@ export default function Post({
             <h3 className="text-lg font-semibold mb-2">
               <Link
                 to={`/Post/${_id}`}
-                className="hover:text-primary transition-colors"
+                className="hover:text-primary transition-colors line-clamp-2"
                 aria-label={`Read full post: ${title}`}
               >
                 {title}
               </Link>
             </h3>
             <p className="line-clamp-2 text-sm text-muted-foreground mb-3 flex-grow">{summary}</p>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {category && typeof category === 'object' && category._id && category.name ? (
                   <Link to={`/category/${category._id}`}>
                     <Badge variant="outline" className="hover:bg-primary-50 hover:text-primary-700 transition-colors">
@@ -482,8 +483,8 @@ export default function Post({
   // Compact variant
   if (variant === "compact") {
     return (
-      <Card className={cn("overflow-hidden flex flex-col", fixedHeight && "h-[450px]", className)}>
-        <Link to={`/Post/${_id}`} className="relative block overflow-hidden">
+      <Card className={cn("overflow-hidden flex flex-col w-full max-w-full", fixedHeight && "h-[450px]", className)}>
+        <Link to={`/Post/${_id}`} className="relative block overflow-hidden min-w-0">
           {isFavorite && (
             <div className="absolute top-2 right-2 z-10">
               <span className="bg-yellow-500 text-white flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium shadow-md">
@@ -540,23 +541,23 @@ export default function Post({
   // Featured variant
   if (variant === "featured") {
     return (
-      <Card className={cn("overflow-hidden border-0 shadow-none bg-transparent", fixedHeight && "h-[350px]", className)}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">          
-          {isFavorite && (
-            <div className="absolute top-2 right-2 z-10">
-              <span className="bg-yellow-500 text-white flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium shadow-md">
-                <Star className="h-3 w-3 fill-current" />
-                Favori
-              </span>
-            </div>
-          )}
-          <Link to={`/Post/${_id}`} className="relative block overflow-hidden rounded-xl">
+      <Card className={cn("overflow-hidden border-0 shadow-none bg-transparent w-full max-w-full", fixedHeight && "h-[350px]", className)}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center w-full min-w-0">          
+          <Link to={`/Post/${_id}`} className="relative block overflow-hidden rounded-xl min-w-0">
+            {isFavorite && (
+              <div className="absolute top-2 right-2 z-10">
+                <span className="bg-yellow-500 text-white flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium shadow-md">
+                  <Star className="h-3 w-3 fill-current" />
+                  Favori
+                </span>
+              </div>
+            )}
             <AspectRatio ratio={16/10} className="w-full">
               <PostImage className="h-full w-full object-cover transition-transform duration-300 hover:scale-105" />
             </AspectRatio>
           </Link>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2 mb-3">
+          <div className="flex flex-col min-w-0 w-full">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
               <Badge variant="outline" className="bg-primary-50 text-primary-700 border-primary-200">
                 Featured
               </Badge>
@@ -568,16 +569,16 @@ export default function Post({
                 </Link>
               )}
             </div>
-            <h2 className="text-2xl md:text-3xl font-bold mb-3">
+            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-3">
               <Link
                 to={`/Post/${_id}`}
-                className="hover:text-primary transition-colors"
+                className="hover:text-primary transition-colors line-clamp-2"
                 aria-label={`Read full post: ${title}`}
               >
                 {title}
               </Link>
             </h2>
-            <div className="flex items-center gap-3 text-sm text-muted-foreground mb-3">
+            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground mb-3">
               <time dateTime={formatISO9075(new Date(createdAt))}>
                 <CalendarIcon className="h-4 w-4 inline mr-1" />
                 {formatDate(createdAt)}
@@ -588,8 +589,8 @@ export default function Post({
               </span>
               <StatsDisplay />
             </div>
-            <p className="text-muted-foreground mb-4">{summary}</p>
-            <div className="flex items-center justify-between">
+            <p className="text-muted-foreground mb-4 line-clamp-3">{summary}</p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <Link to={`/Post/${_id}`} className="text-primary font-medium hover:underline">
                 Read more →
               </Link>
@@ -603,17 +604,24 @@ export default function Post({
 
   // Default variant
   return (
-    <Card className={cn("overflow-hidden flex flex-col", fixedHeight && "h-[450px]", className)}>
-      <Link to={`/Post/${_id}`} className="relative block overflow-hidden">
+    <Card className={cn("overflow-hidden flex flex-col group relative w-full max-w-full", fixedHeight && "h-[450px]", className)}>
+      {/* Gradient overlay for enhanced visual appeal */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10 pointer-events-none" />
+      
+      <Link to={`/Post/${_id}`} className="relative block overflow-hidden min-w-0">
         {isFavorite && (
-          <div className="absolute top-2 right-2 z-10">
-            <span className="bg-yellow-500 text-white flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium shadow-md">
+          <div className="absolute top-2 right-2 z-20">
+            <span className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-white flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium shadow-lg backdrop-blur-sm">
               <Star className="h-3 w-3 fill-current" />
               Favori
             </span>
           </div>
         )}
-        <PostImage className="h-56 w-full object-cover transition-transform duration-300 hover:scale-105" />
+        <div className="relative overflow-hidden">
+          <PostImage className="h-56 w-full object-cover transition-all duration-500 group-hover:scale-110 group-hover:brightness-110" />
+          {/* Image overlay gradient */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        </div>
       </Link>
       <CardHeader className="p-4 pb-2">
         <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">

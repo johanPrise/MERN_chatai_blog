@@ -109,6 +109,16 @@ export function PostEditor({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
+  // Handle content changes with formatting preservation
+  const handleContentChange = useCallback((newValue: string) => {
+    onChange(newValue);
+    
+    // Reset save status when content changes
+    if (saveStatus === 'saved') {
+      setSaveStatus('idle');
+    }
+  }, [onChange, saveStatus]);
+
   // Handle scroll synchronization
   const handleEditorScroll = useCallback((scrollTop: number) => {
     setEditorScrollTop(scrollTop);
@@ -247,7 +257,7 @@ export function PostEditor({
         <div className={cn('flex-1 flex flex-col', showPreview && 'border-r border-gray-200 dark:border-gray-700')}>
           <MarkdownEditor
             value={value}
-            onChange={onChange}
+            onChange={handleContentChange}
             placeholder={placeholder}
             readOnly={readOnly}
             autoFocus={autoFocus}

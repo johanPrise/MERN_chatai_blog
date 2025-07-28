@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Link, useNavigate, useLocation } from "react-router-dom"
 import { UserContext } from "../UserContext"
 import { ThemeToggle } from "./ui/theme-toggle"
@@ -33,6 +33,7 @@ import {
   LayoutDashboard,
   Search,
   ChevronRight,
+  FileText,
 } from "lucide-react"
 import AnimateOnView from "./AnimateOnView"
 import React from "react"
@@ -175,10 +176,17 @@ const Header = () => {
 
   return (
     <header
-      className={`sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur transition-all ${isScrolled ? "shadow-sm" : ""}`}
+      className={cn(
+        "sticky top-0 z-50 w-full border-b transition-all duration-300",
+        "bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60",
+        "max-w-[100vw] ",
+        isScrolled 
+          ? "shadow-lg shadow-black/5 border-border/50" 
+          : "shadow-none border-transparent"
+      )}
     >
       <Container>
-        <div className="flex h-16 items-center justify-between">
+        <div className="flex h-16 items-center justify-between w-full min-w-0">
           <div className="flex items-center gap-2">
             <Link to="/" className="flex items-center gap-2 font-bold text-xl text-primary-800 dark:text-primary-400">
               <svg
@@ -261,9 +269,9 @@ const Header = () => {
               </button>
 
               {isSearchOpen && (
-                <div className="absolute right-0 top-full mt-2 w-72 rounded-md dropdown-menu p-2 animate-in fade-in slide-in-from-top-5 duration-200 z-50">
+                <div className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-md dropdown-menu p-2 animate-in fade-in slide-in-from-top-5 duration-200 z-50 search-dropdown">
                   <form onSubmit={handleSearch} className="flex items-center gap-2">
-                    <div className="relative flex-1">
+                    <div className="relative flex-1 min-w-0">
                       <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <input
                         type="text"
@@ -274,7 +282,7 @@ const Header = () => {
                         autoFocus
                       />
                     </div>
-                    <Button type="submit" size="sm">
+                    <Button type="submit" size="sm" className="flex-shrink-0">
                       Search
                     </Button>
                   </form>
@@ -323,6 +331,12 @@ const Header = () => {
                           <Link to="/posts/create" className="flex items-center">
                             <PenSquare className="mr-2 h-4 w-4" />
                             Create Post (New)
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/posts/drafts" className="flex items-center">
+                            <FileText className="mr-2 h-4 w-4" />
+                            My Drafts
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
@@ -390,28 +404,28 @@ const Header = () => {
       {/* Mobile menu */}
       {isMenuOpen && (
         <AnimateOnView animation="slide-down" className="md:hidden">
-          <div className="border-t">
+          <div className="border-t w-full max-w-[100vw] overflow-x-hidden">
             <Container>
               {/* Barre de recherche mobile */}
-              <div className="py-4 border-b">
-                <form onSubmit={handleSearch} className="flex items-center gap-2">
-                  <div className="relative flex-1">
+              <div className="py-4 border-b w-full">
+                <form onSubmit={handleSearch} className="flex items-center gap-2 w-full">
+                  <div className="relative flex-1 min-w-0">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <input
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Search articles..."
-                      className="w-full rounded-md border border-input bg-background py-2 pl-10 pr-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="w-full rounded-md border border-input bg-background py-2 pl-10 pr-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-w-0"
                     />
                   </div>
-                  <Button type="submit" size="sm" onClick={() => setMenuOpen(false)}>
+                  <Button type="submit" size="sm" onClick={() => setMenuOpen(false)} className="flex-shrink-0">
                     Search
                   </Button>
                 </form>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 py-4">
+              <div className="grid grid-cols-1 gap-4 py-4 w-full overflow-x-hidden">
                 <Link
                   to="/"
                   className={cn(
@@ -510,6 +524,17 @@ const Header = () => {
                           >
                             <PenSquare className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
                             Create Post (New)
+                          </Link>
+                          <Link
+                            to="/posts/drafts"
+                            className={cn(
+                              "flex items-center rounded-md px-3 py-2 text-sm transition-colors group",
+                              location.pathname === "/posts/drafts" ? "bg-accent/50 font-medium" : "hover:bg-accent"
+                            )}
+                            onClick={() => setMenuOpen(false)}
+                          >
+                            <FileText className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
+                            My Drafts
                           </Link>
                           <Link
                             to="/create_category"

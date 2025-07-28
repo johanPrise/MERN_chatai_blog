@@ -171,6 +171,7 @@ interface PostContextType {
     clearErrors: () => void;
     resetState: () => void;
     fetchCategories: () => Promise<void>;
+    publishPost: (id: string) => Promise<PostData | null>;
   };
 }
 
@@ -360,6 +361,34 @@ export function PostProvider({ children }: PostProviderProps) {
     }
   }, [apiService, state.categories, state.lastFetch]);
 
+  const publishPost = useCallback(async (id: string): Promise<PostData | null> => {
+    try {
+      setLoading({ isUpdating: true });
+      clearErrors();
+
+      const result = await apiService.publishPost(id);
+      
+      if (result.success && result.data) {
+        dispatch({ type: 'UPDATE_POST', payload: result.data });
+        return result.data;
+      } else {
+        setError({
+          code: 'PUBLISH_ERROR',
+          message: result.error || 'Failed to publish post',
+        });
+        return null;
+      }
+    } catch (error) {
+      setError({
+        code: 'PUBLISH_ERROR',
+        message: error instanceof Error ? error.message : 'Failed to publish post',
+      });
+      return null;
+    } finally {
+      setLoading({ isUpdating: false });
+    }
+  }, [apiService, setLoading, clearErrors, setError]);
+
   const contextValue: PostContextType = {
     state,
     actions: {
@@ -372,6 +401,7 @@ export function PostProvider({ children }: PostProviderProps) {
       clearErrors,
       resetState,
       fetchCategories,
+      publishPost,
     },
   };
 

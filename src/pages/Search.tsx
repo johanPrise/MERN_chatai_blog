@@ -3,7 +3,9 @@ import { useSearchParams } from "react-router-dom"
 import { Container } from "../components/ui/container"
 import { H1, H3 } from "../components/ui/typography"
 import { API_ENDPOINTS } from "../config/api.config"
-import { formatDate, getImageUrl } from "../lib/utils"
+import { formatDate } from "../lib/utils"
+import { getImageUrl } from "../config/api.config"
+import SafeImage from "../components/SafeImage"
 import { Link } from "react-router-dom"
 import { Search as SearchIcon } from "lucide-react"
 import AnimateOnView from "../components/AnimateOnView"
@@ -115,10 +117,11 @@ const Search: React.FC = () => {
                   className="block h-full overflow-hidden rounded-lg border bg-card shadow-sm transition-all hover:shadow-md"
                 >
                   <div className="aspect-video w-full overflow-hidden">
-                    <img
-                      src={getImageUrl(post.cover)}
+                    <SafeImage
+                      src={post.cover}
                       alt={post.title}
                       className="h-full w-full object-cover transition-transform hover:scale-105"
+                      loading="lazy"
                     />
                   </div>
                   <div className="p-4">
