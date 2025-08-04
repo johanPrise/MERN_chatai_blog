@@ -394,7 +394,7 @@ const CategoryPage: React.FC = () => {
                   <div className="group relative">
                     <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-emerald-500/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     <div className="relative">
-                      <Post post={post} className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02]" />
+                      <Post post={post} className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02]" showActions={true} />
                     </div>
                   </div>
                 </AnimateOnView>

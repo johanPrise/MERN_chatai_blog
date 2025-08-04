@@ -1,8 +1,13 @@
 import { Post } from '../models/post.model.js';
 import { Category } from '../models/category.model.js';
 import { isValidObjectId, generateSlug, extractExcerpt } from '../utils/index.js';
-import { CreatePostInput, UpdatePostInput, PostStatus, IPost, PostResponse } from '../types/post.types.js';
-
+import {
+  CreatePostInput,
+  UpdatePostInput,
+  PostStatus,
+  IPost,
+  PostResponse,
+} from '../types/post.types.js';
 
 /**
  * Service pour récupérer tous les articles (avec pagination et filtres)
@@ -118,6 +123,10 @@ export const getAllPosts = async (
     // Debug: Afficher la catégorie après traitement
     console.log('Post category after processing:', post._id, postObj.category);
 
+    // Normaliser les noms des champs pour le frontend
+    postObj.likes = post.likedBy || [];
+    postObj.dislikes = post.dislikedBy || [];
+
     return postObj;
   });
 
@@ -133,7 +142,11 @@ export const getAllPosts = async (
 /**
  * Service pour récupérer un article par ID ou slug
  */
-export const getPostByIdOrSlug = async (idOrSlug: string, currentUserId?: string, currentUserRole?: string) => {
+export const getPostByIdOrSlug = async (
+  idOrSlug: string,
+  currentUserId?: string,
+  currentUserRole?: string
+) => {
   // Construire la requête
   let query: any = {};
 
@@ -148,11 +161,11 @@ export const getPostByIdOrSlug = async (idOrSlug: string, currentUserId?: string
   }
 
   // Récupérer l'article
-  const post = await Post.findOne(query)
+  const post = (await Post.findOne(query)
     .populate('author', '_id username profilePicture')
-    .populate('categories', '_id name slug') as IPost & {
-      author: { _id: string; username: string; profilePicture?: string }
-    };
+    .populate('categories', '_id name slug')) as IPost & {
+    author: { _id: string; username: string; profilePicture?: string };
+  };
 
   // Vérifier si l'article existe
   if (!post) {
@@ -204,6 +217,10 @@ export const getPostByIdOrSlug = async (idOrSlug: string, currentUserId?: string
     postObj.isLiked = post.likedBy.includes(currentUserId);
   }
 
+  // Normaliser les noms des champs pour le frontend
+  postObj.likes = post.likedBy || [];
+  postObj.dislikes = post.dislikedBy || [];
+
   return postObj;
 };
 
@@ -235,7 +252,7 @@ export const createPost = async (postData: CreatePostInput, authorId: string) =>
     });
 
     if (categoryCount !== finalCategories.length) {
-      throw new Error('Une ou plusieurs catégories n\'existent pas');
+      throw new Error("Une ou plusieurs catégories n'existent pas");
     }
   }
 
@@ -283,7 +300,7 @@ export const updatePost = async (
   }
 
   // Récupérer l'article
-  const post = await Post.findById(id) as IPost;
+  const post = (await Post.findById(id)) as IPost;
 
   // Vérifier si l'article existe
   if (!post) {
@@ -296,7 +313,7 @@ export const updatePost = async (
   const isAdminOrEditor = currentUserRole === 'admin' || currentUserRole === 'editor';
 
   if (!isAuthor && !isAdminOrEditor) {
-    throw new Error('Vous n\'êtes pas autorisé à mettre à jour cet article');
+    throw new Error("Vous n'êtes pas autorisé à mettre à jour cet article");
   }
 
   // Si le titre est modifié, générer un nouveau slug
@@ -311,7 +328,11 @@ export const updatePost = async (
   }
 
   // Si le contenu est modifié et qu'il n'y a pas d'extrait fourni, générer un nouvel extrait
-  if (updateData.content && !updateData.excerpt && (!post.excerpt || updateData.content !== post.content)) {
+  if (
+    updateData.content &&
+    !updateData.excerpt &&
+    (!post.excerpt || updateData.content !== post.content)
+  ) {
     updateData.excerpt = extractExcerpt(updateData.content);
   }
 
@@ -328,7 +349,7 @@ export const updatePost = async (
   }
 
   // Compatibilité avec le frontend: si on reçoit 'category' au lieu de 'categories'
-  if (!(updateData.categories) && (updateData as any).category) {
+  if (!updateData.categories && (updateData as any).category) {
     // Si on reçoit une catégorie unique, la convertir en tableau
     updateData.categories = [(updateData as any).category];
     console.log('Update: Converted single category to array:', updateData.categories);
@@ -342,20 +363,20 @@ export const updatePost = async (
     });
 
     if (categoryCount !== updateData.categories.length) {
-      throw new Error('Une ou plusieurs catégories n\'existent pas');
+      throw new Error("Une ou plusieurs catégories n'existent pas");
     }
   }
 
   // Mettre à jour l'article
-  const updatedPost = await Post.findByIdAndUpdate(
+  const updatedPost = (await Post.findByIdAndUpdate(
     id,
     { $set: updateData },
     { new: true }
-  ) as IPost | null;
+  )) as IPost | null;
 
   // Vérifier si l'article a bien été mis à jour
   if (!updatedPost) {
-    throw new Error('Erreur lors de la mise à jour de l\'article');
+    throw new Error("Erreur lors de la mise à jour de l'article");
   }
 
   return {
@@ -369,14 +390,19 @@ export const updatePost = async (
 /**
  * Service pour supprimer un article (soft delete par défaut)
  */
-export const deletePost = async (id: string, currentUserId: string, currentUserRole: string, soft: boolean = true) => {
+export const deletePost = async (
+  id: string,
+  currentUserId: string,
+  currentUserRole: string,
+  soft: boolean = true
+) => {
   // Vérifier si l'ID est valide
   if (!isValidObjectId(id)) {
     throw new Error('ID article invalide');
   }
 
   // Récupérer l'article
-  const post = await Post.findById(id) as IPost;
+  const post = (await Post.findById(id)) as IPost;
 
   // Vérifier si l'article existe
   if (!post) {
@@ -394,7 +420,7 @@ export const deletePost = async (id: string, currentUserId: string, currentUserR
   const isAdminOrEditor = currentUserRole === 'admin' || currentUserRole === 'editor';
 
   if (!isAuthor && !isAdminOrEditor) {
-    throw new Error('Vous n\'êtes pas autorisé à supprimer cet article');
+    throw new Error("Vous n'êtes pas autorisé à supprimer cet article");
   }
 
   if (soft) {
@@ -426,37 +452,40 @@ export const likePost = async (id: string, userId: string) => {
   }
 
   // Récupérer l'article
-  const post = await Post.findById(id) as IPost;
+  const post = (await Post.findById(id)) as IPost;
 
   // Vérifier si l'article existe
   if (!post) {
     throw new Error('Article non trouvé');
   }
 
-  // Vérifier si l'utilisateur a déjà liké l'article
-    if (post.likedBy && post.likedBy.includes(userId)) {
-      // Si déjà liké, on retire le like
-      post.likedBy = post.likedBy.filter(id => id.toString() !== userId);
-      post.likeCount = Math.max(0, post.likeCount - 1);
-    } else {
-      // Sinon, on ajoute le like
-      if (!post.likedBy) post.likedBy = [];
-      post.likedBy.push(userId);
-      post.likeCount += 1;
+  const userHasLiked = post.likedBy && post.likedBy.includes(userId);
 
-      // Si l'utilisateur avait disliké, on retire le dislike
-      if (post.dislikedBy && post.dislikedBy.includes(userId)) {
-        post.dislikedBy = post.dislikedBy.filter(id => id.toString() !== userId);
-        post.dislikeCount = Math.max(0, (post.dislikeCount || 0) - 1);
-      }
-    }
+  // Si l'utilisateur avait disliké, on retire le dislike
+  if (post.dislikedBy && post.dislikedBy.includes(userId)) {
+    post.dislikedBy = post.dislikedBy.filter(
+      dislikeId => (dislikeId as any).toString() !== userId
+    );
+    post.dislikeCount = Math.max(0, (post.dislikeCount || 0) - 1);
+  }
 
-    await post.save();
+  if (userHasLiked) {
+    // Si déjà liké, on retire le like
+    post.likedBy = post.likedBy.filter(likeId => (likeId as any).toString() !== userId);
+    post.likeCount = Math.max(0, post.likeCount - 1);
+  } else {
+    // Sinon, on ajoute le like
+    if (!post.likedBy) post.likedBy = [];
+    post.likedBy.push(userId);
+    post.likeCount = (post.likeCount || 0) + 1;
+  }
 
-    return {
-      likes: post.likedBy || [],
-      dislikes: post.dislikedBy || [],
-    };
+  await post.save();
+
+  return {
+    likes: post.likedBy || [],
+    dislikes: post.dislikedBy || [],
+  };
 };
 
 /**
@@ -469,7 +498,7 @@ export const unlikePost = async (id: string, userId: string) => {
   }
 
   // Récupérer l'article
-  const post = await Post.findById(id) as IPost;
+  const post = (await Post.findById(id)) as IPost;
 
   // Vérifier si l'article existe
   if (!post) {
@@ -478,7 +507,7 @@ export const unlikePost = async (id: string, userId: string) => {
 
   // Vérifier si l'utilisateur a liké l'article
   if (!post.likedBy.includes(userId)) {
-    throw new Error('Vous n\'avez pas liké cet article');
+    throw new Error("Vous n'avez pas liké cet article");
   }
 
   // Retirer l'utilisateur de la liste des likes et décrémenter le compteur
@@ -503,29 +532,30 @@ export const dislikePost = async (id: string, userId: string) => {
   }
 
   // Récupérer l'article
-  const post = await Post.findById(id) as IPost;
+  const post = (await Post.findById(id)) as IPost;
 
   // Vérifier si l'article existe
   if (!post) {
     throw new Error('Article non trouvé');
   }
 
-  // Vérifier si l'utilisateur a déjà disliké l'article
-  if (post.dislikedBy && post.dislikedBy.includes(userId)) {
+  const userHasDisliked = post.dislikedBy && post.dislikedBy.includes(userId);
+
+  // Si l'utilisateur avait liké, on retire le like
+  if (post.likedBy && post.likedBy.includes(userId)) {
+    post.likedBy = post.likedBy.filter(likeId => (likeId as any).toString() !== userId);
+    post.likeCount = Math.max(0, post.likeCount - 1);
+  }
+
+  if (userHasDisliked) {
     // Si déjà disliké, on retire le dislike
-    post.dislikedBy = post.dislikedBy.filter(id => id.toString() !== userId);
+    post.dislikedBy = post.dislikedBy.filter(dislikeId => (dislikeId as any).toString() !== userId);
     post.dislikeCount = Math.max(0, (post.dislikeCount || 0) - 1);
   } else {
     // Sinon, on ajoute le dislike
     if (!post.dislikedBy) post.dislikedBy = [];
     post.dislikedBy.push(userId);
     post.dislikeCount = (post.dislikeCount || 0) + 1;
-
-    // Si l'utilisateur avait liké, on retire le like
-    if (post.likedBy && post.likedBy.includes(userId)) {
-      post.likedBy = post.likedBy.filter(id => id.toString() !== userId);
-      post.likeCount = Math.max(0, post.likeCount - 1);
-    }
   }
 
   await post.save();

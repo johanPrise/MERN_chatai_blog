@@ -41,11 +41,11 @@ export const getPostComments = async (
   }
 
   // Récupérer les commentaires avec pagination
-  const comments = await Comment.find(query)
+  const comments = (await Comment.find(query)
     .populate('author', '_id username profilePicture')
     .sort({ createdAt: -1 })
     .skip(skip)
-    .limit(limit) as IComment[];
+    .limit(limit)) as IComment[];
 
   // Compter le nombre total de commentaires
   const total = await Comment.countDocuments(query);
@@ -58,10 +58,10 @@ export const getPostComments = async (
 
   if (!parentId) {
     commentsWithReplies = await Promise.all(
-      comments.map(async (comment) => {
-        const replies = await Comment.find({ parent: comment._id })
+      comments.map(async comment => {
+        const replies = (await Comment.find({ parent: comment._id })
           .populate('author', '_id username profilePicture')
-          .sort({ createdAt: 1 }) as IComment[];
+          .sort({ createdAt: 1 })) as IComment[];
 
         // Ajouter les champs isLiked et isDisliked pour chaque réponse si l'utilisateur est connecté
         const repliesWithLikeStatus = replies.map(reply => {
@@ -70,6 +70,9 @@ export const getPostComments = async (
             replyObj.isLiked = reply.likedBy && reply.likedBy.includes(currentUserId);
             replyObj.isDisliked = reply.dislikedBy && reply.dislikedBy.includes(currentUserId);
           }
+          // Normaliser les noms des champs pour le frontend
+          replyObj.likes = replyObj.likedBy || [];
+          replyObj.dislikes = replyObj.dislikedBy || [];
           return replyObj;
         });
 
@@ -82,6 +85,10 @@ export const getPostComments = async (
           commentObj.isDisliked = comment.dislikedBy && comment.dislikedBy.includes(currentUserId);
         }
 
+        // Normaliser les noms des champs pour le frontend
+        commentObj.likes = commentObj.likedBy || [];
+        commentObj.dislikes = commentObj.dislikedBy || [];
+
         return commentObj;
       })
     );
@@ -93,6 +100,9 @@ export const getPostComments = async (
         commentObj.isLiked = comment.likedBy && comment.likedBy.includes(currentUserId);
         commentObj.isDisliked = comment.dislikedBy && comment.dislikedBy.includes(currentUserId);
       }
+      // Normaliser les noms des champs pour le frontend
+      commentObj.likes = commentObj.likedBy || [];
+      commentObj.dislikes = commentObj.dislikedBy || [];
       return commentObj;
     });
   }
@@ -116,7 +126,10 @@ export const getCommentById = async (id: string, currentUserId?: string) => {
   }
 
   // Récupérer le commentaire
-  const comment = await Comment.findById(id).populate('author', '_id username profilePicture') as IComment;
+  const comment = (await Comment.findById(id).populate(
+    'author',
+    '_id username profilePicture'
+  )) as IComment;
 
   // Vérifier si le commentaire existe
   if (!comment) {
@@ -131,6 +144,10 @@ export const getCommentById = async (id: string, currentUserId?: string) => {
     commentObj.isLiked = comment.likedBy && comment.likedBy.includes(currentUserId);
     commentObj.isDisliked = comment.dislikedBy && comment.dislikedBy.includes(currentUserId);
   }
+
+  // Normaliser les noms des champs pour le frontend
+  commentObj.likes = commentObj.likedBy || [];
+  commentObj.dislikes = commentObj.dislikedBy || [];
 
   return commentObj;
 };
@@ -158,14 +175,14 @@ export const createComment = async (commentData: CreateCommentInput, authorId: s
       throw new Error('ID commentaire parent invalide');
     }
 
-    const parentComment = await Comment.findById(parent) as IComment;
+    const parentComment = (await Comment.findById(parent)) as IComment;
     if (!parentComment) {
       throw new Error('Commentaire parent non trouvé');
     }
 
     // Vérifier que le commentaire parent appartient au même article
     if ((parentComment.post as any).toString() !== post) {
-      throw new Error('Le commentaire parent n\'appartient pas à cet article');
+      throw new Error("Le commentaire parent n'appartient pas à cet article");
     }
 
     // Empêcher les réponses imbriquées (pas de réponse à une réponse)
@@ -186,12 +203,17 @@ export const createComment = async (commentData: CreateCommentInput, authorId: s
   await newComment.save();
 
   // Récupérer le commentaire avec les informations de l'auteur
-  const populatedComment = await Comment.findById(newComment._id).populate(
+  const populatedComment = (await Comment.findById(newComment._id).populate(
     'author',
     '_id username profilePicture'
-  ) as IComment;
+  )) as IComment;
 
-  return populatedComment;
+  // Normaliser les noms des champs pour le frontend
+  const commentObj = populatedComment.toObject();
+  commentObj.likes = commentObj.likedBy || [];
+  commentObj.dislikes = commentObj.dislikedBy || [];
+
+  return commentObj;
 };
 
 /**
@@ -209,7 +231,7 @@ export const updateComment = async (
   }
 
   // Récupérer le commentaire
-  const comment = await Comment.findById(id) as IComment;
+  const comment = (await Comment.findById(id)) as IComment;
 
   // Vérifier si le commentaire existe
   if (!comment) {
@@ -221,7 +243,7 @@ export const updateComment = async (
   const isAdmin = currentUserRole === 'admin';
 
   if (!isAuthor && !isAdmin) {
-    throw new Error('Vous n\'êtes pas autorisé à mettre à jour ce commentaire');
+    throw new Error("Vous n'êtes pas autorisé à mettre à jour ce commentaire");
   }
 
   // Mettre à jour le commentaire
@@ -244,7 +266,7 @@ export const deleteComment = async (id: string, currentUserId: string, currentUs
   }
 
   // Récupérer le commentaire
-  const comment = await Comment.findById(id) as IComment;
+  const comment = (await Comment.findById(id)) as IComment;
 
   // Vérifier si le commentaire existe
   if (!comment) {
@@ -256,7 +278,7 @@ export const deleteComment = async (id: string, currentUserId: string, currentUs
   const isAdmin = currentUserRole === 'admin';
 
   if (!isAuthor && !isAdmin) {
-    throw new Error('Vous n\'êtes pas autorisé à supprimer ce commentaire');
+    throw new Error("Vous n'êtes pas autorisé à supprimer ce commentaire");
   }
 
   // Supprimer le commentaire
@@ -280,29 +302,32 @@ export const likeComment = async (id: string, userId: string) => {
   }
 
   // Récupérer le commentaire
-  const comment = await Comment.findById(id) as IComment;
+  const comment = (await Comment.findById(id)) as IComment;
 
   // Vérifier si le commentaire existe
   if (!comment) {
     throw new Error('Commentaire non trouvé');
   }
 
-  // Vérifier si l'utilisateur a déjà liké le commentaire
-  if (comment.likedBy && comment.likedBy.includes(userId)) {
+  const userHasLiked = comment.likedBy && comment.likedBy.includes(userId);
+
+  // Si l'utilisateur avait disliké, on retire le dislike
+  if (comment.dislikedBy && comment.dislikedBy.includes(userId)) {
+    comment.dislikedBy = comment.dislikedBy.filter(
+      dislikeId => (dislikeId as any).toString() !== userId
+    );
+    comment.dislikeCount = Math.max(0, (comment.dislikeCount || 0) - 1);
+  }
+
+  if (userHasLiked) {
     // Si déjà liké, on retire le like
-    comment.likedBy = comment.likedBy.filter(id => id.toString() !== userId);
+    comment.likedBy = comment.likedBy.filter(likeId => (likeId as any).toString() !== userId);
     comment.likeCount = Math.max(0, comment.likeCount - 1);
   } else {
     // Sinon, on ajoute le like
     if (!comment.likedBy) comment.likedBy = [];
     comment.likedBy.push(userId);
-    comment.likeCount += 1;
-
-    // Si l'utilisateur avait disliké, on retire le dislike
-    if (comment.dislikedBy && comment.dislikedBy.includes(userId)) {
-      comment.dislikedBy = comment.dislikedBy.filter(id => id.toString() !== userId);
-      comment.dislikeCount = Math.max(0, (comment.dislikeCount || 0) - 1);
-    }
+    comment.likeCount = (comment.likeCount || 0) + 1;
   }
 
   await comment.save();
@@ -323,7 +348,7 @@ export const unlikeComment = async (id: string, userId: string) => {
   }
 
   // Récupérer le commentaire
-  const comment = await Comment.findById(id) as IComment;
+  const comment = (await Comment.findById(id)) as IComment;
 
   // Vérifier si le commentaire existe
   if (!comment) {
@@ -332,7 +357,7 @@ export const unlikeComment = async (id: string, userId: string) => {
 
   // Vérifier si l'utilisateur a liké le commentaire
   if (!comment.likedBy.includes(userId)) {
-    throw new Error('Vous n\'avez pas liké ce commentaire');
+    throw new Error("Vous n'avez pas liké ce commentaire");
   }
 
   // Retirer l'utilisateur de la liste des likes et décrémenter le compteur
@@ -355,29 +380,32 @@ export const dislikeComment = async (id: string, userId: string) => {
   }
 
   // Récupérer le commentaire
-  const comment = await Comment.findById(id) as IComment;
+  const comment = (await Comment.findById(id)) as IComment;
 
   // Vérifier si le commentaire existe
   if (!comment) {
     throw new Error('Commentaire non trouvé');
   }
 
-  // Vérifier si l'utilisateur a déjà disliké le commentaire
-  if (comment.dislikedBy && comment.dislikedBy.includes(userId)) {
+  const userHasDisliked = comment.dislikedBy && comment.dislikedBy.includes(userId);
+
+  // Si l'utilisateur avait liké, on retire le like
+  if (comment.likedBy && comment.likedBy.includes(userId)) {
+    comment.likedBy = comment.likedBy.filter(likeId => (likeId as any).toString() !== userId);
+    comment.likeCount = Math.max(0, comment.likeCount - 1);
+  }
+
+  if (userHasDisliked) {
     // Si déjà disliké, on retire le dislike
-    comment.dislikedBy = comment.dislikedBy.filter(id => id.toString() !== userId);
+    comment.dislikedBy = comment.dislikedBy.filter(
+      dislikeId => (dislikeId as any).toString() !== userId
+    );
     comment.dislikeCount = Math.max(0, (comment.dislikeCount || 0) - 1);
   } else {
     // Sinon, on ajoute le dislike
     if (!comment.dislikedBy) comment.dislikedBy = [];
     comment.dislikedBy.push(userId);
     comment.dislikeCount = (comment.dislikeCount || 0) + 1;
-
-    // Si l'utilisateur avait liké, on retire le like
-    if (comment.likedBy && comment.likedBy.includes(userId)) {
-      comment.likedBy = comment.likedBy.filter(id => id.toString() !== userId);
-      comment.likeCount = Math.max(0, comment.likeCount - 1);
-    }
   }
 
   await comment.save();

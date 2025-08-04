@@ -31,14 +31,18 @@ const postSchema = new Schema<IPost>(
       ref: 'User',
       required: true,
     },
-    categories: [{
-      type: Schema.Types.ObjectId,
-      ref: 'Category',
-    }],
-    tags: [{
-      type: String,
-      trim: true,
-    }],
+    categories: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'Category',
+      },
+    ],
+    tags: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
     featuredImage: {
       type: String,
     },
@@ -55,18 +59,22 @@ const postSchema = new Schema<IPost>(
       type: Number,
       default: 0,
     },
-    likedBy: [{
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-    }],
+    likedBy: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
     dislikeCount: {
       type: Number,
       default: 0,
     },
-    dislikedBy: [{
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-    }],
+    dislikedBy: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
     commentCount: {
       type: Number,
       default: 0,
@@ -103,8 +111,9 @@ postSchema.index({ publishedAt: -1, createdAt: -1 }); // Index composé pour le 
 
 // Middleware pré-sauvegarde pour définir la date de publication
 postSchema.pre('save', function (next) {
-  if (this.isModified('status') && this.status === PostStatus.PUBLISHED && !this.publishedAt) {
-    this.publishedAt = new Date();
+  const doc = this as unknown as IPost;
+  if (this.isModified('status') && doc.status === PostStatus.PUBLISHED && !doc.publishedAt) {
+    doc.publishedAt = new Date();
   }
   next();
 });

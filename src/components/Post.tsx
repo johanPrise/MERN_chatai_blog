@@ -9,6 +9,7 @@ import { CalendarIcon, User2, Eye, Heart, MessageCircle, Share2, BookmarkPlus, E
 import { Post as PostType } from '../types/PostType'
 import React, { useState, useEffect } from "react"
 import { API_ENDPOINTS } from "../config/api.config"
+import { UserContext } from "../UserContext"
 import { AspectRatio } from "@radix-ui/react-aspect-ratio"
 import { useImageUrl, useImageWithFallback } from '../hooks/useImageUrl'
 
@@ -38,9 +39,8 @@ export default function Post({
   fixedHeight = true
 }: PostProps) {
   const { _id, title, summary, cover, author, createdAt } = post
-  // Récupérer l'ID de l'utilisateur actuel depuis localStorage
-  const userInfoStr = localStorage.getItem('userInfo')
-  const userInfo = userInfoStr ? JSON.parse(userInfoStr) : null
+  // Récupérer l'ID de l'utilisateur actuel depuis UserContext
+  const { userInfo } = UserContext()
   const userId = userInfo?.id
 
   // Initialiser l'état de like et dislike en fonction des données du post

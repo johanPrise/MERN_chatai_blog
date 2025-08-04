@@ -88,6 +88,13 @@ const hasUserLiked = (likes: any, userId: string | undefined): boolean => {
   return likes.includes(userId);
 }
 
+const hasUserDisliked = (dislikes: any, userId: string | undefined): boolean => {
+  if (!userId) return false;
+  if (!dislikes) return false;
+  if (!Array.isArray(dislikes)) return false;
+  return dislikes.includes(userId);
+}
+
 const PostPage = () => {
   // State for theme detection
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false)
@@ -769,7 +776,7 @@ const PostPage = () => {
         if (userInfo) {
           // Utiliser la fonction dédiée pour vérifier si l'utilisateur a aimé le post
           setUserLiked(hasUserLiked(post.likes, userInfo.id))
-          setUserDisliked(hasUserLiked(post.dislikes, userInfo.id))
+          setUserDisliked(hasUserDisliked(post.dislikes, userInfo.id))
         }
 
         await fetchComments()
@@ -974,7 +981,7 @@ const PostPage = () => {
           setLikes(Array.isArray(data.likes) ? data.likes.length : 0)
           setDislikes(Array.isArray(data.dislikes) ? data.dislikes.length : 0)
           setUserLiked(hasUserLiked(data.likes, userInfo?.id))
-          setUserDisliked(hasUserLiked(data.dislikes, userInfo?.id))
+          setUserDisliked(hasUserDisliked(data.dislikes, userInfo?.id))
           
           setPostInteraction({
             isLoading: false,
@@ -1071,7 +1078,7 @@ const PostPage = () => {
           setLikes(Array.isArray(data.likes) ? data.likes.length : 0)
           setDislikes(Array.isArray(data.dislikes) ? data.dislikes.length : 0)
           setUserLiked(hasUserLiked(data.likes, userInfo?.id))
-          setUserDisliked(hasUserLiked(data.dislikes, userInfo?.id))
+          setUserDisliked(hasUserDisliked(data.dislikes, userInfo?.id))
           
           setPostInteraction({
             isLoading: false,

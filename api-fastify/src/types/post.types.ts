@@ -32,6 +32,10 @@ export interface IPost extends Document {
   createdAt: Date;
   updatedAt: Date;
   publishedAt?: Date;
+  // Soft delete fields
+  isDeleted: boolean;
+  deletedAt?: Date;
+  deletedBy?: IUser['_id'];
 }
 
 /**
@@ -75,4 +79,7 @@ export type PostResponse = Omit<IPost, 'likedBy'> & {
     name: string;
     slug: string;
   } | null;
+  // Champs normalisés pour le frontend
+  likes?: IUser['_id'][];
+  dislikes?: IUser['_id'][];
 };
