@@ -10,10 +10,21 @@ const postSchema = new Schema<IPost>(
       minlength: 3,
       maxlength: 200,
     },
+    // Legacy plain content (optional during transition)
     content: {
       type: String,
-      required: true,
+      required: false,
     },
+    // New block-based content (flexible structure)
+    contentBlocks: [
+      new Schema(
+        {
+          type: { type: String, required: true },
+          data: { type: Schema.Types.Mixed, required: true },
+        },
+        { _id: false }
+      ),
+    ],
     excerpt: {
       type: String,
       trim: true,
@@ -46,6 +57,16 @@ const postSchema = new Schema<IPost>(
     featuredImage: {
       type: String,
     },
+    coverImage: {
+      url: { type: String },
+      alt: { type: String },
+    },
+    images: [
+      {
+        url: { type: String },
+        alt: { type: String },
+      },
+    ],
     status: {
       type: String,
       enum: Object.values(PostStatus),
@@ -55,20 +76,12 @@ const postSchema = new Schema<IPost>(
       type: Number,
       default: 0,
     },
-    likeCount: {
-      type: Number,
-      default: 0,
-    },
     likedBy: [
       {
         type: Schema.Types.ObjectId,
         ref: 'User',
       },
     ],
-    dislikeCount: {
-      type: Number,
-      default: 0,
-    },
     dislikedBy: [
       {
         type: Schema.Types.ObjectId,

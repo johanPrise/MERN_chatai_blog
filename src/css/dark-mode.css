@@ -1,0 +1,92 @@
+/* Mode sombre pour ReactQuill */
+.dark .ql-toolbar {
+  border-color: #374151 !important;
+  background-color: #1f2937 !important;
+}
+
+.dark .ql-container {
+  border-color: #374151 !important;
+  background-color: #111827 !important;
+}
+
+.dark .ql-editor {
+  background-color: #111827 !important;
+  color: #f9fafb !important;
+}
+
+.dark .ql-editor.ql-blank::before {
+  color: #9ca3af !important;
+}
+
+.dark .ql-toolbar .ql-stroke {
+  stroke: #d1d5db !important;
+}
+
+.dark .ql-toolbar .ql-fill {
+  fill: #d1d5db !important;
+}
+
+.dark .ql-toolbar button {
+  color: #d1d5db !important;
+}
+
+.dark .ql-toolbar button:hover {
+  background-color: #374151 !important;
+}
+
+.dark .ql-toolbar button:hover .ql-stroke {
+  stroke: #f9fafb !important;
+}
+
+.dark .ql-toolbar button:hover .ql-fill {
+  fill: #f9fafb !important;
+}
+
+.dark .ql-toolbar button.ql-active {
+  background-color: #065f46 !important;
+}
+
+.dark .ql-toolbar button.ql-active .ql-stroke {
+  stroke: #10b981 !important;
+}
+
+.dark .ql-toolbar button.ql-active .ql-fill {
+  fill: #10b981 !important;
+}
+
+.dark .ql-picker {
+  color: #d1d5db !important;
+}
+
+.dark .ql-picker-options {
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+}
+
+.dark .ql-picker-item {
+  color: #d1d5db !important;
+}
+
+.dark .ql-picker-item:hover {
+  background-color: #374151 !important;
+  color: #f9fafb !important;
+}
+
+/* Chatbot mode sombre */
+.dark .chatbot-container {
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+}
+
+.dark .chatbot-header {
+  background-color: #065f46 !important;
+}
+
+.dark .chatbot-message-user {
+  background-color: #065f46 !important;
+}
+
+.dark .chatbot-message-bot {
+  background-color: #374151 !important;
+  color: #f9fafb !important;
+}

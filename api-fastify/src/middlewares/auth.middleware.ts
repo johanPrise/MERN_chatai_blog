@@ -116,7 +116,7 @@ export const authMiddleware = authenticate;
  * Middleware d'authentification optionnelle
  * N'interrompt pas la requête si l'utilisateur n'est pas authentifié
  */
-export const optionalAuthMiddleware = async (request: FastifyRequest, reply: FastifyReply) => {
+export const optionalAuthMiddleware = async (request: FastifyRequest, _reply: FastifyReply) => {
   try {
     // Essayer de vérifier le token JWT
     await request.jwtVerify();

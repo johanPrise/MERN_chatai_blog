@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useGlobalErrorHandler } from './useGlobalErrorHandler';
+import { API_ENDPOINTS } from '../config/api.config';
 
 interface ImageUploadState {
   isUploading: boolean;
@@ -132,9 +133,9 @@ export const useImageHandler = (): UseImageHandlerReturn => {
           return null;
         }
 
-        // Create form data
+        // Create form data (backend expects 'file')
         const formData = new FormData();
-        formData.append('image', file);
+        formData.append('file', file);
 
         // Upload with progress tracking
         const xhr = new XMLHttpRequest();
@@ -152,7 +153,14 @@ export const useImageHandler = (): UseImageHandlerReturn => {
               try {
                 const response = JSON.parse(xhr.responseText);
                 setUploadState({ isUploading: false, progress: 100, error: null });
-                resolve(response.imageUrl || response.url);
+                // Prefer new structured urls, fallback to legacy fields
+                const url: string | null =
+                  (response.urls && (response.urls.optimized || response.urls.original)) ||
+                  response.url ||
+                  (response.data && response.data.url) ||
+                  response.imageUrl ||
+                  null;
+                resolve(url);
               } catch (parseError) {
                 handleImageError(file.name, {
                   context: {
@@ -221,7 +229,8 @@ export const useImageHandler = (): UseImageHandlerReturn => {
             resolve(null);
           });
 
-          xhr.open('POST', '/api/upload/image');
+          xhr.open('POST', API_ENDPOINTS.uploads.file);
+          xhr.withCredentials = true;
           xhr.timeout = 30000; // 30 seconds timeout
           xhr.send(formData);
         });

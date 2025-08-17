@@ -34,13 +34,16 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.14.0",
     "nanoid": "^5.1.5",
-    "nodemailer": "^6.10.1"
+    "nodemailer": "^6.10.1",
+    "redis": "^5.8.1",
+    "sharp": "^0.34.3"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
     "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^22.15.3",
     "@types/nodemailer": "^6.4.17",
+    "@types/sharp": "^0.31.1",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
     "@typescript-eslint/parser": "^8.31.1",
     "eslint": "^9.25.1",

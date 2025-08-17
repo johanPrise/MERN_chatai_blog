@@ -1,6 +1,8 @@
-import React from "react"
+import React, { useEffect } from "react"
 import { Routes, Route, useLocation } from "react-router-dom"
 import "./css/App.css"
+import "./css/dark-mode.css"
+import { initializeTheme } from "./lib/themeDetector"
 
 // Pages
 import Home from "./pages/Home"
@@ -37,6 +39,11 @@ function App(): React.ReactElement {
   const location = useLocation()
   // On masque le Header général sur la route /admin pour afficher uniquement AdminHeader dans AdminDashboard
   const isAdminRoute = location.pathname.startsWith("/admin")
+
+  // Initialiser le thème au chargement
+  useEffect(() => {
+    initializeTheme()
+  }, [])
   
   return (
     <ErrorProvider>

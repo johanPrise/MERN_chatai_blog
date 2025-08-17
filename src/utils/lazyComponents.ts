@@ -83,26 +83,10 @@ export const Pages = {
 
 // Lazy load heavy components
 export const Components = {
-  PostEditor: createLazyComponent(
-    () =>
-      import('../features/posts/components/PostEditor').then(module => ({
-        default: module.PostEditor,
-      })),
-    undefined
-  ),
-
   PostForm: createLazyComponent(
     () =>
       import('../features/posts/components/PostForm').then(module => ({
         default: module.PostForm,
-      })),
-    undefined
-  ),
-
-  MarkdownEditor: createLazyComponent(
-    () =>
-      import('../features/posts/components/PostEditor/MarkdownEditor').then(module => ({
-        default: module.MarkdownEditor,
       })),
     undefined
   ),
@@ -128,12 +112,10 @@ export const preloadOnInteraction = {
   createPost: () => {
     import('../features/posts/pages/CreatePost').catch(console.error);
     import('../features/posts/components/PostForm').catch(console.error);
-    import('../features/posts/components/PostEditor/MarkdownEditor').catch(console.error);
   },
 
   editPost: () => {
     import('../features/posts/pages/EditPost').catch(console.error);
-    import('../features/posts/components/PostEditor').catch(console.error);
   },
 
   viewDrafts: () => {

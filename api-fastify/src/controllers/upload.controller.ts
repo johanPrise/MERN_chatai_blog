@@ -42,17 +42,25 @@ export const uploadFile = async (request: FileUploadRequest, reply: FastifyReply
       });
     }
 
-    // Sauvegarder le fichier
-    const filePath = await UploadService.saveFile(file);
+    // Sauvegarder le fichier + dérivés
+    const saved = await UploadService.saveImageFile(file);
 
-    // Construire l'URL complète
-    const baseUrl = `${request.protocol}://${request.hostname}`;
-    const fileUrl = `${baseUrl}${filePath}`;
+    // Construire l'URL complète avec le port
+    const port = process.env.PORT || 4200;
+    const baseUrl = `${request.protocol}://${request.hostname}:${port}`;
+    const fileUrl = `${baseUrl}${saved.url}`;
+    const optimizedUrl = `${baseUrl}${saved.optimizedUrl}`;
+    const thumbnailUrl = `${baseUrl}${saved.thumbnailUrl}`;
 
-    // Retourner la réponse
+    // Retourner la réponse (rétrocompatibilité: "url")
     return reply.status(200).send({
       message: 'Fichier uploadé avec succès',
       url: fileUrl,
+      urls: {
+        original: fileUrl,
+        optimized: optimizedUrl,
+        thumbnail: thumbnailUrl,
+      }
     });
   } catch (error) {
     request.log.error(error);
@@ -82,17 +90,25 @@ export const uploadBase64Image = async (request: Base64UploadRequest, reply: Fas
       });
     }
 
-    // Sauvegarder l'image
-    const filePath = await UploadService.saveBase64Image(data, filename);
+    // Sauvegarder l'image + dérivés
+    const saved = await UploadService.saveBase64ImageDetailed(data, filename);
 
-    // Construire l'URL complète
-    const baseUrl = `${request.protocol}://${request.hostname}`;
-    const fileUrl = `${baseUrl}${filePath}`;
+    // Construire l'URL complète avec le port
+    const port = process.env.PORT || 4200;
+    const baseUrl = `${request.protocol}://${request.hostname}:${port}`;
+    const fileUrl = `${baseUrl}${saved.url}`;
+    const optimizedUrl = `${baseUrl}${saved.optimizedUrl}`;
+    const thumbnailUrl = `${baseUrl}${saved.thumbnailUrl}`;
 
-    // Retourner la réponse
+    // Retourner la réponse (rétrocompatibilité: "url")
     return reply.status(200).send({
       message: 'Image uploadée avec succès',
       url: fileUrl,
+      urls: {
+        original: fileUrl,
+        optimized: optimizedUrl,
+        thumbnail: thumbnailUrl,
+      }
     });
   } catch (error) {
     request.log.error(error);

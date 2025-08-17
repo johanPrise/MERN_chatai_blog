@@ -7,6 +7,9 @@ import path from 'path';
 import { connectDB } from './config/database.js';
 import { registerRoutes } from './routes/index.js';
 import { initEmailTransporter } from './services/email.service.js';
+import { logger } from './services/logger.service.js';
+import { errorLoggerMiddleware } from './middlewares/error-logger.middleware.js';
+import { cache } from './services/cache.service.js';
 
 /**
  * Construit et configure le serveur Fastify
@@ -24,6 +27,7 @@ export async function buildServer(): Promise<FastifyInstance> {
         },
       },
     },
+    bodyLimit: 10 * 1024 * 1024, // 10MB pour les images base64
   });
 
   // Configurer CORS
@@ -107,8 +111,14 @@ export async function buildServer(): Promise<FastifyInstance> {
   // Connecter à la base de données
   await connectDB();
 
+  // Initialiser Redis
+  await cache.connect();
+
   // Initialiser le transporteur d'emails
   initEmailTransporter();
+
+  // Middleware de logging des erreurs
+  server.addHook('onRequest', errorLoggerMiddleware);
 
   // Enregistrer les routes
   registerRoutes(server);
@@ -124,7 +134,17 @@ export async function buildServer(): Promise<FastifyInstance> {
   });
 
   // Gestionnaire d'erreur global
-  server.setErrorHandler((error, _request, reply) => {
+  server.setErrorHandler((error, request, reply) => {
+    logger.error(
+      `Unhandled error: ${error.message}`,
+      error,
+      {
+        userId: (request as any).user?.id,
+        endpoint: `${request.method} ${request.url}`,
+        ip: request.ip
+      }
+    );
+    
     server.log.error(error);
     reply.status(500).send({
       message: 'Une erreur est survenue sur le serveur',

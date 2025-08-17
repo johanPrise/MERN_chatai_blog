@@ -55,6 +55,9 @@ export const getPostComments = async (
 
   // Si on récupère les commentaires de premier niveau, récupérer également leurs réponses
   let commentsWithReplies = comments;
+  
+  console.log('getPostComments - currentUserId:', currentUserId);
+  console.log('getPostComments - comments count:', comments.length);
 
   if (!parentId) {
     commentsWithReplies = await Promise.all(
@@ -66,28 +69,37 @@ export const getPostComments = async (
         // Ajouter les champs isLiked et isDisliked pour chaque réponse si l'utilisateur est connecté
         const repliesWithLikeStatus = replies.map(reply => {
           const replyObj = reply.toObject();
-          if (currentUserId) {
-            replyObj.isLiked = reply.likedBy && reply.likedBy.includes(currentUserId);
-            replyObj.isDisliked = reply.dislikedBy && reply.dislikedBy.includes(currentUserId);
-          }
           // Normaliser les noms des champs pour le frontend
-          replyObj.likes = replyObj.likedBy || [];
-          replyObj.dislikes = replyObj.dislikedBy || [];
+          replyObj.likes = (replyObj.likedBy || []).map((id: unknown) => String(id));
+          replyObj.dislikes = (replyObj.dislikedBy || []).map((id: unknown) => String(id));
+          // Dériver les compteurs
+          replyObj.likeCount = replyObj.likes.length;
+          replyObj.dislikeCount = replyObj.dislikes.length;
+          
+          if (currentUserId) {
+            replyObj.isLiked = replyObj.likes.includes(currentUserId);
+            replyObj.isDisliked = replyObj.dislikes.includes(currentUserId);
+          }
           return replyObj;
         });
 
         const commentObj = comment.toObject();
         commentObj.replies = repliesWithLikeStatus;
 
+        // Normaliser les noms des champs pour le frontend
+        commentObj.likes = (commentObj.likedBy || []).map((id: unknown) => String(id));
+        commentObj.dislikes = (commentObj.dislikedBy || []).map((id: unknown) => String(id));
+        // Dériver les compteurs
+        commentObj.likeCount = commentObj.likes.length;
+        commentObj.dislikeCount = commentObj.dislikes.length;
+        
         // Ajouter les champs isLiked et isDisliked pour le commentaire si l'utilisateur est connecté
         if (currentUserId) {
-          commentObj.isLiked = comment.likedBy && comment.likedBy.includes(currentUserId);
-          commentObj.isDisliked = comment.dislikedBy && comment.dislikedBy.includes(currentUserId);
+          commentObj.isLiked = commentObj.likes.includes(currentUserId);
+          commentObj.isDisliked = commentObj.dislikes.includes(currentUserId);
         }
-
-        // Normaliser les noms des champs pour le frontend
-        commentObj.likes = commentObj.likedBy || [];
-        commentObj.dislikes = commentObj.dislikedBy || [];
+        
+        console.log(`Comment ${comment._id} - likedBy:`, comment.likedBy, 'dislikedBy:', comment.dislikedBy, 'normalized likes:', commentObj.likes, 'normalized dislikes:', commentObj.dislikes);
 
         return commentObj;
       })
@@ -96,13 +108,17 @@ export const getPostComments = async (
     // Ajouter les champs isLiked et isDisliked pour chaque commentaire si l'utilisateur est connecté
     commentsWithReplies = comments.map(comment => {
       const commentObj = comment.toObject();
-      if (currentUserId) {
-        commentObj.isLiked = comment.likedBy && comment.likedBy.includes(currentUserId);
-        commentObj.isDisliked = comment.dislikedBy && comment.dislikedBy.includes(currentUserId);
-      }
       // Normaliser les noms des champs pour le frontend
-      commentObj.likes = commentObj.likedBy || [];
-      commentObj.dislikes = commentObj.dislikedBy || [];
+      commentObj.likes = (commentObj.likedBy || []).map((id: unknown) => String(id));
+      commentObj.dislikes = (commentObj.dislikedBy || []).map((id: unknown) => String(id));
+      // Dériver les compteurs
+      commentObj.likeCount = commentObj.likes.length;
+      commentObj.dislikeCount = commentObj.dislikes.length;
+      
+      if (currentUserId) {
+        commentObj.isLiked = commentObj.likes.includes(currentUserId);
+        commentObj.isDisliked = commentObj.dislikes.includes(currentUserId);
+      }
       return commentObj;
     });
   }
@@ -139,15 +155,15 @@ export const getCommentById = async (id: string, currentUserId?: string) => {
   // Convertir en objet pour pouvoir ajouter des propriétés
   const commentObj = comment.toObject();
 
+  // Normaliser les noms des champs pour le frontend
+  commentObj.likes = (commentObj.likedBy || []).map((id: unknown) => String(id));
+  commentObj.dislikes = (commentObj.dislikedBy || []).map((id: unknown) => String(id));
+
   // Ajouter les champs isLiked et isDisliked si l'utilisateur est connecté
   if (currentUserId) {
-    commentObj.isLiked = comment.likedBy && comment.likedBy.includes(currentUserId);
-    commentObj.isDisliked = comment.dislikedBy && comment.dislikedBy.includes(currentUserId);
+    commentObj.isLiked = commentObj.likes.includes(currentUserId);
+    commentObj.isDisliked = commentObj.dislikes.includes(currentUserId);
   }
-
-  // Normaliser les noms des champs pour le frontend
-  commentObj.likes = commentObj.likedBy || [];
-  commentObj.dislikes = commentObj.dislikedBy || [];
 
   return commentObj;
 };
@@ -210,8 +226,8 @@ export const createComment = async (commentData: CreateCommentInput, authorId: s
 
   // Normaliser les noms des champs pour le frontend
   const commentObj = populatedComment.toObject();
-  commentObj.likes = commentObj.likedBy || [];
-  commentObj.dislikes = commentObj.dislikedBy || [];
+  commentObj.likes = (commentObj.likedBy || []).map((id: unknown) => String(id));
+  commentObj.dislikes = (commentObj.dislikedBy || []).map((id: unknown) => String(id));
 
   return commentObj;
 };
@@ -292,126 +308,25 @@ export const deleteComment = async (id: string, currentUserId: string, currentUs
   return true;
 };
 
+import { SimpleReactionService } from './simple-reaction.service.js';
+
 /**
  * Service pour liker un commentaire
  */
 export const likeComment = async (id: string, userId: string) => {
-  // Vérifier si l'ID est valide
-  if (!isValidObjectId(id)) {
-    throw new Error('ID commentaire invalide');
-  }
-
-  // Récupérer le commentaire
-  const comment = (await Comment.findById(id)) as IComment;
-
-  // Vérifier si le commentaire existe
-  if (!comment) {
-    throw new Error('Commentaire non trouvé');
-  }
-
-  const userHasLiked = comment.likedBy && comment.likedBy.includes(userId);
-
-  // Si l'utilisateur avait disliké, on retire le dislike
-  if (comment.dislikedBy && comment.dislikedBy.includes(userId)) {
-    comment.dislikedBy = comment.dislikedBy.filter(
-      dislikeId => (dislikeId as any).toString() !== userId
-    );
-    comment.dislikeCount = Math.max(0, (comment.dislikeCount || 0) - 1);
-  }
-
-  if (userHasLiked) {
-    // Si déjà liké, on retire le like
-    comment.likedBy = comment.likedBy.filter(likeId => (likeId as any).toString() !== userId);
-    comment.likeCount = Math.max(0, comment.likeCount - 1);
-  } else {
-    // Sinon, on ajoute le like
-    if (!comment.likedBy) comment.likedBy = [];
-    comment.likedBy.push(userId);
-    comment.likeCount = (comment.likeCount || 0) + 1;
-  }
-
-  await comment.save();
-
-  return {
-    likes: comment.likedBy || [],
-    dislikes: comment.dislikedBy || [],
-  };
-};
-
-/**
- * Service pour unliker un commentaire
- */
-export const unlikeComment = async (id: string, userId: string) => {
-  // Vérifier si l'ID est valide
-  if (!isValidObjectId(id)) {
-    throw new Error('ID commentaire invalide');
-  }
-
-  // Récupérer le commentaire
-  const comment = (await Comment.findById(id)) as IComment;
-
-  // Vérifier si le commentaire existe
-  if (!comment) {
-    throw new Error('Commentaire non trouvé');
-  }
-
-  // Vérifier si l'utilisateur a liké le commentaire
-  if (!comment.likedBy.includes(userId)) {
-    throw new Error("Vous n'avez pas liké ce commentaire");
-  }
-
-  // Retirer l'utilisateur de la liste des likes et décrémenter le compteur
-  comment.likedBy = comment.likedBy.filter((likeId: any) => likeId.toString() !== userId);
-  comment.likeCount -= 1;
-  await comment.save();
-
-  return {
-    likeCount: comment.likeCount,
-  };
+  return await SimpleReactionService.likeComment(id, userId);
 };
 
 /**
  * Service pour disliker un commentaire
  */
 export const dislikeComment = async (id: string, userId: string) => {
-  // Vérifier si l'ID est valide
-  if (!isValidObjectId(id)) {
-    throw new Error('ID commentaire invalide');
-  }
+  return await SimpleReactionService.dislikeComment(id, userId);
+};
 
-  // Récupérer le commentaire
-  const comment = (await Comment.findById(id)) as IComment;
-
-  // Vérifier si le commentaire existe
-  if (!comment) {
-    throw new Error('Commentaire non trouvé');
-  }
-
-  const userHasDisliked = comment.dislikedBy && comment.dislikedBy.includes(userId);
-
-  // Si l'utilisateur avait liké, on retire le like
-  if (comment.likedBy && comment.likedBy.includes(userId)) {
-    comment.likedBy = comment.likedBy.filter(likeId => (likeId as any).toString() !== userId);
-    comment.likeCount = Math.max(0, comment.likeCount - 1);
-  }
-
-  if (userHasDisliked) {
-    // Si déjà disliké, on retire le dislike
-    comment.dislikedBy = comment.dislikedBy.filter(
-      dislikeId => (dislikeId as any).toString() !== userId
-    );
-    comment.dislikeCount = Math.max(0, (comment.dislikeCount || 0) - 1);
-  } else {
-    // Sinon, on ajoute le dislike
-    if (!comment.dislikedBy) comment.dislikedBy = [];
-    comment.dislikedBy.push(userId);
-    comment.dislikeCount = (comment.dislikeCount || 0) + 1;
-  }
-
-  await comment.save();
-
-  return {
-    likes: comment.likedBy || [],
-    dislikes: comment.dislikedBy || [],
-  };
+/**
+ * Service pour unliker un commentaire
+ */
+export const unlikeComment = async (id: string, userId: string) => {
+  return await SimpleReactionService.unlikeComment(id, userId);
 };

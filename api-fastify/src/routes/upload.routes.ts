@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import * as UploadController from '../controllers/upload.controller.js';
 import { authenticate } from '../middlewares/auth.middleware.js';
+// Note: le traitement d'image est géré dans le contrôleur/service
 
 /**
  * Routes pour les uploads
@@ -12,11 +13,28 @@ export async function uploadRoutes(fastify: FastifyInstance): Promise<void> {
     '/file',
     {
       preHandler: [authenticate],
+      schema: {
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              message: { type: 'string' },
+              url: { type: 'string' },
+              urls: {
+                type: 'object',
+                properties: {
+                  original: { type: 'string' },
+                  optimized: { type: 'string' },
+                  thumbnail: { type: 'string' }
+                }
+              }
+            }
+          }
+        }
+      }
     },
-    async (request, reply) => {
-      // @ts-ignore - Ignorer les erreurs de typage pour cette route
-      return UploadController.uploadFile(request, reply);
-    }
+    // Délégation au contrôleur
+    (request, reply) => UploadController.uploadFile(request as any, reply)
   );
 
   // Route pour l'upload d'image en base64 (authentifié)
@@ -32,13 +50,27 @@ export async function uploadRoutes(fastify: FastifyInstance): Promise<void> {
             filename: { type: 'string' },
             data: { type: 'string' }
           }
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              message: { type: 'string' },
+              url: { type: 'string' },
+              urls: {
+                type: 'object',
+                properties: {
+                  original: { type: 'string' },
+                  optimized: { type: 'string' },
+                  thumbnail: { type: 'string' }
+                }
+              }
+            }
+          }
         }
       }
     },
-    async (request, reply) => {
-      // @ts-ignore - Ignorer les erreurs de typage pour cette route
-      return UploadController.uploadBase64Image(request, reply);
-    }
+    (request, reply) => UploadController.uploadBase64Image(request as any, reply)
   );
 
   // Route de test pour vérifier que les fichiers sont correctement servis

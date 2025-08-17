@@ -31,6 +31,13 @@ export async function commentRoutes(fastify: FastifyInstance): Promise<void> {
     '/post/:post',
     {
       schema: getCommentsSchema,
+      preHandler: [async (request, _reply) => {
+        try {
+          await request.jwtVerify();
+        } catch (error) {
+          // Authentification optionnelle - continuer même si pas connecté
+        }
+      }],
     },
     CommentController.getComments
   );

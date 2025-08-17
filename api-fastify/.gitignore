@@ -18,8 +18,8 @@ build/
 .env.production.local
 
 # Fichiers de logs
-logs/
-*.log
+logs/*.log
+!logs/.gitkeep
 
 # Fichiers système
 .DS_Store

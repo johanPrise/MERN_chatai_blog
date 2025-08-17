@@ -122,18 +122,25 @@ export function MediaUpload({
 
     let extractedUrl: string | null = null;
 
+    // Nouveau format structuré: { urls: { original, optimized?, thumbnail? } }
+    if (response.urls) {
+      extractedUrl = response.urls.optimized || response.urls.original || null;
+      if (extractedUrl) {
+        console.log('🔗 URL extraite depuis urls:', extractedUrl);
+      }
+    }
     // Format du serveur actuel: { message: "...", url: "..." }
-    if (response.url) {
+    if (!extractedUrl && response.url) {
       extractedUrl = response.url;
       console.log('🔗 URL extraite directement:', extractedUrl);
     }
     // Format alternatif avec success et data
-    else if (response.success && response.data?.url) {
+    else if (!extractedUrl && response.success && response.data?.url) {
       extractedUrl = response.data.url;
       console.log('🔗 URL extraite depuis data:', extractedUrl);
     }
     // Autres formats possibles
-    else if (response.data && typeof response.data === 'string') {
+    else if (!extractedUrl && response.data && typeof response.data === 'string') {
       extractedUrl = response.data;
       console.log('🔗 URL extraite comme string:', extractedUrl);
     }

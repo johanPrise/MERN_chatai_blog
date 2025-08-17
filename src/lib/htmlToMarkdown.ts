@@ -63,9 +63,10 @@ export function htmlToMarkdown(html: string): string {
   // Handle ordered lists
   markdown = markdown.replace(/<ol[^>]*>(.*?)<\/ol>/gi, function(match, content) {
     let index = 1;
-    return content.replace(/<li[^>]*>(.*?)<\/li>/gi, function(match, item) {
-      return (index++) + '. ' + item + '\n';
-    }) + '\n';
+    const listItems = content.replace(/<li[^>]*>(.*?)<\/li>/gi, function(match, item) {
+      return (index++) + '. ' + item.trim() + '\n';
+    });
+    return listItems + '\n';
   });
 
   // Handle links

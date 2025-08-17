@@ -2,7 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import Settings from '../models/settings.model.js';
 
 // GET /api/settings
-export const getSettings = async (req: FastifyRequest, reply: FastifyReply) => {
+export const getSettings = async (_req: FastifyRequest, reply: FastifyReply) => {
   try {
     let settings = await Settings.findOne();
     if (!settings) {

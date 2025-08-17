@@ -40,6 +40,14 @@ export const getCommentsSchema: FastifySchema = {
                 },
               },
               parent: { type: 'string', nullable: true },
+              likes: {
+                type: 'array',
+                items: { type: 'string' },
+              },
+              dislikes: {
+                type: 'array',
+                items: { type: 'string' },
+              },
               likeCount: { type: 'number' },
               dislikeCount: { type: 'number' },
               isLiked: { type: 'boolean', nullable: true },
@@ -63,6 +71,14 @@ export const getCommentsSchema: FastifySchema = {
                       },
                     },
                     parent: { type: 'string' },
+                    likes: {
+                      type: 'array',
+                      items: { type: 'string' },
+                    },
+                    dislikes: {
+                      type: 'array',
+                      items: { type: 'string' },
+                    },
                     likeCount: { type: 'number' },
                     dislikeCount: { type: 'number' },
                     isLiked: { type: 'boolean', nullable: true },
@@ -120,6 +136,14 @@ export const getCommentSchema: FastifySchema = {
               },
             },
             parent: { type: 'string', nullable: true },
+            likes: {
+              type: 'array',
+              items: { type: 'string' },
+            },
+            dislikes: {
+              type: 'array',
+              items: { type: 'string' },
+            },
             likeCount: { type: 'number' },
             dislikeCount: { type: 'number' },
             isLiked: { type: 'boolean', nullable: true },
@@ -172,6 +196,14 @@ export const createCommentSchema: FastifySchema = {
               },
             },
             parent: { type: 'string', nullable: true },
+            likes: {
+              type: 'array',
+              items: { type: 'string' },
+            },
+            dislikes: {
+              type: 'array',
+              items: { type: 'string' },
+            },
             likeCount: { type: 'number' },
             createdAt: { type: 'string', format: 'date-time' },
             updatedAt: { type: 'string', format: 'date-time' },
@@ -304,6 +336,10 @@ export const likeCommentSchema: FastifySchema = {
           type: 'array',
           items: { type: 'string' },
         },
+        likeCount: { type: 'number' },
+        dislikeCount: { type: 'number' },
+        isLiked: { type: 'boolean' },
+        isDisliked: { type: 'boolean' },
       },
     },
     400: {
@@ -337,7 +373,18 @@ export const unlikeCommentSchema: FastifySchema = {
       type: 'object',
       properties: {
         message: { type: 'string' },
+        likes: {
+          type: 'array',
+          items: { type: 'string' },
+        },
+        dislikes: {
+          type: 'array',
+          items: { type: 'string' },
+        },
         likeCount: { type: 'number' },
+        dislikeCount: { type: 'number' },
+        isLiked: { type: 'boolean' },
+        isDisliked: { type: 'boolean' },
       },
     },
     400: {
@@ -379,6 +426,10 @@ export const dislikeCommentSchema: FastifySchema = {
           type: 'array',
           items: { type: 'string' },
         },
+        likeCount: { type: 'number' },
+        dislikeCount: { type: 'number' },
+        isLiked: { type: 'boolean' },
+        isDisliked: { type: 'boolean' },
       },
     },
     400: {

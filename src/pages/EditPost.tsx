@@ -3,26 +3,26 @@
 // src/pages/EditPost.tsx
 import React from "react"
 import { useState, useEffect, type FormEvent } from "react"
-import Editor from "../components/Editor.tsx"
+import TiptapBlockEditor from "../features/posts/components/BlockEditor/TiptapBlockEditor"
+import type { ContentBlock } from "../features/posts/types/post.types"
 import { useParams, Navigate, Link } from "react-router-dom"
 import { UserContext } from "../UserContext"
 
 import { AlertCircle, ArrowLeft, Loader2, CheckCircle } from "lucide-react"
 import "../css/App.css"
-import "react-quill/dist/quill.snow.css"
 import { API_ENDPOINTS } from "../config/api.config"
 
 // Form field validation
 const validateForm = (
   title: string,
   summary: string,
-  content: string
+  contentBlocks: ContentBlock[]
 ): { isValid: boolean; errors: string[] } => {
   const errors: string[] = []
 
   if (!title.trim()) errors.push("Title is required")
   if (!summary.trim()) errors.push("Summary is required")
-  if (!content.trim()) errors.push("Content is required")
+  if (!contentBlocks || contentBlocks.length === 0) errors.push("Content is required")
 
   return {
     isValid: errors.length === 0,
@@ -39,7 +39,9 @@ const EditPost: React.FC = () => {
   // Form state
   const [title, setTitle] = useState<string>("")
   const [summary, setSummary] = useState<string>("")
+  // Legacy markdown content kept for backward compat logging only
   const [content, setContent] = useState<string>("")
+  const [contentBlocks, setContentBlocks] = useState<ContentBlock[]>([])
   const [coverUrl, setCoverUrl] = useState<string>("")
   const [coverUrlInput, setCoverUrlInput] = useState<string>("")
   const [useUrl, setUseUrl] = useState<boolean>(false)
@@ -151,6 +153,8 @@ const EditPost: React.FC = () => {
 
         const data = await response.json()
         console.log("Post data:", data)
+        console.log("API Response status:", response.status)
+        console.log("API URL called:", API_ENDPOINTS.posts.detail(id))
 
         // Vérifier si la réponse contient un objet 'post' ou si c'est directement les données du post
         const postInfo = data.post || data
@@ -161,16 +165,16 @@ const EditPost: React.FC = () => {
         }
 
         setTitle(postInfo.title || "")
-        setSummary(postInfo.summary || "")
+        setSummary(postInfo.summary || postInfo.excerpt || "")
         setContent(postInfo.content || "")
+        setContentBlocks(postInfo.contentBlocks || [])
         setCoverUrl(postInfo.cover || "")
         setPreviewImage(postInfo.cover || null)
 
         // Debug logging
         console.log("Setting content for editing:", {
           contentLength: postInfo.content?.length || 0,
-          contentPreview: postInfo.content?.substring(0, 200) || "",
-          isMarkdown: !postInfo.content?.includes('<') || false
+          hasBlocks: Array.isArray(postInfo.contentBlocks) && postInfo.contentBlocks.length > 0,
         })
 
         // Si le post a une catégorie, la sélectionner
@@ -181,7 +185,8 @@ const EditPost: React.FC = () => {
         }
       } catch (error) {
         console.error("Error fetching post data:", error)
-        setErrorMessage("Failed to load post data. Please try again later.")
+        console.error("API URL:", API_ENDPOINTS.posts.detail(id))
+        setErrorMessage(`Failed to load post data: ${error instanceof Error ? error.message : 'Unknown error'}`)
       } finally {
         setIsLoading(false)
       }
@@ -223,22 +228,31 @@ const EditPost: React.FC = () => {
       const reader = new FileReader()
       reader.onloadend = async () => {
         const base64String = typeof reader.result === "string"
-          ? reader.result.replace(/^data:.+;base64,/, "")
+          ? reader.result
           : ""
         try {
+          console.log("Uploading to:", API_ENDPOINTS.uploads.base64)
+          console.log("Request body:", { filename: file.name, dataLength: base64String.length })
           const response = await fetch(API_ENDPOINTS.uploads.base64, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ filename: file.name, data: base64String }),
             credentials: "include",
           })
-          if (!response.ok) throw new Error("Upload failed")
+          
+          console.log("Upload response status:", response.status)
           const data = await response.json()
-          setCoverUrl(data.url)
+          console.log("Upload response data:", data)
+          
+          if (!response.ok) throw new Error(data.message || "Upload failed")
+          
+          const newImageUrl = data.url || data.filename
+          setCoverUrl(newImageUrl)
+          setPreviewImage(newImageUrl)
           alert("Image uploaded successfully")
         } catch (error) {
           console.error("Error uploading image:", error)
-          alert("Failed to upload image")
+          alert(`Failed to upload image: ${error instanceof Error ? error.message : 'Unknown error'}`)
         } finally {
           setIsUploading(false)
         }
@@ -266,7 +280,7 @@ const EditPost: React.FC = () => {
     }
 
     // Validate form
-    const validation = validateForm(title, summary, content)
+    const validation = validateForm(title, summary, contentBlocks)
 
     if (!validation.isValid) {
       setValidationErrors(validation.errors)
@@ -295,7 +309,8 @@ const EditPost: React.FC = () => {
       console.log("Sending update request with data:", {
         title,
         summary,
-        content,
+        content: '',
+        contentBlocks,
         cover: finalCoverUrl,
         category: selectedCategory
       })
@@ -308,7 +323,8 @@ const EditPost: React.FC = () => {
         body: JSON.stringify({
           title,
           summary,
-          content,
+          content: '',
+          contentBlocks,
           cover: finalCoverUrl,
           category: selectedCategory
         }),
@@ -511,9 +527,10 @@ const EditPost: React.FC = () => {
                 Content
               </label>
               <div className="min-h-[300px]">
-                <Editor
-                  onChange={setContent}
-                  value={content}
+                <TiptapBlockEditor
+                  value={contentBlocks}
+                  onChange={setContentBlocks}
+                  placeholder="Write your post with formatting, images, and links..."
                 />
               </div>
             </div>

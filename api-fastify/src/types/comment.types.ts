@@ -10,9 +10,7 @@ export interface IComment extends Document {
   post: IPost['_id'];
   author: IUser['_id'];
   parent?: IComment['_id'];
-  likeCount: number;
   likedBy: IUser['_id'][];
-  dislikeCount: number;
   dislikedBy: IUser['_id'][];
   createdAt: Date;
   updatedAt: Date;

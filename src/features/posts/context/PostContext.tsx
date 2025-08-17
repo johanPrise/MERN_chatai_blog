@@ -253,6 +253,16 @@ export function PostProvider({ children }: PostProviderProps) {
       clearErrors();
 
       const result = await apiService.createPost(data);
+      try {
+        const cb = (result as any)?.data?.contentBlocks;
+        console.debug('[PostContext] createPost result summary', {
+          success: result?.success,
+          id: (result as any)?.data?.id || (result as any)?.data?._id,
+          contentBlocks: Array.isArray(cb)
+            ? { length: cb.length, types: cb.map((b: any) => b?.type) }
+            : cb,
+        });
+      } catch {}
       
       if (result.success && result.data) {
         dispatch({ type: 'ADD_POST', payload: result.data });
@@ -281,6 +291,16 @@ export function PostProvider({ children }: PostProviderProps) {
       clearErrors();
 
       const result = await apiService.updatePost(id, data);
+      try {
+        const cb = (result as any)?.data?.contentBlocks;
+        console.debug('[PostContext] updatePost result summary', {
+          success: result?.success,
+          id: (result as any)?.data?.id || (result as any)?.data?._id,
+          contentBlocks: Array.isArray(cb)
+            ? { length: cb.length, types: cb.map((b: any) => b?.type) }
+            : cb,
+        });
+      } catch {}
       
       if (result.success && result.data) {
         dispatch({ type: 'UPDATE_POST', payload: result.data });

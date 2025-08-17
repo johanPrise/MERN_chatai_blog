@@ -3,8 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { Link, useNavigate, useLocation } from "react-router-dom"
 import { UserContext } from "../UserContext"
-import { ThemeToggle } from "./ui/theme-toggle"
-import { ColorThemeToggle } from "./ui/color-theme-toggle"
+import ThemeToggle from "./ThemeToggle"
 import { Button } from "./ui/button"
 import { Container } from "./ui/container"
 import {
@@ -291,8 +290,7 @@ const Header = () => {
             </div>
 
             <div className="flex items-center gap-2">
-              <ColorThemeToggle />
-              <ThemeToggle />
+              <ThemeToggle showLabel={false} />
 
               {username ? (
                 <DropdownMenu>
@@ -590,8 +588,7 @@ const Header = () => {
                 )}
 
                 <div className="flex justify-center gap-4 p-3 border-t">
-                  <ColorThemeToggle />
-                  <ThemeToggle />
+                  <ThemeToggle showLabel={true} />
                 </div>
               </div>
             </Container>

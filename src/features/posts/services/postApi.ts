@@ -71,26 +71,41 @@ export class PostApiService {
         throw new Error(`Failed to fetch posts: ${response.status}`);
       }
 
-      const result = await response.json();
-      
-      // Transform _id to id for frontend compatibility in posts array
-      if (result.data && result.data.posts && Array.isArray(result.data.posts)) {
-        result.data.posts = result.data.posts.map((post: any) => {
-          if (post._id) {
-            post.id = post._id;
-          }
-          return post;
-        });
-      } else if (result.posts && Array.isArray(result.posts)) {
-        result.posts = result.posts.map((post: any) => {
-          if (post._id) {
-            post.id = post._id;
-          }
-          return post;
-        });
-      }
-      
-      return result;
+      const raw = await response.json();
+
+      // Extract posts array from either { posts, total, page, ... } or { data: { posts, ... } }
+      const postsArray: any[] = (raw?.data?.posts ?? raw?.posts ?? []);
+      const normalizedPosts = Array.isArray(postsArray)
+        ? postsArray.map((post: any) => {
+            if (post && post._id && !post.id) post.id = post._id;
+            if (post && post.author && post.author._id && !post.author.id) {
+              post.author.id = post.author._id;
+            }
+            return post;
+          })
+        : [];
+
+      // Build pagination info from either nesting or top-level
+      const page = raw?.data?.page ?? raw?.page ?? request.page ?? 1;
+      const limit = raw?.data?.limit ?? raw?.limit ?? request.limit ?? 10;
+      const total = raw?.data?.total ?? raw?.total ?? normalizedPosts.length;
+      const totalPages = raw?.data?.totalPages ?? raw?.totalPages ?? Math.max(1, Math.ceil(total / limit));
+
+      return {
+        success: true,
+        data: {
+          posts: normalizedPosts,
+          pagination: {
+            total,
+            page,
+            limit,
+            pages: totalPages,
+            hasNext: page < totalPages,
+            hasPrev: page > 1,
+          },
+          filters: request.filters || {},
+        },
+      };
     } catch (error) {
       console.error('Error fetching posts:', error);
       throw this.handleError(error);
@@ -117,6 +132,10 @@ export class PostApiService {
       // Transform _id to id for frontend compatibility
       if (postData && postData._id) {
         postData.id = postData._id;
+      }
+      // Normalize author object to have author.id
+      if (postData && postData.author && postData.author._id && !postData.author.id) {
+        postData.author.id = postData.author._id;
       }
       
       return postData;
@@ -154,6 +173,10 @@ export class PostApiService {
       // Transform _id to id for frontend compatibility
       if (postData && postData._id) {
         postData.id = postData._id;
+      }
+      // Normalize author object to have author.id
+      if (postData && postData.author && postData.author._id && !postData.author.id) {
+        postData.author.id = postData.author._id;
       }
       
       return {
@@ -197,6 +220,10 @@ export class PostApiService {
       // Transform _id to id for frontend compatibility
       if (postData && postData._id) {
         postData.id = postData._id;
+      }
+      // Normalize author object to have author.id
+      if (postData && postData.author && postData.author._id && !postData.author.id) {
+        postData.author.id = postData.author._id;
       }
       
       return {
@@ -432,6 +459,10 @@ export class PostApiService {
       // Transform _id to id for frontend compatibility
       if (postData && postData._id) {
         postData.id = postData._id;
+      }
+      // Normalize author object to have author.id
+      if (postData && postData.author && postData.author._id && !postData.author.id) {
+        postData.author.id = postData.author._id;
       }
       
       return {

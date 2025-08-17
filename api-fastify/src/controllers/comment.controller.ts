@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { isValidObjectId } from '../utils/index.js';
 import { CreateCommentInput, UpdateCommentInput } from '../types/comment.types.js';
 import * as CommentService from '../services/comment.service.js';
+import { Comment } from '../models/comment.model.js';
 
 /**
  * Contrôleur pour récupérer les commentaires d'un article
@@ -24,7 +25,11 @@ export const getComments = async (
     const { parent } = request.query;
     const page = request.query.page || 1;
     const limit = request.query.limit || 10;
-    const currentUserId = request.user?._id;
+    const currentUserId = request.user?._id?.toString();
+    
+    console.log('getComments - currentUserId:', currentUserId);
+    console.log('getComments - post:', post);
+    console.log('getComments - user object:', request.user);
 
     // Vérifier si l'ID de l'article est valide
     if (!isValidObjectId(post)) {
@@ -80,7 +85,7 @@ export const getComment = async (
 ) => {
   try {
     const { id } = request.params;
-    const currentUserId = request.user?._id;
+    const currentUserId = request.user?._id?.toString();
 
     // Vérifier si l'ID est valide
     if (!isValidObjectId(id)) {
@@ -312,11 +317,20 @@ export const likeComment = async (
       // Utiliser le service pour liker le commentaire
       const result = await CommentService.likeComment(id, userId);
 
+      // Invalider le cache des commentaires (centralisé) en résolvant le postId
+      try {
+        const doc = await Comment.findById(id).select('post');
+        const postId = doc?.post?.toString() || '';
+        const { invalidateCommentsCache } = await import('../utils/cache-invalidation.js');
+        await invalidateCommentsCache(postId);
+      } catch (e) {
+        request.log.warn('Cache invalidation failed (likeComment): %s', (e as Error).message);
+      }
+      
       // Retourner la réponse
       return reply.status(200).send({
-        message: 'Commentaire liké avec succès',
-        likes: result.likes,
-        dislikes: result.dislikes,
+        message: 'Réaction mise à jour avec succès',
+        ...result
       });
     } catch (error) {
       if (error instanceof Error) {
@@ -366,10 +380,20 @@ export const unlikeComment = async (
       // Utiliser le service pour unliker le commentaire
       const result = await CommentService.unlikeComment(id, userId);
 
-      // Retourner la réponse
+      // Invalider le cache des commentaires (centralisé) en résolvant le postId
+      try {
+        const doc = await Comment.findById(id).select('post');
+        const postId = doc?.post?.toString() || '';
+        const { invalidateCommentsCache } = await import('../utils/cache-invalidation.js');
+        await invalidateCommentsCache(postId);
+      } catch (e) {
+        request.log.warn('Cache invalidation failed (unlikeComment): %s', (e as Error).message);
+      }
+
+      // Retourner la réponse complète avec les données de réaction
       return reply.status(200).send({
         message: 'Commentaire unliké avec succès',
-        likeCount: result.likeCount,
+        ...result
       });
     } catch (error) {
       if (error instanceof Error) {
@@ -419,11 +443,20 @@ export const dislikeComment = async (
       // Utiliser le service pour disliker le commentaire
       const result = await CommentService.dislikeComment(id, userId);
 
+      // Invalider le cache des commentaires (centralisé) en résolvant le postId
+      try {
+        const doc = await Comment.findById(id).select('post');
+        const postId = doc?.post?.toString() || '';
+        const { invalidateCommentsCache } = await import('../utils/cache-invalidation.js');
+        await invalidateCommentsCache(postId);
+      } catch (e) {
+        request.log.warn('Cache invalidation failed (dislikeComment): %s', (e as Error).message);
+      }
+      
       // Retourner la réponse
       return reply.status(200).send({
-        message: 'Commentaire disliké avec succès',
-        likes: result.likes,
-        dislikes: result.dislikes,
+        message: 'Réaction mise à jour avec succès',
+        ...result
       });
     } catch (error) {
       if (error instanceof Error) {

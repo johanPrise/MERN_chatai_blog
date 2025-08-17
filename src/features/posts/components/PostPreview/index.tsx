@@ -3,17 +3,23 @@
  * Displays a preview of the post as it would appear when published
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { X, Calendar, User, Tag, Eye, Clock } from 'lucide-react';
 import { cn } from '../../../../lib/utils';
 import MarkdownRenderer from '../../../../components/MarkdownRenderer';
 import { getImageUrl } from '../../../../config/api.config';
 import SafeImage from '../../../../components/SafeImage';
+import { EditorContent, useEditor } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Image from '@tiptap/extension-image';
+import Link from '@tiptap/extension-link';
+import type { ContentBlock } from '../../types/post.types';
 
 interface PostPreviewProps {
   title: string;
   summary: string;
   content: string;
+  contentBlocks?: ContentBlock[];
   coverImage?: string;
   tags?: string[];
   categoryName?: string;
@@ -25,6 +31,7 @@ export function PostPreview({
   title,
   summary,
   content,
+  contentBlocks = [],
   coverImage,
   tags = [],
   categoryName,
@@ -39,12 +46,48 @@ export function PostPreview({
     return getImageUrl(url);
   };
 
-  const formatReadingTime = (content: string) => {
+  // Extract plain text from a Tiptap JSON document
+  const extractTextFromDoc = (doc: any): string => {
+    if (!doc) return '';
+    const texts: string[] = [];
+    const walk = (node: any) => {
+      if (!node) return;
+      if (node.type === 'text' && node.text) {
+        texts.push(node.text);
+      }
+      if (Array.isArray(node.content)) {
+        node.content.forEach(walk);
+      }
+    };
+    walk(doc);
+    return texts.join(' ');
+  };
+
+  const tiptapDoc = useMemo(() => {
+    const block = contentBlocks.find(b => b.type === 'tiptap');
+    // We expect the tiptap block to store { data: { doc } }
+    const doc = block?.data?.doc || block?.data || null;
+    return doc ?? null;
+  }, [contentBlocks]);
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Link,
+      Image,
+    ],
+    editable: false,
+    content: tiptapDoc || undefined,
+  });
+
+  const formatReadingTime = (markdownOrText: string) => {
     const wordsPerMinute = 200;
-    const words = content.split(/\s+/).length;
+    const words = markdownOrText.split(/\s+/).length;
     const minutes = Math.ceil(words / wordsPerMinute);
     return `${minutes} min de lecture`;
   };
+
+  const readingSource = tiptapDoc ? extractTextFromDoc(tiptapDoc) : content;
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -123,7 +166,7 @@ export function PostPreview({
                 </div>
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4" />
-                  <span>{formatReadingTime(content)}</span>
+                  <span>{formatReadingTime(readingSource)}</span>
                 </div>
               </div>
 
@@ -145,7 +188,9 @@ export function PostPreview({
 
             {/* Article Content */}
             <div className="prose prose-lg dark:prose-invert max-w-none">
-              {content ? (
+              {tiptapDoc ? (
+                editor ? <EditorContent editor={editor} /> : null
+              ) : content ? (
                 <MarkdownRenderer content={content} />
               ) : (
                 <div className="text-gray-500 dark:text-gray-400 italic text-center py-12">

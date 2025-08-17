@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import * as PostController from '../controllers/post.controller.js';
-import { authenticate } from '../middlewares/auth.middleware.js';
+import { authenticate, optionalAuthMiddleware } from '../middlewares/auth.middleware.js';
+import { cacheMiddleware } from '../middlewares/cache.middleware.js';
 import {
   getPostsSchema,
   getPostSchema,
@@ -9,6 +10,7 @@ import {
   deletePostSchema,
   likePostSchema,
   unlikePostSchema,
+  dislikePostSchema,
 } from '../schemas/post.schema.js';
 
 /**
@@ -31,6 +33,7 @@ export async function postRoutes(fastify: FastifyInstance): Promise<void> {
     '/',
     {
       schema: getPostsSchema,
+      preHandler: [optionalAuthMiddleware, cacheMiddleware(600)], // Auth optionnelle + Cache 10 minutes
     },
     PostController.getPosts
   );
@@ -42,6 +45,7 @@ export async function postRoutes(fastify: FastifyInstance): Promise<void> {
     '/:idOrSlug',
     {
       schema: getPostSchema,
+      preHandler: [optionalAuthMiddleware, cacheMiddleware(300)], // Auth optionnelle + Cache 5 minutes
     },
     PostController.getPost
   );
@@ -113,7 +117,7 @@ export async function postRoutes(fastify: FastifyInstance): Promise<void> {
   }>(
     '/:id/dislike',
     {
-      schema: likePostSchema, // Réutiliser le même schéma que like
+      schema: dislikePostSchema,
       preHandler: [authenticate],
     },
     PostController.dislikePost

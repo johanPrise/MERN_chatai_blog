@@ -19,6 +19,7 @@ import {
   Reply, Heart, ThumbsDown, AlertCircle, CheckCircle
 } from "lucide-react"
 import AnimateOnView from "../components/AnimateOnView"
+import CommentReactions from "../components/CommentReactions"
 import { ActionStatus } from "../types/Action"
 import { Post, Comment } from "../types/PostType"
 import "../css/markdown.css"
@@ -26,6 +27,10 @@ import "../css/theme-overrides.css"
 // Import highlight.js for syntax highlighting
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github.css'
+import { EditorContent, useEditor } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
+import Image from '@tiptap/extension-image'
+import LinkExtension from '@tiptap/extension-link'
 
 // Helper to extract the category name safely
 const getCategoryName = (post: Post | null): string => {
@@ -126,6 +131,83 @@ const PostPage = () => {
   const [isSubmittingComment, setIsSubmittingComment] = useState(false)
   const [commentActionStates, setCommentActionStates] = useState<CommentActionStates>({})
 
+  // Tiptap read-only rendering for block content (if present)
+  const tiptapDoc = React.useMemo(() => {
+    const blocks: any[] = (postInfo as any)?.contentBlocks || []
+    if (!Array.isArray(blocks) || blocks.length === 0) return null
+    const block = blocks.find((b) => b && b.type === 'tiptap')
+    const data = block?.data
+    const doc = (data && (data.doc ?? data)) || null
+    return doc ?? null
+  }, [postInfo])
+
+  const tiptapEditor = useEditor({
+    extensions: [StarterKit, LinkExtension, Image],
+    editable: false,
+    content: tiptapDoc || undefined,
+  })
+
+  // TOC support for Tiptap: collect headings and assign ids after render
+  const tiptapContainerRef = React.useRef<HTMLDivElement>(null)
+
+  const slugify = (text: string): string =>
+    text
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+
+  const tiptapHeadings = React.useMemo(() => {
+    if (!tiptapDoc) return [] as { id: string; text: string; level: number }[]
+    const result: { id: string; text: string; level: number }[] = []
+    const extractText = (node: any): string => {
+      if (!node) return ''
+      if (node.type === 'text' && typeof node.text === 'string') return node.text
+      const content = Array.isArray(node.content) ? node.content : []
+      return content.map(extractText).join(' ')
+    }
+    const visit = (node: any) => {
+      if (!node) return
+      if (node.type === 'heading') {
+        const level = Number(node.attrs?.level || 1)
+        const text = extractText(node).replace(/\s+/g, ' ').trim()
+        const id = slugify(text)
+        result.push({ id, text, level })
+      }
+      const content = Array.isArray(node.content) ? node.content : []
+      content.forEach(visit)
+    }
+    visit(tiptapDoc)
+    return result
+  }, [tiptapDoc])
+
+  // Debug: log derived doc
+  React.useEffect(() => {
+    try {
+      const blocks: any[] = (postInfo as any)?.contentBlocks || []
+      const summary = Array.isArray(blocks) ? { length: blocks.length, types: blocks.map((b) => b?.type) } : blocks
+      console.debug('[PostPage] derived tiptapDoc', {
+        postId: (postInfo as any)?.id || (postInfo as any)?._id,
+        hasDoc: !!tiptapDoc,
+        blocks: summary,
+      })
+    } catch {}
+  }, [postInfo, tiptapDoc])
+
+  React.useEffect(() => {
+    if (!tiptapDoc) return
+    // After content renders, assign ids to headings based on our TOC
+    const el = tiptapContainerRef.current
+    if (!el) return
+    const headings = el.querySelectorAll('h1, h2, h3')
+    headings.forEach((h) => {
+      const text = (h.textContent || '').replace(/\s+/g, ' ').trim()
+      const id = slugify(text)
+      if (id) h.id = id
+    })
+  }, [tiptapDoc, tiptapEditor])
+
   // Content filtering
   const { filterContent, testContent } = useSimpleContentFilter()
   const [commentWarnings, setCommentWarnings] = useState<string[]>([])
@@ -161,7 +243,9 @@ const PostPage = () => {
     try {
       setErrorMessage(null)
       console.log('Fetching comments for post:', id)
-      const response = await fetch(API_ENDPOINTS.comments.byPost(id))
+      const response = await fetch(API_ENDPOINTS.comments.byPost(id), {
+        credentials: 'include',
+      })
 
       if (!response.ok) {
         throw new Error(`Failed to fetch comments: ${response.status}`)
@@ -192,17 +276,21 @@ const PostPage = () => {
         return true
       })
 
-      // S'assurer que tous les commentaires ont les champs nécessaires
-      const commentsWithDefaults = fetchedComments.map(comment => ({
-        ...comment,
-        likes: Array.isArray(comment.likes) ? comment.likes : [],
-        dislikes: Array.isArray(comment.dislikes) ? comment.dislikes : [],
-        replies: Array.isArray(comment.replies) ? comment.replies.map(reply => ({
-          ...reply,
-          likes: Array.isArray(reply.likes) ? reply.likes : [],
-          dislikes: Array.isArray(reply.dislikes) ? reply.dislikes : []
-        })) : []
-      }))
+      // S'assurer que tous les commentaires et réponses (à tous les niveaux) ont les champs nécessaires
+      const normalizeComment = (c: any): Comment => {
+        console.log(`Comment ${c?._id} - likes:`, c?.likes, 'dislikes:', c?.dislikes)
+        const normalized: any = {
+          ...c,
+          likes: Array.isArray(c?.likes) ? c.likes : [],
+          dislikes: Array.isArray(c?.dislikes) ? c.dislikes : [],
+          replies: Array.isArray(c?.replies)
+            ? c.replies.map((reply: any) => normalizeComment(reply))
+            : []
+        }
+        return normalized as Comment
+      }
+
+      const commentsWithDefaults = fetchedComments.map((comment) => normalizeComment(comment))
 
       console.log('Processed comments (after deduplication and defaults):', commentsWithDefaults)
       setComments(commentsWithDefaults)
@@ -228,205 +316,7 @@ const PostPage = () => {
     }))
   }
 
-  /**
-   * Like a comment
-   * @param commentId - ID of the comment to like
-   */
-  const handleLikeComment = async (commentId: string) => {
-    if (!userInfo) {
-      setErrorMessage("Vous devez être connecté pour aimer un commentaire")
-      return
-    }
 
-    // Prevent multiple submissions
-    if (commentActionStates[commentId]?.status === "loading") return
-
-    updateCommentActionState(commentId, "loading")
-
-    // Store original comment state for rollback
-    const originalComment = comments.find(c => c._id === commentId)
-    if (!originalComment) {
-      updateCommentActionState(commentId, "error", "Comment not found")
-      return
-    }
-
-    const originalLikes = Array.isArray(originalComment.likes) ? [...originalComment.likes] : []
-    const originalDislikes = Array.isArray(originalComment.dislikes) ? [...originalComment.dislikes] : []
-
-    // Optimistic update
-    const userHasLiked = originalLikes.includes(userInfo.id)
-    const userHasDisliked = originalDislikes.includes(userInfo.id)
-    
-    const optimisticLikes = userHasLiked 
-      ? originalLikes.filter(id => id !== userInfo.id)
-      : [...originalLikes, userInfo.id]
-    
-    const optimisticDislikes = userHasDisliked 
-      ? originalDislikes.filter(id => id !== userInfo.id)
-      : originalDislikes.filter(id => id !== userInfo.id) // Remove dislike when liking
-
-    // Apply optimistic update
-    setComments(prevComments =>
-      prevComments.map(comment =>
-        comment._id === commentId
-          ? { ...comment, likes: optimisticLikes, dislikes: optimisticDislikes }
-          : comment
-      )
-    )
-
-    try {
-      const response = await fetch(`${API_ENDPOINTS.comments.like(commentId)}`, {
-        method: "POST",
-        credentials: "include",
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        // Update with server data to ensure consistency
-        setComments(prevComments =>
-          prevComments.map(comment =>
-            comment._id === commentId
-              ? {
-                  ...comment,
-                  likes: Array.isArray(data.likes) ? data.likes : [],
-                  dislikes: Array.isArray(data.dislikes) ? data.dislikes : []
-                }
-              : comment
-          )
-        )
-        updateCommentActionState(commentId, "success")
-        setSuccessMessage("Commentaire aimé avec succès")
-        setTimeout(() => setSuccessMessage(null), 3000)
-      } else {
-        // Rollback on API error
-        setComments(prevComments =>
-          prevComments.map(comment =>
-            comment._id === commentId
-              ? { ...comment, likes: originalLikes, dislikes: originalDislikes }
-              : comment
-          )
-        )
-        const errorMessage = data.message || "Erreur lors de l'action d'aimer le commentaire"
-        updateCommentActionState(commentId, "error", errorMessage)
-        setErrorMessage(errorMessage)
-        console.warn("Erreur lors du like du commentaire:", data.message)
-      }
-    } catch (error) {
-      // Rollback on network error
-      setComments(prevComments =>
-        prevComments.map(comment =>
-          comment._id === commentId
-            ? { ...comment, likes: originalLikes, dislikes: originalDislikes }
-            : comment
-        )
-      )
-      const errorMessage = error instanceof Error ? error.message : "Erreur de connexion lors de l'action d'aimer le commentaire"
-      updateCommentActionState(commentId, "error", errorMessage)
-      setErrorMessage(errorMessage)
-      console.error("Erreur lors de l'action d'aimer le commentaire:", error)
-    }
-  }
-
-  /**
-   * Dislike a comment
-   * @param commentId - ID of the comment to dislike
-   */
-  const handleDislikeComment = async (commentId: string) => {
-    if (!userInfo) {
-      setErrorMessage("Vous devez être connecté pour ne pas aimer un commentaire")
-      return
-    }
-
-    // Prevent multiple submissions
-    if (commentActionStates[commentId]?.status === "loading") return
-
-    updateCommentActionState(commentId, "loading")
-
-    // Store original comment state for rollback
-    const originalComment = comments.find(c => c._id === commentId)
-    if (!originalComment) {
-      updateCommentActionState(commentId, "error", "Comment not found")
-      return
-    }
-
-    const originalLikes = Array.isArray(originalComment.likes) ? [...originalComment.likes] : []
-    const originalDislikes = Array.isArray(originalComment.dislikes) ? [...originalComment.dislikes] : []
-
-    // Optimistic update
-    const userHasLiked = originalLikes.includes(userInfo.id)
-    const userHasDisliked = originalDislikes.includes(userInfo.id)
-    
-    const optimisticLikes = userHasLiked 
-      ? originalLikes.filter(id => id !== userInfo.id) // Remove like when disliking
-      : originalLikes.filter(id => id !== userInfo.id)
-    
-    const optimisticDislikes = userHasDisliked 
-      ? originalDislikes.filter(id => id !== userInfo.id)
-      : [...originalDislikes, userInfo.id]
-
-    // Apply optimistic update
-    setComments(prevComments =>
-      prevComments.map(comment =>
-        comment._id === commentId
-          ? { ...comment, likes: optimisticLikes, dislikes: optimisticDislikes }
-          : comment
-      )
-    )
-
-    try {
-      const response = await fetch(`${API_ENDPOINTS.comments.dislike(commentId)}`, {
-        method: "POST",
-        credentials: "include",
-      })
-
-      const data = await response.json()
-
-      if (response.ok) {
-        // Update with server data to ensure consistency
-        setComments(prevComments =>
-          prevComments.map(comment =>
-            comment._id === commentId
-              ? {
-                  ...comment,
-                  likes: Array.isArray(data.likes) ? data.likes : [],
-                  dislikes: Array.isArray(data.dislikes) ? data.dislikes : []
-                }
-              : comment
-          )
-        )
-        updateCommentActionState(commentId, "success")
-        setSuccessMessage("Commentaire disliké avec succès")
-        setTimeout(() => setSuccessMessage(null), 3000)
-      } else {
-        // Rollback on API error
-        setComments(prevComments =>
-          prevComments.map(comment =>
-            comment._id === commentId
-              ? { ...comment, likes: originalLikes, dislikes: originalDislikes }
-              : comment
-          )
-        )
-        const errorMessage = data.message || "Erreur lors de l'action de ne pas aimer le commentaire"
-        updateCommentActionState(commentId, "error", errorMessage)
-        setErrorMessage(errorMessage)
-        console.warn("Erreur lors du dislike du commentaire:", data.message)
-      }
-    } catch (error) {
-      // Rollback on network error
-      setComments(prevComments =>
-        prevComments.map(comment =>
-          comment._id === commentId
-            ? { ...comment, likes: originalLikes, dislikes: originalDislikes }
-            : comment
-        )
-      )
-      const errorMessage = error instanceof Error ? error.message : "Erreur de connexion lors de l'action de ne pas aimer le commentaire"
-      updateCommentActionState(commentId, "error", errorMessage)
-      setErrorMessage(errorMessage)
-      console.error("Erreur lors de l'action de ne pas aimer le commentaire:", error)
-    }
-  }
 
   /**
    * Set a comment for editing
@@ -761,7 +651,9 @@ const PostPage = () => {
     const fetchData = async () => {
       setIsLoading(true)
       try {
-        const response = await fetch(API_ENDPOINTS.posts.detail(id || ''))
+        const response = await fetch(API_ENDPOINTS.posts.detail(id || ''), {
+          credentials: 'include',
+        })
 
         if (!response.ok) {
           throw new Error(`Failed to fetch post: ${response.status}`)
@@ -770,6 +662,15 @@ const PostPage = () => {
         const postData = await response.json()
         // Correction : compatibilité avec backend qui retourne { post }
         const post = postData.post || postData
+        // Debug: summarize contentBlocks from API
+        try {
+          const cb = (post as any)?.contentBlocks
+          console.debug('[PostPage] fetched post summary', {
+            id: (post as any)?.id || (post as any)?._id,
+            hasContentBlocks: Array.isArray(cb),
+            contentBlocks: Array.isArray(cb) ? { length: cb.length, types: cb.map((b: any) => b?.type) } : cb,
+          })
+        } catch {}
         setPostInfo(post)
         setLikes(post.likes?.length || 0)
         setDislikes(post.dislikes?.length || 0)
@@ -975,13 +876,16 @@ const PostPage = () => {
         })
   
         const data = await response.json()
+        console.log('Like response:', data)
   
         if (response.ok) {
           // Update with server data
-          setLikes(Array.isArray(data.likes) ? data.likes.length : 0)
-          setDislikes(Array.isArray(data.dislikes) ? data.dislikes.length : 0)
-          setUserLiked(hasUserLiked(data.likes, userInfo?.id))
-          setUserDisliked(hasUserDisliked(data.dislikes, userInfo?.id))
+          const serverLikes = Array.isArray(data.likes) ? data.likes : []
+          const serverDislikes = Array.isArray(data.dislikes) ? data.dislikes : []
+          setLikes(serverLikes.length)
+          setDislikes(serverDislikes.length)
+          setUserLiked(hasUserLiked(serverLikes, userInfo?.id))
+          setUserDisliked(hasUserDisliked(serverDislikes, userInfo?.id))
           
           setPostInteraction({
             isLoading: false,
@@ -1072,13 +976,16 @@ const PostPage = () => {
         })
   
         const data = await response.json()
+        console.log('Dislike response:', data)
   
         if (response.ok) {
           // Update with server data
-          setLikes(Array.isArray(data.likes) ? data.likes.length : 0)
-          setDislikes(Array.isArray(data.dislikes) ? data.dislikes.length : 0)
-          setUserLiked(hasUserLiked(data.likes, userInfo?.id))
-          setUserDisliked(hasUserDisliked(data.dislikes, userInfo?.id))
+          const serverLikes = Array.isArray(data.likes) ? data.likes : []
+          const serverDislikes = Array.isArray(data.dislikes) ? data.dislikes : []
+          setLikes(serverLikes.length)
+          setDislikes(serverDislikes.length)
+          setUserLiked(hasUserLiked(serverLikes, userInfo?.id))
+          setUserDisliked(hasUserDisliked(serverDislikes, userInfo?.id))
           
           setPostInteraction({
             isLoading: false,
@@ -1160,17 +1067,7 @@ const PostPage = () => {
     }
 
     return comments.map((comment: Comment, index) => {
-      // Log de débogage pour l'état des likes/dislikes
-      const userLiked = userInfo?.id && Array.isArray(comment.likes) && comment.likes.includes(userInfo.id)
-      const userDisliked = userInfo?.id && Array.isArray(comment.dislikes) && comment.dislikes.includes(userInfo.id)
-      
-      console.log(`Comment ${comment._id}:`, {
-        userId: userInfo?.id,
-        likes: comment.likes,
-        dislikes: comment.dislikes,
-        userLiked,
-        userDisliked
-      })
+
 
       // FIX: Wrap the returned JSX in parentheses so the arrow function returns it
       return (
@@ -1241,20 +1138,12 @@ const PostPage = () => {
             )}
 
             <div className="flex items-center space-x-4 mt-3">
-              <button
-                onClick={() => handleLikeComment(comment._id)}
-                className={`flex items-center space-x-1 text-sm ${userInfo?.id && Array.isArray(comment.likes) && comment.likes.includes(userInfo.id) ? "text-primary" : "text-muted-foreground"} hover:text-primary transition-colors`}
-              >
-                <Heart className={`h-4 w-4 ${userInfo?.id && Array.isArray(comment.likes) && comment.likes.includes(userInfo.id) ? "fill-current" : ""}`} />
-                <span>{Array.isArray(comment.likes) ? comment.likes.length : 0}</span>
-              </button>
-              <button
-                onClick={() => handleDislikeComment(comment._id)}
-                className={`flex items-center space-x-1 text-sm ${userInfo?.id && Array.isArray(comment.dislikes) && comment.dislikes.includes(userInfo.id) ? "text-destructive" : "text-muted-foreground"} hover:text-destructive transition-colors`}
-              >
-                <ThumbsDown className="h-4 w-4" />
-                <span>{Array.isArray(comment.dislikes) ? comment.dislikes.length : 0}</span>
-              </button>
+              <CommentReactions
+                commentId={comment._id}
+                userId={userInfo?.id}
+                initialLikes={Array.isArray(comment.likes) ? comment.likes : []}
+                initialDislikes={Array.isArray(comment.dislikes) ? comment.dislikes : []}
+              />
               <button
                 onClick={() => {
                   setReplyingTo(comment._id)
@@ -1543,43 +1432,59 @@ const PostPage = () => {
                 </svg>
                 Sommaire
               </h3>
-              {(() => {
-                // Extraire les titres du contenu pour générer la table des matières
-                const headings: {id: string, text: string, level: number}[] = [];
-                const parser = new DOMParser();
-                const htmlContent = formatContent(postInfo.content);
-                const doc = parser.parseFromString(htmlContent, 'text/html');
+              {tiptapDoc ? (
+                <ul>
+                  {tiptapHeadings.map((heading, index) => (
+                    <li key={index} style={{ paddingLeft: `${(heading.level - 1) * 1}rem` }}>
+                      <a href={`#${heading.id}`}>{heading.text}</a>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                (() => {
+                  // Extraire les titres du contenu pour générer la table des matières (markdown)
+                  const headings: {id: string, text: string, level: number}[] = [];
+                  const parser = new DOMParser();
+                  const htmlContent = formatContent(postInfo.content);
+                  const doc = parser.parseFromString(htmlContent, 'text/html');
 
-                doc.querySelectorAll('h1, h2, h3').forEach((heading) => {
-                  const id = heading.getAttribute('id') || '';
-                  const level = parseInt(heading.tagName.substring(1));
-                  headings.push({
-                    id,
-                    text: heading.textContent?.replace('#', '') || '',
-                    level
+                  doc.querySelectorAll('h1, h2, h3').forEach((heading) => {
+                    const id = heading.getAttribute('id') || '';
+                    const level = parseInt(heading.tagName.substring(1));
+                    headings.push({
+                      id,
+                      text: heading.textContent?.replace('#', '') || '',
+                      level
+                    });
                   });
-                });
 
-                // Générer la liste des liens
-                return (
-                  <ul>
-                    {headings.map((heading, index) => (
-                      <li key={index} style={{ paddingLeft: `${(heading.level - 1) * 1}rem` }}>
-                        <a href={`#${heading.id}`}>{heading.text}</a>
-                      </li>
-                    ))}
-                  </ul>
-                );
-              })()}
+                  // Générer la liste des liens
+                  return (
+                    <ul>
+                      {headings.map((heading, index) => (
+                        <li key={index} style={{ paddingLeft: `${(heading.level - 1) * 1}rem` }}>
+                          <a href={`#${heading.id}`}>{heading.text}</a>
+                        </li>
+                      ))}
+                    </ul>
+                  );
+                })()
+              )}
             </div>
 
             {/* Contenu principal avec mise en forme améliorée */}
-            <div className="prose prose-green max-w-none dark:prose-invert mb-8 markdown-content">
-              <div
-                dangerouslySetInnerHTML={{ __html: formatContent(postInfo.content) }}
-                className="markdown-body"
-              />
-            </div>
+            {tiptapDoc ? (
+              <div ref={tiptapContainerRef} className="prose prose-green max-w-none dark:prose-invert mb-8">
+                <EditorContent editor={tiptapEditor} />
+              </div>
+            ) : (
+              <div className="prose prose-green max-w-none dark:prose-invert mb-8 markdown-content">
+                <div
+                  dangerouslySetInnerHTML={{ __html: formatContent(postInfo.content) }}
+                  className="markdown-body"
+                />
+              </div>
+            )}
 
             {/* Informations sur l'article */}
             <div className="bg-muted/30 rounded-lg p-4 mb-8 text-sm text-muted-foreground">
@@ -1603,21 +1508,21 @@ const PostPage = () => {
               <button
                 onClick={handleLikePost}
                 disabled={postInteraction.isLoading || !userInfo}
-                className={`flex items-center space-x-2 ${userLiked ? "text-primary" : "text-muted-foreground"} ${postInteraction.isLoading ? "opacity-50 cursor-not-allowed" : "hover:text-primary"} transition-colors`}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-md border ${userLiked ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800" : "text-muted-foreground border-transparent hover:bg-muted/30"} ${postInteraction.isLoading ? "opacity-50 cursor-not-allowed" : ""} transition-colors`}
                 aria-label="J'aime cet article"
                 title={!userInfo ? "Vous devez être connecté pour aimer un article" : "J'aime cet article"}
               >
-                <Heart className={`h-6 w-6 ${userLiked ? "fill-current text-primary" : ""} ${postInteraction.isLoading ? "animate-pulse" : ""}`} />
+                <Heart className={`h-6 w-6 ${userLiked ? "text-green-700 dark:text-green-300" : ""} ${postInteraction.isLoading ? "animate-pulse" : ""}`} />
                 <span className="text-lg">{likes}</span>
               </button>
               <button
                 onClick={handleDislikePost}
                 disabled={postInteraction.isLoading || !userInfo}
-                className={`flex items-center space-x-2 ${userDisliked ? "text-destructive" : "text-muted-foreground"} ${postInteraction.isLoading ? "opacity-50 cursor-not-allowed" : "hover:text-destructive"} transition-colors`}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-md border ${userDisliked ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800" : "text-muted-foreground border-transparent hover:bg-muted/30"} ${postInteraction.isLoading ? "opacity-50 cursor-not-allowed" : ""} transition-colors`}
                 aria-label="Je n'aime pas cet article"
                 title={!userInfo ? "Vous devez être connecté pour ne pas aimer un article" : "Je n'aime pas cet article"}
               >
-                <ThumbsDown className={`h-6 w-6 ${userDisliked ? "fill-current" : ""} ${postInteraction.isLoading ? "animate-pulse" : ""}`} />
+                <ThumbsDown className={`h-6 w-6 ${userDisliked ? "text-red-700 dark:text-red-300" : ""} ${postInteraction.isLoading ? "animate-pulse" : ""}`} />
                 <span className="text-lg">{dislikes}</span>
               </button>
             </div>

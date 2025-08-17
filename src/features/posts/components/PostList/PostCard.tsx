@@ -3,7 +3,7 @@
  * Individual post card with CRUD operations
  */
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PostData } from '../../types/post.types';
 import { cn } from '../../../../lib/utils';
@@ -45,6 +45,48 @@ export function PostCard({
 }: PostCardProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Extract plain text preview from Tiptap JSON
+  const extractTextFromTiptapDoc = (doc: any): string => {
+    if (!doc) return '';
+    const parts: string[] = [];
+    const visit = (node: any) => {
+      if (!node) return;
+      if (node.type === 'text' && typeof node.text === 'string') {
+        parts.push(node.text);
+      }
+      if (node.type === 'hardBreak') {
+        parts.push(' ');
+      }
+      const content = Array.isArray(node.content) ? node.content : [];
+      content.forEach(visit);
+    };
+    visit(doc);
+    return parts.join(' ').replace(/\s+/g, ' ').trim();
+  };
+
+  // Very lightweight markdown-to-text stripping for fallback
+  const stripMarkdown = (md?: string): string => {
+    if (!md) return '';
+    return md
+      .replace(/```[\s\S]*?```/g, ' ') // code fences
+      .replace(/`[^`]*`/g, ' ') // inline code
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ') // images
+      .replace(/\[[^\]]*\]\([^)]*\)/g, ' ') // links
+      .replace(/^>\s?/gm, '') // blockquotes
+      .replace(/^#{1,6}\s+/gm, '') // headings
+      .replace(/[*_~`>#-]/g, ' ') // misc md chars
+      .replace(/\s+/g, ' ') // collapse
+      .trim();
+  };
+
+  const previewText = useMemo(() => {
+    if (post.summary && post.summary.trim().length > 0) return post.summary;
+    const block = post.contentBlocks?.find(b => b && b.type === 'tiptap');
+    const doc = block && (block.data?.doc ?? block.data);
+    if (doc) return extractTextFromTiptapDoc(doc);
+    return stripMarkdown(post.content);
+  }, [post]);
 
   // Format date
   const formatDate = (date: string | Date) => {
@@ -121,9 +163,9 @@ export function PostCard({
                   </h3>
                 </Link>
                 
-                {post.summary && (
+                {previewText && (
                   <p className="text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
-                    {post.summary}
+                    {previewText}
                   </p>
                 )}
 
@@ -310,9 +352,9 @@ export function PostCard({
           )}
         </div>
 
-        {post.summary && (
+        {previewText && (
           <p className="text-gray-600 dark:text-gray-400 text-sm mb-3 line-clamp-3">
-            {post.summary}
+            {previewText}
           </p>
         )}
 

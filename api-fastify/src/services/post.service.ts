@@ -9,6 +9,44 @@ import {
   PostResponse,
 } from '../types/post.types.js';
 
+// Helper: convert block-based content to plain text for excerpt/search
+const blocksToPlainText = (blocks: any[] | undefined | null): string => {
+  if (!Array.isArray(blocks)) return '';
+  const parts: string[] = [];
+  for (const b of blocks) {
+    if (!b) continue;
+    // Support either our flexible schema {type, data} or flattened blocks
+    const type = b.type;
+    const data = (b.data ?? b);
+    switch (type) {
+      case 'paragraph':
+        if (typeof data.text === 'string') parts.push(data.text);
+        break;
+      case 'heading':
+        if (typeof data.text === 'string') parts.push(data.text);
+        break;
+      case 'list':
+        if (Array.isArray(data.items)) parts.push(data.items.join(' '));
+        break;
+      case 'quote':
+        if (typeof data.text === 'string') parts.push(data.text);
+        break;
+      case 'callout':
+        if (typeof data.text === 'string') parts.push(data.text);
+        break;
+      case 'code':
+        if (typeof data.code === 'string') parts.push(data.code);
+        break;
+      case 'image':
+      case 'embed':
+      default:
+        // ignore non-text blocks
+        break;
+    }
+  }
+  return parts.join(' ').trim();
+};
+
 /**
  * Service pour récupérer tous les articles (avec pagination et filtres)
  */
@@ -104,28 +142,24 @@ export const getAllPosts = async (
   // Ajouter le champ isLiked pour chaque article si l'utilisateur est connecté
   const postsWithLikeStatus = posts.map(post => {
     const postObj = post.toObject() as PostResponse;
-    if (currentUserId) {
-      postObj.isLiked = post.likedBy.includes(currentUserId);
-    }
+    const likedBy = Array.isArray((post as any).likedBy) ? (post as any).likedBy : [];
+    const dislikedBy = Array.isArray((post as any).dislikedBy) ? (post as any).dislikedBy : [];
 
-    // Debug: Afficher les catégories pour comprendre la structure
-    console.log('Post categories:', post._id, postObj.categories);
+    if (currentUserId) {
+      postObj.isLiked = likedBy.some((id: unknown) => String(id) === currentUserId);
+      postObj.isDisliked = dislikedBy.some((id: unknown) => String(id) === currentUserId);
+    }
 
     // Correction : ajouter un champ category (singulier, objet)
     if (Array.isArray(postObj.categories) && postObj.categories.length > 0) {
       postObj.category = postObj.categories[0];
-      console.log('Set category from categories array:', postObj.category);
     } else {
       postObj.category = null;
-      console.log('No categories found, setting category to null');
     }
 
-    // Debug: Afficher la catégorie après traitement
-    console.log('Post category after processing:', post._id, postObj.category);
-
-    // Normaliser les noms des champs pour le frontend
-    postObj.likes = post.likedBy || [];
-    postObj.dislikes = post.dislikedBy || [];
+    // Normaliser les noms des champs pour le frontend (toujours des chaînes)
+    postObj.likes = likedBy.map((id: unknown) => String(id));
+    postObj.dislikes = dislikedBy.map((id: unknown) => String(id));
 
     return postObj;
   });
@@ -197,29 +231,24 @@ export const getPostByIdOrSlug = async (
   // Convertir en objet pour pouvoir ajouter des propriétés
   const postObj = post.toObject() as PostResponse;
 
-  // Debug: Afficher les catégories pour comprendre la structure
-  console.log('Single post categories:', post._id, postObj.categories);
-
   // Correction : ajouter un champ category (singulier, objet)
   if (Array.isArray(postObj.categories) && postObj.categories.length > 0) {
     postObj.category = postObj.categories[0];
-    console.log('Single post: Set category from categories array:', postObj.category);
   } else {
     postObj.category = null;
-    console.log('Single post: No categories found, setting category to null');
   }
 
-  // Debug: Afficher la catégorie après traitement
-  console.log('Single post category after processing:', post._id, postObj.category);
+  // Ajouter les flags et tableaux normalisés en s'appuyant sur le document Mongoose
+  const likedBy = Array.isArray((post as any).likedBy) ? (post as any).likedBy : [];
+  const dislikedBy = Array.isArray((post as any).dislikedBy) ? (post as any).dislikedBy : [];
 
-  // Ajouter le champ isLiked si l'utilisateur est connecté
   if (currentUserId) {
-    postObj.isLiked = post.likedBy.includes(currentUserId);
+    postObj.isLiked = likedBy.some((id: unknown) => String(id) === currentUserId);
+    postObj.isDisliked = dislikedBy.some((id: unknown) => String(id) === currentUserId);
   }
 
-  // Normaliser les noms des champs pour le frontend
-  postObj.likes = post.likedBy || [];
-  postObj.dislikes = post.dislikedBy || [];
+  postObj.likes = likedBy.map((id: unknown) => String(id));
+  postObj.dislikes = dislikedBy.map((id: unknown) => String(id));
 
   return postObj;
 };
@@ -228,7 +257,7 @@ export const getPostByIdOrSlug = async (
  * Service pour créer un nouvel article
  */
 export const createPost = async (postData: CreatePostInput, authorId: string) => {
-  const { title, content, excerpt, categories, tags, featuredImage, status } = postData;
+  const { title, content, contentBlocks, excerpt, categories, tags, featuredImage, coverImage, images, status } = postData;
 
   // Compatibilité avec le frontend: si on reçoit 'category' au lieu de 'categories'
   let finalCategories = categories;
@@ -242,7 +271,15 @@ export const createPost = async (postData: CreatePostInput, authorId: string) =>
   const slug = generateSlug(title);
 
   // Générer un extrait si non fourni
-  const finalExcerpt = excerpt || extractExcerpt(content);
+  let finalExcerpt = excerpt;
+  if (!finalExcerpt) {
+    if (content && content.trim()) {
+      finalExcerpt = extractExcerpt(content);
+    } else if (contentBlocks && contentBlocks.length > 0) {
+      const plain = blocksToPlainText(contentBlocks as any);
+      finalExcerpt = extractExcerpt(plain);
+    }
+  }
 
   // Vérifier si les catégories existent
   if (finalCategories && finalCategories.length > 0) {
@@ -260,12 +297,15 @@ export const createPost = async (postData: CreatePostInput, authorId: string) =>
   const newPost = new Post({
     title,
     content,
+    contentBlocks,
     excerpt: finalExcerpt,
     slug,
     author: authorId,
     categories: finalCategories,
     tags,
     featuredImage,
+    coverImage,
+    images,
     status: status || PostStatus.DRAFT,
   });
 
@@ -277,12 +317,34 @@ export const createPost = async (postData: CreatePostInput, authorId: string) =>
   // Sauvegarder l'article
   await newPost.save();
 
-  return {
-    _id: newPost._id,
-    title: newPost.title,
-    slug: newPost.slug,
-    status: newPost.status,
-  };
+  // Retourner l'article complet peuplé pour inclure contentBlocks et autres champs
+  const populated = await Post.findById(newPost._id)
+    .populate('author', '_id username profilePicture')
+    .populate('categories', '_id name slug');
+
+  if (!populated) {
+    // Fallback minimal si la récupération échoue pour une raison quelconque
+    return {
+      _id: newPost._id,
+      title: newPost.title,
+      slug: newPost.slug,
+      status: newPost.status,
+    };
+  }
+
+  const postObj = populated.toObject() as PostResponse;
+  // Normaliser certains champs attendus par le frontend
+  const likedBy = Array.isArray((populated as any).likedBy) ? (populated as any).likedBy : [];
+  const dislikedBy = Array.isArray((populated as any).dislikedBy) ? (populated as any).dislikedBy : [];
+  postObj.likes = likedBy.map((id: unknown) => String(id));
+  postObj.dislikes = dislikedBy.map((id: unknown) => String(id));
+  if (Array.isArray(postObj.categories) && postObj.categories.length > 0) {
+    (postObj as any).category = postObj.categories[0];
+  } else {
+    (postObj as any).category = null as any;
+  }
+
+  return postObj;
 };
 
 /**
@@ -328,12 +390,13 @@ export const updatePost = async (
   }
 
   // Si le contenu est modifié et qu'il n'y a pas d'extrait fourni, générer un nouvel extrait
-  if (
-    updateData.content &&
-    !updateData.excerpt &&
-    (!post.excerpt || updateData.content !== post.content)
-  ) {
-    updateData.excerpt = extractExcerpt(updateData.content);
+  if (!updateData.excerpt) {
+    if (updateData.content && (!post.excerpt || updateData.content !== post.content)) {
+      updateData.excerpt = extractExcerpt(updateData.content);
+    } else if (updateData.contentBlocks && Array.isArray(updateData.contentBlocks)) {
+      const plain = blocksToPlainText(updateData.contentBlocks as any);
+      if (plain) updateData.excerpt = extractExcerpt(plain);
+    }
   }
 
   // Gestion de la date de publication
@@ -379,12 +442,33 @@ export const updatePost = async (
     throw new Error("Erreur lors de la mise à jour de l'article");
   }
 
-  return {
-    _id: updatedPost._id,
-    title: updatedPost.title,
-    slug: updatedPost.slug,
-    status: updatedPost.status,
-  };
+  // Retourner l'article complet peuplé pour inclure contentBlocks et autres champs
+  const populated = await Post.findById(updatedPost._id)
+    .populate('author', '_id username profilePicture')
+    .populate('categories', '_id name slug');
+
+  if (!populated) {
+    // Fallback minimal si la récupération échoue
+    return {
+      _id: updatedPost._id,
+      title: updatedPost.title,
+      slug: updatedPost.slug,
+      status: updatedPost.status,
+    };
+  }
+
+  const postObj = populated.toObject() as PostResponse;
+  const likedBy = Array.isArray((populated as any).likedBy) ? (populated as any).likedBy : [];
+  const dislikedBy = Array.isArray((populated as any).dislikedBy) ? (populated as any).dislikedBy : [];
+  postObj.likes = likedBy.map((id: unknown) => String(id));
+  postObj.dislikes = dislikedBy.map((id: unknown) => String(id));
+  if (Array.isArray(postObj.categories) && postObj.categories.length > 0) {
+    (postObj as any).category = postObj.categories[0];
+  } else {
+    (postObj as any).category = null as any;
+  }
+
+  return postObj;
 };
 
 /**
@@ -459,32 +543,35 @@ export const likePost = async (id: string, userId: string) => {
     throw new Error('Article non trouvé');
   }
 
-  const userHasLiked = post.likedBy && post.likedBy.includes(userId);
+  // Initialiser les tableaux s'ils n'existent pas
+  if (!post.likedBy) post.likedBy = [];
+  if (!post.dislikedBy) post.dislikedBy = [];
+
+  const userHasLiked = post.likedBy.some((id: any) => id.toString() === userId);
+  const userHasDisliked = post.dislikedBy.some((id: any) => id.toString() === userId);
 
   // Si l'utilisateur avait disliké, on retire le dislike
-  if (post.dislikedBy && post.dislikedBy.includes(userId)) {
-    post.dislikedBy = post.dislikedBy.filter(
-      dislikeId => (dislikeId as any).toString() !== userId
-    );
-    post.dislikeCount = Math.max(0, (post.dislikeCount || 0) - 1);
+  if (userHasDisliked) {
+    post.dislikedBy = post.dislikedBy.filter((id: any) => id.toString() !== userId);
   }
 
   if (userHasLiked) {
-    // Si déjà liké, on retire le like
-    post.likedBy = post.likedBy.filter(likeId => (likeId as any).toString() !== userId);
-    post.likeCount = Math.max(0, post.likeCount - 1);
+    // Si déjà liké, on retire le like (toggle)
+    post.likedBy = post.likedBy.filter((id: any) => id.toString() !== userId);
   } else {
     // Sinon, on ajoute le like
-    if (!post.likedBy) post.likedBy = [];
-    post.likedBy.push(userId);
-    post.likeCount = (post.likeCount || 0) + 1;
+    post.likedBy.push(userId as any);
   }
 
   await post.save();
 
   return {
-    likes: post.likedBy || [],
-    dislikes: post.dislikedBy || [],
+    likes: (post.likedBy || []).map((id: unknown) => String(id)),
+    dislikes: (post.dislikedBy || []).map((id: unknown) => String(id)),
+    likeCount: post.likedBy.length, // Utiliser la longueur réelle du tableau
+    dislikeCount: post.dislikedBy.length, // Utiliser la longueur réelle du tableau
+    isLiked: !userHasLiked,
+    isDisliked: false
   };
 };
 
@@ -505,20 +592,24 @@ export const unlikePost = async (id: string, userId: string) => {
     throw new Error('Article non trouvé');
   }
 
-  // Vérifier si l'utilisateur a liké l'article
-  if (!post.likedBy.includes(userId)) {
+  // Vérifier si l'utilisateur a liké l'article (comparer en chaînes pour supporter ObjectId)
+  if (!post.likedBy.some((id: any) => id.toString() === userId)) {
     throw new Error("Vous n'avez pas liké cet article");
   }
 
-  // Retirer l'utilisateur de la liste des likes et décrémenter le compteur
+  // Retirer l'utilisateur de la liste des likes
   post.likedBy = post.likedBy.filter(
-    likeId => (likeId as unknown as { toString(): string }).toString() !== userId
+    (likeId: any) => likeId.toString() !== userId
   );
-  post.likeCount -= 1;
   await post.save();
 
   return {
-    likeCount: post.likeCount,
+    likes: (post.likedBy || []).map((id: unknown) => String(id)),
+    dislikes: (post.dislikedBy || []).map((id: unknown) => String(id)),
+    likeCount: post.likedBy.length,
+    dislikeCount: post.dislikedBy.length,
+    isLiked: false,
+    isDisliked: post.dislikedBy.some((id: any) => id.toString() === userId)
   };
 };
 
@@ -539,29 +630,34 @@ export const dislikePost = async (id: string, userId: string) => {
     throw new Error('Article non trouvé');
   }
 
-  const userHasDisliked = post.dislikedBy && post.dislikedBy.includes(userId);
+  // Initialiser les tableaux s'ils n'existent pas
+  if (!post.likedBy) post.likedBy = [];
+  if (!post.dislikedBy) post.dislikedBy = [];
+
+  const userHasLiked = post.likedBy.some((id: any) => id.toString() === userId);
+  const userHasDisliked = post.dislikedBy.some((id: any) => id.toString() === userId);
 
   // Si l'utilisateur avait liké, on retire le like
-  if (post.likedBy && post.likedBy.includes(userId)) {
-    post.likedBy = post.likedBy.filter(likeId => (likeId as any).toString() !== userId);
-    post.likeCount = Math.max(0, post.likeCount - 1);
+  if (userHasLiked) {
+    post.likedBy = post.likedBy.filter((id: any) => id.toString() !== userId);
   }
 
   if (userHasDisliked) {
-    // Si déjà disliké, on retire le dislike
-    post.dislikedBy = post.dislikedBy.filter(dislikeId => (dislikeId as any).toString() !== userId);
-    post.dislikeCount = Math.max(0, (post.dislikeCount || 0) - 1);
+    // Si déjà disliké, on retire le dislike (toggle)
+    post.dislikedBy = post.dislikedBy.filter((id: any) => id.toString() !== userId);
   } else {
     // Sinon, on ajoute le dislike
-    if (!post.dislikedBy) post.dislikedBy = [];
-    post.dislikedBy.push(userId);
-    post.dislikeCount = (post.dislikeCount || 0) + 1;
+    post.dislikedBy.push(userId as any);
   }
 
   await post.save();
 
   return {
-    likes: post.likedBy || [],
-    dislikes: post.dislikedBy || [],
+    likes: (post.likedBy || []).map((id: unknown) => String(id)),
+    dislikes: (post.dislikedBy || []).map((id: unknown) => String(id)),
+    likeCount: post.likedBy.length, // Utiliser la longueur réelle du tableau
+    dislikeCount: post.dislikedBy.length, // Utiliser la longueur réelle du tableau
+    isLiked: false,
+    isDisliked: !userHasDisliked
   };
 };

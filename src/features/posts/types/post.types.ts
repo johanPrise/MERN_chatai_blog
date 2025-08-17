@@ -45,6 +45,17 @@ export interface PostMetadata {
   scheduledFor?: Date;
 }
 
+// Block-based editor
+export interface ContentBlock {
+  type: string;
+  data: any;
+}
+
+export interface ImageRef {
+  url: string;
+  alt?: string;
+}
+
 export interface PostStats {
   viewCount: number;
   likeCount: number;
@@ -68,9 +79,15 @@ export interface PostData {
   id: string;
   title: string;
   content: string; // Always stored as markdown
+  // New block-based content (optional during transition)
+  contentBlocks?: ContentBlock[];
   summary: string;
   slug: string;
+  // Legacy string cover image (kept for backward compatibility)
   coverImage?: string;
+  // New image object variants (optional)
+  coverImageObj?: ImageRef | null;
+  images?: ImageRef[];
   categories: Category[];
   tags: string[];
   status: PostStatus;
@@ -85,9 +102,14 @@ export interface PostData {
 
 export interface CreatePostInput {
   title: string;
-  content: string;
+  // Either content (markdown) or contentBlocks can be provided
+  content?: string;
+  contentBlocks?: ContentBlock[];
   summary: string;
+  // Accept either legacy string or object reference
   coverImage?: string;
+  coverImageObj?: ImageRef | null;
+  images?: ImageRef[];
   categories: string[]; // Category IDs
   tags: string[];
   status?: PostStatus;
@@ -172,6 +194,11 @@ export interface UploadProgress {
 export interface UploadResult {
   success: boolean;
   url?: string;
+  urls?: {
+    original: string;
+    optimized: string;
+    thumbnail: string;
+  };
   error?: string;
 }
 

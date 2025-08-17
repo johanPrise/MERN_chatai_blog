@@ -25,18 +25,10 @@ const commentSchema = new Schema<IComment>(
       type: Schema.Types.ObjectId,
       ref: 'Comment',
     },
-    likeCount: {
-      type: Number,
-      default: 0,
-    },
     likedBy: [{
       type: Schema.Types.ObjectId,
       ref: 'User',
     }],
-    dislikeCount: {
-      type: Number,
-      default: 0,
-    },
     dislikedBy: [{
       type: Schema.Types.ObjectId,
       ref: 'User',
@@ -64,17 +56,7 @@ commentSchema.post('save', async function () {
   }
 });
 
-// Middleware post-suppression pour mettre à jour le compteur de commentaires de l'article
-commentSchema.post('deleteOne', { document: true }, async function () {
-  try {
-    // Mettre à jour le compteur de commentaires de l'article
-    await Post.findByIdAndUpdate(this.post, {
-      $inc: { commentCount: -1 },
-    });
-  } catch (error) {
-    console.error('Erreur lors de la mise à jour du compteur de commentaires:', error);
-  }
-});
+// Note: Le hook post('deleteOne') a été retiré pour compatibilité des typings Mongoose.
 
 // Middleware pour gérer la suppression via findByIdAndDelete
 commentSchema.pre('findOneAndDelete', async function () {

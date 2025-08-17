@@ -12,6 +12,7 @@ import { API_ENDPOINTS } from "../config/api.config"
 import { UserContext } from "../UserContext"
 import { AspectRatio } from "@radix-ui/react-aspect-ratio"
 import { useImageUrl, useImageWithFallback } from '../hooks/useImageUrl'
+import { useLikes } from '../hooks/useLikes'
 
 export interface PostProps {
   post: PostType
@@ -43,9 +44,6 @@ export default function Post({
   const { userInfo } = UserContext()
   const userId = userInfo?.id
 
-  // Initialiser l'état de like et dislike en fonction des données du post
-  const [isLiked, setIsLiked] = useState(userId && Array.isArray(post.likes) ? post.likes.includes(userId) : false)
-  const [isDisliked, setIsDisliked] = useState(userId && Array.isArray(post.dislikes) ? post.dislikes.includes(userId) : false)
   const [isBookmarked, setIsBookmarked] = useState(false)
   
   // Utilisation du hook pour l'image principale du post
@@ -57,13 +55,28 @@ export default function Post({
     "/placeholder.svg"
   )
 
-  // Synchroniser l'état avec les données du post quand elles changent
-  React.useEffect(() => {
-    if (userId) {
-      setIsLiked(Array.isArray(post.likes) ? post.likes.includes(userId) : false)
-      setIsDisliked(Array.isArray(post.dislikes) ? post.dislikes.includes(userId) : false)
-    }
-  }, [post.likes, post.dislikes, userId])
+  // Debug des données de likes
+  console.log('Post data:', { 
+    id: _id, 
+    likes: post.likes, 
+    dislikes: post.dislikes,
+    userId 
+  })
+
+  // Utilisation du hook pour les likes
+  const {
+    isLiked,
+    isDisliked,
+    likeCount,
+    dislikeCount,
+    isLoading: likesLoading,
+    handleLike,
+    handleDislike
+  } = useLikes({
+    postId: _id,
+    initialLikes: Array.isArray(post.likes) ? post.likes : [],
+    initialDislikes: Array.isArray(post.dislikes) ? post.dislikes : []
+  })
 
   // Utiliser la catégorie principale ou la première catégorie du tableau si disponible
   const categoryFromArray = post.categories && Array.isArray(post.categories) && post.categories.length > 0 
@@ -74,8 +87,6 @@ export default function Post({
   // État local pour gérer les statistiques mises à jour
   const [stats, setStats] = React.useState({
     views: post.views || 0,
-    likes: Array.isArray(post.likes) ? post.likes.length : 0,
-    dislikes: Array.isArray(post.dislikes) ? post.dislikes.length : 0,
     comments: Array.isArray(post.comments) ? post.comments.length : 0
   })
 
@@ -119,201 +130,29 @@ export default function Post({
   // L'état local pour gérer les statistiques est déclaré plus haut dans le composant
 
   // Handle actions
-  const handleLike = async (e: React.MouseEvent) => {
+  const handleLikeClick = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-
-    try {
-      // Si l'utilisateur n'est pas connecté, afficher un message
-      if (!userId) {
-        console.warn('Utilisateur non connecté - like impossible');
-        // On pourrait ajouter ici un toast ou une notification
-        // pour informer l'utilisateur qu'il doit se connecter
-        return;
-      }
-
-      // Optimistic UI update - Mettre à jour l'interface avant la réponse du serveur
-      const wasLiked = isLiked;
-      const wasDisliked = isDisliked;
-
-      // Mise à jour optimiste des états
-      setIsLiked(!wasLiked);
-      if (wasDisliked) setIsDisliked(false);
-
-      // Calcul optimiste des nouveaux compteurs
-      const optimisticLikes = wasLiked 
-        ? Math.max(0, stats.likes - 1) 
-        : stats.likes + 1;
-      const optimisticDislikes = wasDisliked 
-        ? Math.max(0, stats.dislikes - 1) 
-        : stats.dislikes;
-
-      // Mise à jour optimiste des statistiques
-      setStats(prev => ({
-        ...prev,
-        likes: optimisticLikes,
-        dislikes: optimisticDislikes
-      }));
-
-      // Appeler l'API de like
-      const response = await fetch(API_ENDPOINTS.posts.like(_id), {
-        method: 'POST',
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-
-        // Mise à jour avec les valeurs réelles du serveur
-        setIsLiked(Array.isArray(data.likes) ? data.likes.includes(userId) : false);
-        setIsDisliked(Array.isArray(data.dislikes) ? data.dislikes.includes(userId) : false);
-
-        // Mettre à jour le nombre de likes et dislikes avec les données du serveur
-        setStats(prev => ({
-          ...prev,
-          likes: Array.isArray(data.likes) ? data.likes.length : 0,
-          dislikes: Array.isArray(data.dislikes) ? data.dislikes.length : 0
-        }));
-      } else {
-        // Récupérer le message d'erreur
-        const errorData = await response.json().catch(() => ({ message: 'Erreur inconnue' }));
-
-        // Si l'erreur est "Vous avez déjà liké cet article", on garde l'état "liké"
-        if (errorData.message === "Vous avez déjà liké cet article" || errorData.message === "You have already liked this post") {
-          // Garder l'état liké et s'assurer que les stats reflètent cet état
-          setIsLiked(true);
-          setIsDisliked(false);
-          // Recalculer les stats pour s'assurer qu'elles sont cohérentes
-          setStats(prev => ({
-            ...prev,
-            likes: wasLiked ? prev.likes : prev.likes, // Si déjà liké, garder le count
-            dislikes: wasDisliked ? Math.max(0, prev.dislikes - 1) : prev.dislikes
-          }));
-          // Ne pas afficher d'erreur pour ce cas, c'est normal
-          return;
-        } else {
-          // Pour les autres erreurs, on revient à l'état précédent
-          setIsLiked(wasLiked);
-          setIsDisliked(wasDisliked);
-          setStats(prev => ({
-            ...prev,
-            likes: wasLiked ? prev.likes : Math.max(0, prev.likes - 1),
-            dislikes: wasDisliked ? prev.dislikes : Math.max(0, prev.dislikes - 1)
-          }));
-          console.error('Erreur API lors du like:', response.status, errorData.message);
-        }
-      }
-
-      // Appeler le callback passé en props si disponible
-      onLike?.(_id);
-    } catch (error) {
-      console.error('Erreur lors du like:', error);
-      // Revenir à l'état précédent en cas d'erreur réseau
-      setIsLiked(userId && Array.isArray(post.likes) ? post.likes.includes(userId) : false);
-      setIsDisliked(userId && Array.isArray(post.dislikes) ? post.dislikes.includes(userId) : false);
-      setStats(prev => ({
-        ...prev,
-        likes: Array.isArray(post.likes) ? post.likes.length : 0,
-        dislikes: Array.isArray(post.dislikes) ? post.dislikes.length : 0
-      }));
+    
+    if (!userId) {
+      console.warn('Utilisateur non connecté - like impossible');
+      return;
     }
+    
+    await handleLike()
+    onLike?.(_id)
   }
 
-  const handleDislike = async (e: React.MouseEvent) => {
+  const handleDislikeClick = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-
-    try {
-      // Si l'utilisateur n'est pas connecté, afficher un message
-      if (!userId) {
-        console.warn('Utilisateur non connecté - dislike impossible');
-        // On pourrait ajouter ici un toast ou une notification
-        // pour informer l'utilisateur qu'il doit se connecter
-        return;
-      }
-
-      // Optimistic UI update - Mettre à jour l'interface avant la réponse du serveur
-      const wasLiked = isLiked;
-      const wasDisliked = isDisliked;
-
-      // Mise à jour optimiste des états
-      setIsDisliked(!wasDisliked);
-      if (wasLiked) setIsLiked(false);
-
-      // Calcul optimiste des nouveaux compteurs
-      const optimisticLikes = wasLiked 
-        ? Math.max(0, stats.likes - 1) 
-        : stats.likes;
-      const optimisticDislikes = wasDisliked 
-        ? Math.max(0, stats.dislikes - 1) 
-        : stats.dislikes + 1;
-
-      // Mise à jour optimiste des statistiques
-      setStats(prev => ({
-        ...prev,
-        likes: optimisticLikes,
-        dislikes: optimisticDislikes
-      }));
-
-      // Appeler l'API de dislike
-      const response = await fetch(API_ENDPOINTS.posts.dislike(_id), {
-        method: 'POST',
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-
-        // Mise à jour avec les valeurs réelles du serveur
-        setIsLiked(Array.isArray(data.likes) ? data.likes.includes(userId) : false);
-        setIsDisliked(Array.isArray(data.dislikes) ? data.dislikes.includes(userId) : false);
-
-        // Mettre à jour le nombre de likes et dislikes avec les données du serveur
-        setStats(prev => ({
-          ...prev,
-          likes: Array.isArray(data.likes) ? data.likes.length : 0,
-          dislikes: Array.isArray(data.dislikes) ? data.dislikes.length : 0
-        }));
-      } else {
-        // Récupérer le message d'erreur
-        const errorData = await response.json().catch(() => ({ message: 'Erreur inconnue' }));
-
-        // Si l'erreur est "Vous avez déjà disliké cet article", on garde l'état "disliké"
-        if (errorData.message === "Vous avez déjà disliké cet article" || errorData.message === "You have already disliked this post") {
-          // Garder l'état disliké et s'assurer que les stats reflètent cet état
-          setIsDisliked(true);
-          setIsLiked(false);
-          // Recalculer les stats pour s'assurer qu'elles sont cohérentes
-          setStats(prev => ({
-            ...prev,
-            likes: wasLiked ? Math.max(0, prev.likes - 1) : prev.likes,
-            dislikes: wasDisliked ? prev.dislikes : prev.dislikes // Si déjà disliké, garder le count
-          }));
-          // Ne pas afficher d'erreur pour ce cas, c'est normal
-          return;
-        } else {
-          // Pour les autres erreurs, on revient à l'état précédent
-          setIsLiked(wasLiked);
-          setIsDisliked(wasDisliked);
-          setStats(prev => ({
-            ...prev,
-            likes: wasLiked ? prev.likes : Math.max(0, prev.likes - 1),
-            dislikes: wasDisliked ? prev.dislikes : Math.max(0, prev.dislikes - 1)
-          }));
-          console.error('Erreur API lors du dislike:', response.status, errorData.message);
-        }
-      }
-    } catch (error) {
-      console.error('Erreur lors du dislike:', error);
-      // Revenir à l'état précédent en cas d'erreur réseau
-      setIsLiked(userId && Array.isArray(post.likes) ? post.likes.includes(userId) : false);
-      setIsDisliked(userId && Array.isArray(post.dislikes) ? post.dislikes.includes(userId) : false);
-      setStats(prev => ({
-        ...prev,
-        likes: Array.isArray(post.likes) ? post.likes.length : 0,
-        dislikes: Array.isArray(post.dislikes) ? post.dislikes.length : 0
-      }));
+    
+    if (!userId) {
+      console.warn('Utilisateur non connecté - dislike impossible');
+      return;
     }
+    
+    await handleDislike()
   }
 
   const handleBookmark = (e: React.MouseEvent) => {
@@ -351,24 +190,24 @@ export default function Post({
       <Button
         variant="ghost"
         size="sm"
-        onClick={handleLike}
+        onClick={handleLikeClick}
         className={cn("h-8 px-2", isLiked && "text-green-500")}
         title={userId ? "J'aime" : "Connectez-vous pour aimer ce post"}
-        disabled={!userId}
+        disabled={!userId || likesLoading}
       >
         <Heart className={cn("h-4 w-4 mr-1", isLiked && "fill-current")} />
-        {stats.likes}
+        {likeCount}
       </Button>
       <Button
         variant="ghost"
         size="sm"
-        onClick={handleDislike}
+        onClick={handleDislikeClick}
         className={cn("h-8 px-2", isDisliked && "text-red-500")}
         title={userId ? "Je n'aime pas" : "Connectez-vous pour ne pas aimer ce post"}
-        disabled={!userId}
+        disabled={!userId || likesLoading}
       >
         <ThumbsDown className={cn("h-4 w-4 mr-1", isDisliked && "fill-current")} />
-        {stats.dislikes}
+        {dislikeCount}
       </Button>
       <Button
         variant="ghost"
@@ -404,11 +243,11 @@ export default function Post({
       </span>
       <span className="flex items-center gap-1 text-green-500">
         <Heart className="h-3 w-3" />
-        {stats.likes}
+        {likeCount}
       </span>
       <span className="flex items-center gap-1 text-red-500">
         <ThumbsDown className="h-3 w-3" />
-        {stats.dislikes}
+        {dislikeCount}
       </span>
       <span className="flex items-center gap-1">
         <MessageCircle className="h-3 w-3" />

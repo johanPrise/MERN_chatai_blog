@@ -28,6 +28,17 @@ export const getPostsSchema: FastifySchema = {
             properties: {
               _id: { type: 'string' },
               title: { type: 'string' },
+              contentBlocks: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    type: { type: 'string' },
+                    data: { type: 'object', additionalProperties: true }
+                  }
+                },
+                nullable: true
+              },
               excerpt: { type: 'string', nullable: true },
               slug: { type: 'string' },
               author: {
@@ -53,12 +64,43 @@ export const getPostsSchema: FastifySchema = {
                 type: 'array',
                 items: { type: 'string' },
               },
+              category: {
+                type: ['object', 'null'],
+                properties: {
+                  _id: { type: 'string' },
+                  name: { type: 'string' },
+                  slug: { type: 'string' },
+                }
+              },
               featuredImage: { type: 'string', nullable: true },
+              coverImage: {
+                type: 'object',
+                properties: {
+                  url: { type: 'string' },
+                  alt: { type: 'string' }
+                },
+                nullable: true
+              },
+              images: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    url: { type: 'string' },
+                    alt: { type: 'string' }
+                  }
+                },
+                nullable: true
+              },
               status: { type: 'string' },
               viewCount: { type: 'number' },
+              likes: { type: 'array', items: { type: 'string' } },
+              dislikes: { type: 'array', items: { type: 'string' } },
               likeCount: { type: 'number' },
+              dislikeCount: { type: 'number' },
               commentCount: { type: 'number' },
               isLiked: { type: 'boolean', nullable: true },
+              isDisliked: { type: 'boolean', nullable: true },
               createdAt: { type: 'string', format: 'date-time' },
               updatedAt: { type: 'string', format: 'date-time' },
               publishedAt: { type: 'string', format: 'date-time', nullable: true },
@@ -94,7 +136,18 @@ export const getPostSchema: FastifySchema = {
           properties: {
             _id: { type: 'string' },
             title: { type: 'string' },
-            content: { type: 'string' },
+            content: { type: 'string', nullable: true },
+            contentBlocks: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  type: { type: 'string' },
+                  data: { type: 'object', additionalProperties: true }
+                }
+              },
+              nullable: true
+            },
             excerpt: { type: 'string', nullable: true },
             slug: { type: 'string' },
             author: {
@@ -116,16 +169,47 @@ export const getPostSchema: FastifySchema = {
                 },
               },
             },
+            category: {
+              type: ['object', 'null'],
+              properties: {
+                _id: { type: 'string' },
+                name: { type: 'string' },
+                slug: { type: 'string' },
+              }
+            },
             tags: {
               type: 'array',
               items: { type: 'string' },
             },
             featuredImage: { type: 'string', nullable: true },
+            coverImage: {
+              type: 'object',
+              properties: {
+                url: { type: 'string' },
+                alt: { type: 'string' }
+              },
+              nullable: true
+            },
+            images: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  url: { type: 'string' },
+                  alt: { type: 'string' }
+                }
+              },
+              nullable: true
+            },
             status: { type: 'string' },
             viewCount: { type: 'number' },
+            likes: { type: 'array', items: { type: 'string' } },
+            dislikes: { type: 'array', items: { type: 'string' } },
             likeCount: { type: 'number' },
+            dislikeCount: { type: 'number' },
             commentCount: { type: 'number' },
             isLiked: { type: 'boolean', nullable: true },
+            isDisliked: { type: 'boolean', nullable: true },
             createdAt: { type: 'string', format: 'date-time' },
             updatedAt: { type: 'string', format: 'date-time' },
             publishedAt: { type: 'string', format: 'date-time', nullable: true },
@@ -148,10 +232,21 @@ export const getPostSchema: FastifySchema = {
 export const createPostSchema: FastifySchema = {
   body: {
     type: 'object',
-    required: ['title', 'content'],
+    required: ['title'],
     properties: {
       title: { type: 'string', minLength: 3, maxLength: 200 },
-      content: { type: 'string', minLength: 10 },
+      content: { type: 'string', minLength: 1 },
+      contentBlocks: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            type: { type: 'string' },
+            data: { type: 'object', additionalProperties: true }
+          },
+          required: ['type', 'data']
+        }
+      },
       excerpt: { type: 'string', maxLength: 500 },
       categories: {
         type: 'array',
@@ -162,8 +257,26 @@ export const createPostSchema: FastifySchema = {
         items: { type: 'string' },
       },
       featuredImage: { type: 'string' },
+      coverImage: {
+        type: 'object',
+        properties: {
+          url: { type: 'string' },
+          alt: { type: 'string' }
+        }
+      },
+      images: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            url: { type: 'string' },
+            alt: { type: 'string' }
+          }
+        }
+      },
       status: { type: 'string', enum: Object.values(PostStatus) },
     },
+    additionalProperties: false,
   },
   response: {
     201: {
@@ -175,8 +288,83 @@ export const createPostSchema: FastifySchema = {
           properties: {
             _id: { type: 'string' },
             title: { type: 'string' },
+            content: { type: 'string', nullable: true },
+            contentBlocks: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  type: { type: 'string' },
+                  data: { type: 'object', additionalProperties: true }
+                }
+              },
+              nullable: true
+            },
+            excerpt: { type: 'string', nullable: true },
             slug: { type: 'string' },
+            author: {
+              type: 'object',
+              properties: {
+                _id: { type: 'string' },
+                username: { type: 'string' },
+                profilePicture: { type: 'string', nullable: true },
+              },
+            },
+            categories: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  _id: { type: 'string' },
+                  name: { type: 'string' },
+                  slug: { type: 'string' },
+                },
+              },
+            },
+            category: {
+              type: ['object', 'null'],
+              properties: {
+                _id: { type: 'string' },
+                name: { type: 'string' },
+                slug: { type: 'string' },
+              }
+            },
+            tags: {
+              type: 'array',
+              items: { type: 'string' },
+            },
+            featuredImage: { type: 'string', nullable: true },
+            coverImage: {
+              type: 'object',
+              properties: {
+                url: { type: 'string' },
+                alt: { type: 'string' }
+              },
+              nullable: true
+            },
+            images: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  url: { type: 'string' },
+                  alt: { type: 'string' }
+                }
+              },
+              nullable: true
+            },
             status: { type: 'string' },
+            viewCount: { type: 'number' },
+            likes: { type: 'array', items: { type: 'string' } },
+            dislikes: { type: 'array', items: { type: 'string' } },
+            likeCount: { type: 'number' },
+            dislikeCount: { type: 'number' },
+            commentCount: { type: 'number' },
+            isLiked: { type: 'boolean', nullable: true },
+            isDisliked: { type: 'boolean', nullable: true },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+            publishedAt: { type: 'string', format: 'date-time', nullable: true },
           },
         },
       },
@@ -205,7 +393,18 @@ export const updatePostSchema: FastifySchema = {
     type: 'object',
     properties: {
       title: { type: 'string', minLength: 3, maxLength: 200 },
-      content: { type: 'string', minLength: 10 },
+      content: { type: 'string', minLength: 1 },
+      contentBlocks: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            type: { type: 'string' },
+            data: { type: 'object', additionalProperties: true }
+          },
+          required: ['type', 'data']
+        }
+      },
       excerpt: { type: 'string', maxLength: 500 },
       summary: { type: 'string', maxLength: 500 }, // Ajout du champ summary pour compatibilité avec le frontend
       categories: {
@@ -217,6 +416,23 @@ export const updatePostSchema: FastifySchema = {
         items: { type: 'string' },
       },
       featuredImage: { type: 'string' },
+      coverImage: {
+        type: 'object',
+        properties: {
+          url: { type: 'string' },
+          alt: { type: 'string' }
+        }
+      },
+      images: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            url: { type: 'string' },
+            alt: { type: 'string' }
+          }
+        }
+      },
       status: { type: 'string', enum: Object.values(PostStatus) },
     },
     additionalProperties: false,
@@ -231,8 +447,83 @@ export const updatePostSchema: FastifySchema = {
           properties: {
             _id: { type: 'string' },
             title: { type: 'string' },
+            content: { type: 'string', nullable: true },
+            contentBlocks: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  type: { type: 'string' },
+                  data: { type: 'object' }
+                }
+              },
+              nullable: true
+            },
+            excerpt: { type: 'string', nullable: true },
             slug: { type: 'string' },
+            author: {
+              type: 'object',
+              properties: {
+                _id: { type: 'string' },
+                username: { type: 'string' },
+                profilePicture: { type: 'string', nullable: true },
+              },
+            },
+            categories: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  _id: { type: 'string' },
+                  name: { type: 'string' },
+                  slug: { type: 'string' },
+                },
+              },
+            },
+            category: {
+              type: ['object', 'null'],
+              properties: {
+                _id: { type: 'string' },
+                name: { type: 'string' },
+                slug: { type: 'string' },
+              }
+            },
+            tags: {
+              type: 'array',
+              items: { type: 'string' },
+            },
+            featuredImage: { type: 'string', nullable: true },
+            coverImage: {
+              type: 'object',
+              properties: {
+                url: { type: 'string' },
+                alt: { type: 'string' }
+              },
+              nullable: true
+            },
+            images: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  url: { type: 'string' },
+                  alt: { type: 'string' }
+                }
+              },
+              nullable: true
+            },
             status: { type: 'string' },
+            viewCount: { type: 'number' },
+            likes: { type: 'array', items: { type: 'string' } },
+            dislikes: { type: 'array', items: { type: 'string' } },
+            likeCount: { type: 'number' },
+            dislikeCount: { type: 'number' },
+            commentCount: { type: 'number' },
+            isLiked: { type: 'boolean', nullable: true },
+            isDisliked: { type: 'boolean', nullable: true },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+            publishedAt: { type: 'string', format: 'date-time', nullable: true },
           },
         },
       },
@@ -259,9 +550,6 @@ export const updatePostSchema: FastifySchema = {
 };
 
 export const dislikePostSchema: FastifySchema = {
-  description: 'Disliker un article',
-  tags: ['posts'],
-  security: [{ bearerAuth: [] }],
   params: {
     type: 'object',
     required: ['id'],
@@ -278,14 +566,12 @@ export const dislikePostSchema: FastifySchema = {
       type: 'object',
       properties: {
         message: { type: 'string' },
-        likes: {
-          type: 'array',
-          items: { type: 'string' }
-        },
-        dislikes: {
-          type: 'array',
-          items: { type: 'string' }
-        }
+        likes: { type: 'array', items: { type: 'string' } },
+        dislikes: { type: 'array', items: { type: 'string' } },
+        likeCount: { type: 'number' },
+        dislikeCount: { type: 'number' },
+        isLiked: { type: 'boolean' },
+        isDisliked: { type: 'boolean' }
       }
     },
     400: {
@@ -361,7 +647,12 @@ export const likePostSchema: FastifySchema = {
       type: 'object',
       properties: {
         message: { type: 'string' },
+        likes: { type: 'array', items: { type: 'string' } },
+        dislikes: { type: 'array', items: { type: 'string' } },
         likeCount: { type: 'number' },
+        dislikeCount: { type: 'number' },
+        isLiked: { type: 'boolean' },
+        isDisliked: { type: 'boolean' },
       },
     },
     404: {
@@ -389,7 +680,12 @@ export const unlikePostSchema: FastifySchema = {
       type: 'object',
       properties: {
         message: { type: 'string' },
+        likes: { type: 'array', items: { type: 'string' } },
+        dislikes: { type: 'array', items: { type: 'string' } },
         likeCount: { type: 'number' },
+        dislikeCount: { type: 'number' },
+        isLiked: { type: 'boolean' },
+        isDisliked: { type: 'boolean' },
       },
     },
     404: {

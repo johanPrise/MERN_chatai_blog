@@ -28,7 +28,7 @@ export const getPosts = async (
     const category = request.query.category;
     const tag = request.query.tag;
     const author = request.query.author;
-    const status = request.query.status || PostStatus.PUBLISHED;
+    const status = request.query.status ?? undefined;
     const currentUserId = request.user?._id;
     const currentUserRole = request.user?.role;
 
@@ -102,9 +102,30 @@ export const createPost = async (
     const postData = request.body;
     const authorId = request.user._id;
 
+    // Debug: summarize incoming contentBlocks
+    try {
+      const cb: any = (postData as any)?.contentBlocks;
+      request.log.debug({
+        msg: '[createPost] incoming payload summary',
+        hasContentBlocks: Array.isArray(cb),
+        contentBlocks: Array.isArray(cb) ? { length: cb.length, types: cb.map((b: any) => b?.type) } : cb,
+      });
+    } catch {}
+
     // Utiliser le service pour créer l'article
     try {
       const result = await PostService.createPost(postData, authorId);
+
+      // Debug: summarize saved contentBlocks
+      try {
+        const cb: any = (result as any)?.contentBlocks;
+        request.log.debug({
+          msg: '[createPost] saved post summary',
+          id: (result as any)?._id || (result as any)?.id,
+          hasContentBlocks: Array.isArray(cb),
+          contentBlocks: Array.isArray(cb) ? { length: cb.length, types: cb.map((b: any) => b?.type) } : cb,
+        });
+      } catch {}
 
       // Retourner la réponse
       return reply.status(201).send({
@@ -139,6 +160,16 @@ export const updatePost = async (
   try {
     const { id } = request.params;
     const updateData = request.body;
+    // Debug: summarize incoming contentBlocks
+    try {
+      const cb: any = (updateData as any)?.contentBlocks;
+      request.log.debug({
+        msg: '[updatePost] incoming payload summary',
+        id,
+        hasContentBlocks: Array.isArray(cb),
+        contentBlocks: Array.isArray(cb) ? { length: cb.length, types: cb.map((b: any) => b?.type) } : cb,
+      });
+    } catch {}
     const currentUserId = request.user._id;
     const currentUserRole = request.user.role;
 
@@ -152,6 +183,17 @@ export const updatePost = async (
     // Utiliser le service pour mettre à jour l'article
     try {
       const result = await PostService.updatePost(id, updateData, currentUserId, currentUserRole);
+
+      // Debug: summarize saved contentBlocks
+      try {
+        const cb: any = (result as any)?.contentBlocks;
+        request.log.debug({
+          msg: '[updatePost] saved post summary',
+          id: (result as any)?._id || (result as any)?.id,
+          hasContentBlocks: Array.isArray(cb),
+          contentBlocks: Array.isArray(cb) ? { length: cb.length, types: cb.map((b: any) => b?.type) } : cb,
+        });
+      } catch {}
 
       // Retourner la réponse
       return reply.status(200).send({
@@ -270,11 +312,23 @@ export const likePost = async (
     try {
       const result = await PostService.likePost(id, userId);
 
+      // Invalidation du cache lié aux posts
+      try {
+        const { invalidatePostCache } = await import('../utils/cache-invalidation.js');
+        await invalidatePostCache(id);
+      } catch (e) {
+        request.log.warn('Cache invalidation failed (likePost): %s', (e as Error).message);
+      }
+
       // Retourner la réponse
       return reply.status(200).send({
         message: 'Article liké avec succès',
         likes: result.likes,
         dislikes: result.dislikes,
+        likeCount: result.likeCount,
+        dislikeCount: result.dislikeCount,
+        isLiked: result.isLiked,
+        isDisliked: result.isDisliked
       });
     } catch (error) {
       if (error instanceof Error) {
@@ -324,10 +378,23 @@ export const unlikePost = async (
     try {
       const result = await PostService.unlikePost(id, userId);
 
+      // Invalidation du cache lié aux posts
+      try {
+        const { invalidatePostCache } = await import('../utils/cache-invalidation.js');
+        await invalidatePostCache(id);
+      } catch (e) {
+        request.log.warn('Cache invalidation failed (unlikePost): %s', (e as Error).message);
+      }
+
       // Retourner la réponse
       return reply.status(200).send({
         message: 'Article unliké avec succès',
+        likes: result.likes,
+        dislikes: result.dislikes,
         likeCount: result.likeCount,
+        dislikeCount: result.dislikeCount,
+        isLiked: result.isLiked,
+        isDisliked: result.isDisliked
       });
     } catch (error) {
       if (error instanceof Error) {
@@ -377,11 +444,23 @@ export const dislikePost = async (
     try {
       const result = await PostService.dislikePost(id, userId);
 
+      // Invalidation du cache lié aux posts
+      try {
+        const { invalidatePostCache } = await import('../utils/cache-invalidation.js');
+        await invalidatePostCache(id);
+      } catch (e) {
+        request.log.warn('Cache invalidation failed (dislikePost): %s', (e as Error).message);
+      }
+
       // Retourner la réponse
       return reply.status(200).send({
         message: 'Article disliké avec succès',
         likes: result.likes,
         dislikes: result.dislikes,
+        likeCount: result.likeCount,
+        dislikeCount: result.dislikeCount,
+        isLiked: result.isLiked,
+        isDisliked: result.isDisliked
       });
     } catch (error) {
       if (error instanceof Error) {

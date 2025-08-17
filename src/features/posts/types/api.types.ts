@@ -193,6 +193,12 @@ export interface UploadResponse {
     type?: string;
     thumbnail?: string;
   };
+  // Nouveau format structuré renvoyé par le backend
+  urls?: {
+    original: string;
+    optimized?: string;
+    thumbnail?: string;
+  };
 }
 
 export interface UploadProgressCallback {

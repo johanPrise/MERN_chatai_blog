@@ -4,17 +4,17 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { PostEditor } from '../PostEditor';
 import { MediaUpload } from './MediaUpload';
 import { SingleCategorySelector } from './SingleCategorySelector';
 import { TagInput } from './TagInput';
 import { PostPreview } from '../PostPreview';
 import { usePostContext } from '../../context/PostContext';
 import { useAutoSave } from '../../hooks/useAutoSave';
-import { CreatePostInput, UpdatePostInput, PostStatus, PostVisibility, PostData } from '../../types/post.types';
+import { CreatePostInput, UpdatePostInput, PostStatus, PostVisibility, PostData, ContentBlock } from '../../types/post.types';
 import { cn } from '../../../../lib/utils';
 import { useSimpleContentFilter } from '../../../../hooks/useContentFilter';
-import { Save, Eye, Calendar, Globe, Lock, Archive, AlertTriangle } from 'lucide-react';
+import { Save, Eye, Globe, AlertTriangle } from 'lucide-react';
+import TiptapBlockEditor from '../BlockEditor/TiptapBlockEditor';
 
 interface PostFormProps {
   mode: 'create' | 'edit';
@@ -32,7 +32,7 @@ export function PostForm({
   className = '',
 }: PostFormProps) {
   const { state, actions } = usePostContext();
-  
+
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
     summary: initialData?.summary || '',
@@ -47,6 +47,8 @@ export function PostForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [contentBlocks, setContentBlocks] = useState<ContentBlock[]>(initialData?.contentBlocks || []);
+
   const [contentWarnings, setContentWarnings] = useState<{
     title: string[];
     summary: string[];
@@ -69,13 +71,20 @@ export function PostForm({
         status: initialData.status || PostStatus.DRAFT,
         visibility: initialData.visibility || PostVisibility.PUBLIC,
       };
-      
+
       setFormData(newFormData);
-      
+
       // Clear any existing errors when loading new data
       setErrors({});
     }
   }, [initialData?.id, initialData?.title, initialData?.summary, initialData?.content]);
+
+  // Keep contentBlocks in sync if initialData changes (edit mode)
+  useEffect(() => {
+    if (initialData?.contentBlocks) {
+      setContentBlocks(initialData.contentBlocks);
+    }
+  }, [initialData?.contentBlocks]);
 
   // Additional effect to handle summary specifically (in case it comes later)
   useEffect(() => {
@@ -122,7 +131,7 @@ export function PostForm({
   // Update form data with content filtering
   const updateFormData = useCallback((field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    
+
     // Clear field error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
@@ -154,10 +163,9 @@ export function PostForm({
       newErrors.summary = 'Summary must be less than 500 characters';
     }
 
-    if (!formData.content.trim()) {
+    // Require Tiptap content blocks
+    if (!contentBlocks || contentBlocks.length === 0) {
       newErrors.content = 'Content is required';
-    } else if (formData.content.length < 50) {
-      newErrors.content = 'Content must be at least 50 characters';
     }
 
     if (!formData.category) {
@@ -166,7 +174,7 @@ export function PostForm({
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [formData]);
+  }, [formData, contentBlocks]);
 
   // Handle form submission
   const handleSubmit = useCallback(async (status?: PostStatus) => {
@@ -191,18 +199,51 @@ export function PostForm({
         });
       }
 
-      const submitData = {
+      const submitData: any = {
         ...formData,
         title: titleResult.filteredContent,
         summary: summaryResult.filteredContent,
-        content: contentResult.filteredContent,
+        // keep legacy markdown during transition when using old editor
+        // We are now tiptap-only: keep legacy markdown empty
+        content: '',
         status: status || formData.status,
         // Convert single category to categories array for backend compatibility
         categories: formData.category ? [formData.category] : [],
       };
+      submitData.contentBlocks = contentBlocks;
+
+      // Debug: log the payload we are about to submit (contentBlocks length and shape)
+      try {
+        const dbg = {
+          ...submitData,
+          // avoid logging full doc tree which can be huge
+          contentBlocks: Array.isArray(submitData.contentBlocks)
+            ? submitData.contentBlocks.map((b: any) => ({ type: b?.type, hasData: !!b?.data, keys: b?.data ? Object.keys(b.data) : [] }))
+            : submitData.contentBlocks,
+        };
+        console.debug('[PostForm] Submitting post payload', dbg);
+      } catch (e) {
+        console.debug('[PostForm] Could not serialize submit payload');
+      }
 
       // Remove the single category field to avoid confusion
       delete (submitData as any).category;
+
+      // Backend schema: content has minLength: 1 but is optional.
+      // If empty string, omit the field entirely to pass validation.
+      if (typeof submitData.content === 'string' && submitData.content.trim().length === 0) {
+        delete submitData.content;
+      }
+
+      // Backend schema expects coverImage as an object { url, alt } if provided.
+      // Our form stores a URL string. Convert or omit if empty.
+      if (typeof submitData.coverImage === 'string') {
+        if (submitData.coverImage.trim().length > 0) {
+          submitData.coverImage = { url: submitData.coverImage, alt: '' };
+        } else {
+          delete submitData.coverImage;
+        }
+      }
 
       if (onSubmit) {
         await onSubmit(submitData);
@@ -221,7 +262,7 @@ export function PostForm({
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, validateForm, onSubmit, mode, actions, initialData]);
+  }, [formData, validateForm, onSubmit, mode, actions, initialData, contentBlocks]);
 
   // Handle save as draft
   const handleSaveDraft = useCallback(() => {
@@ -340,15 +381,13 @@ export function PostForm({
                 Content *
               </label>
               <div className="border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden">
-                <PostEditor
-                  value={formData.content}
-                  onChange={(content) => updateFormData('content', content)}
-                  postId={mode === 'edit' ? initialData?.id : null}
-                  title={formData.title}
-                  summary={formData.summary}
-                  enableAutoSave={mode === 'edit'}
-                  className="h-96"
-                />
+                <div className="p-3">
+                  <TiptapBlockEditor
+                    value={contentBlocks}
+                    onChange={setContentBlocks}
+                    placeholder="Write your post with formatting, images, and links..."
+                  />
+                </div>
               </div>
               {errors.content && (
                 <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.content}</p>
@@ -360,6 +399,7 @@ export function PostForm({
                 </div>
               )}
             </div>
+
           </div>
 
           {/* Sidebar */}
@@ -499,6 +539,7 @@ export function PostForm({
           title={formData.title}
           summary={formData.summary}
           content={formData.content}
+          contentBlocks={contentBlocks}
           coverImage={formData.coverImage}
           tags={formData.tags}
           categoryName={getCategoryName()}
