@@ -9,10 +9,84 @@ import { PostApiService } from '../../services/postApi';
 import { UploadProgress } from '../../types/post.types';
 import { UploadResponse } from '../../types/api.types';
 import { cn } from '../../../../lib/utils';
-import { Upload, X, Image, AlertCircle, CheckCircle, Check, Eye, ZoomIn, Edit, Link } from 'lucide-react';
+import { Upload, X, Image, AlertCircle, CheckCircle, Check, Eye, Edit, Link } from 'lucide-react';
 import { getImageUrl } from '../../../../config/api.config';
 import SafeImage from '../../../../components/SafeImage';
 import { ExternalImageInput } from './ExternalImageInput';
+
+// Helper function to extract URL from various response formats
+const getUrlFromResponse = (response: UploadResponse): string | null => {
+  if (response.urls) {
+    const url = response.urls.optimized || response.urls.original || null;
+    if (url) console.log('🔗 URL extraite depuis urls:', url);
+    return url;
+  }
+  if (response.url) {
+    console.log('🔗 URL extraite directement:', response.url);
+    return response.url;
+  }
+  if (response.success && response.data?.url) {
+    console.log('🔗 URL extraite depuis data:', response.data.url);
+    return response.data.url;
+  }
+  if (response.data && typeof response.data === 'string') {
+    console.log('🔗 URL extraite comme string:', response.data);
+    return response.data;
+  }
+  return null;
+};
+
+// Helper function to normalize URLs
+const normalizeUrl = (url: string): string => {
+  const originalUrl = url;
+  let normalizedUrl = url;
+  
+  if (url.startsWith('http://localhost/')) {
+    normalizedUrl = url.replace('http://localhost/', 'http://localhost:4200/');
+    console.log('🔧 URL corrigée (port ajouté):', originalUrl, '->', normalizedUrl);
+  } else if (url.includes('http://localhost:') && !url.includes('http://localhost:4200')) {
+    const urlParts = url.split('/');
+    urlParts[2] = 'localhost:4200';
+    normalizedUrl = urlParts.join('/');
+    console.log('🔧 URL corrigée (port modifié):', originalUrl, '->', normalizedUrl);
+  } else if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    normalizedUrl = getImageUrl(url);
+    console.log('🔧 URL construite depuis chemin relatif:', originalUrl, '->', normalizedUrl);
+  }
+  
+  console.log('✅ URL finale à utiliser:', normalizedUrl);
+  return normalizedUrl;
+};
+
+// Helper function to normalize display URLs
+const normalizeDisplayUrl = (raw: any): string | null => {
+  let url: string;
+  
+  if (typeof raw === 'string') {
+    url = raw;
+  } else if (typeof raw === 'object' && raw !== null && 'url' in raw) {
+    url = (raw as any).url;
+  } else {
+    url = String(raw);
+  }
+  
+  if (typeof url !== 'string') return null;
+  if (url && !url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('blob:') && !url.startsWith('data:')) {
+    return getImageUrl(url);
+  }
+  return url;
+};
+
+// Helper function to get debug URL string
+const getDebugUrlString = (raw: any): string => {
+  if (typeof raw === 'string') {
+    return raw;
+  }
+  if (raw && typeof raw === 'object' && 'url' in raw) {
+    return String(raw.url);
+  }
+  return JSON.stringify(raw);
+};
 
 interface MediaUploadProps {
   value: string;
@@ -60,12 +134,12 @@ export function MediaUpload({
     }
   }, [value, selectedFile]);
 
-  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLButtonElement>) => {
     e.preventDefault();
     setIsDragging(true);
   }, []);
 
-  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLButtonElement>) => {
     e.preventDefault();
     setIsDragging(false);
   }, []);
@@ -109,7 +183,8 @@ export function MediaUpload({
           return false;
         }
       } catch (error) {
-        setError('Erreur lors de la validation du fichier SVG');
+        console.error('SVG validation error:', error);
+        setError(`Erreur lors de la validation du fichier SVG: ${error instanceof Error ? error.message : 'Format invalide'}`);
         return false;
       }
     }
@@ -119,58 +194,8 @@ export function MediaUpload({
 
   const extractUrlFromResponse = (response: UploadResponse): string | null => {
     console.log('📥 Réponse d\'upload reçue:', response);
-
-    let extractedUrl: string | null = null;
-
-    // Nouveau format structuré: { urls: { original, optimized?, thumbnail? } }
-    if (response.urls) {
-      extractedUrl = response.urls.optimized || response.urls.original || null;
-      if (extractedUrl) {
-        console.log('🔗 URL extraite depuis urls:', extractedUrl);
-      }
-    }
-    // Format du serveur actuel: { message: "...", url: "..." }
-    if (!extractedUrl && response.url) {
-      extractedUrl = response.url;
-      console.log('🔗 URL extraite directement:', extractedUrl);
-    }
-    // Format alternatif avec success et data
-    else if (!extractedUrl && response.success && response.data?.url) {
-      extractedUrl = response.data.url;
-      console.log('🔗 URL extraite depuis data:', extractedUrl);
-    }
-    // Autres formats possibles
-    else if (!extractedUrl && response.data && typeof response.data === 'string') {
-      extractedUrl = response.data;
-      console.log('🔗 URL extraite comme string:', extractedUrl);
-    }
-
-    // Correction automatique de l'URL si elle utilise le mauvais port
-    if (extractedUrl) {
-      const originalUrl = extractedUrl;
-      
-      // Correction pour localhost sans port -> localhost:4200
-      if (extractedUrl.startsWith('http://localhost/')) {
-        extractedUrl = extractedUrl.replace('http://localhost/', 'http://localhost:4200/');
-        console.log('🔧 URL corrigée (port ajouté):', originalUrl, '->', extractedUrl);
-      }
-      // Correction pour localhost avec mauvais port
-      else if (extractedUrl.includes('http://localhost:') && !extractedUrl.includes('http://localhost:4200')) {
-        const urlParts = extractedUrl.split('/');
-        urlParts[2] = 'localhost:4200'; // Remplace host:port
-        extractedUrl = urlParts.join('/');
-        console.log('🔧 URL corrigée (port modifié):', originalUrl, '->', extractedUrl);
-      }
-      // Gestion des chemins relatifs
-      else if (!extractedUrl.startsWith('http://') && !extractedUrl.startsWith('https://')) {
-        const originalPath = extractedUrl;
-        extractedUrl = getImageUrl(extractedUrl);
-        console.log('🔧 URL construite depuis chemin relatif:', originalPath, '->', extractedUrl);
-      }
-    }
-
-    console.log('✅ URL finale à utiliser:', extractedUrl);
-    return extractedUrl;
+    const extractedUrl = getUrlFromResponse(response);
+    return extractedUrl ? normalizeUrl(extractedUrl) : null;
   };
 
   const uploadFile = async (file: File) => {
@@ -226,7 +251,7 @@ export function MediaUpload({
   };
 
   const handleDrop = useCallback(
-    async (e: React.DragEvent<HTMLDivElement>) => {
+    async (e: React.DragEvent<HTMLButtonElement>) => {
       e.preventDefault();
       setIsDragging(false);
 
@@ -279,21 +304,14 @@ export function MediaUpload({
   };
 
   const getDisplayImageUrl = () => {
-    const url = value || previewUrl;
-    if (url && !url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('blob:')) {
-      return getImageUrl(url);
-    }
-    return url;
+    const raw = (value as any) || previewUrl;
+    if (!raw) return raw as any;
+    return normalizeDisplayUrl(raw);
   };
 
   const hasImageToShow = () => {
     return value || (previewUrl && !isUploading);
   };
-
-  const toggleExternalInput = useCallback(() => {
-    setShowExternalInput(prev => !prev);
-    setError(null);
-  }, []);
 
   return (
     <div className={cn('w-full space-y-4', className)}>
@@ -350,9 +368,10 @@ export function MediaUpload({
 
       {/* Upload area */}
       {!hasImageToShow() && !isUploading && !showExternalInput && (
-        <div
+        <button
+          type="button"
           className={cn(
-            'border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-300',
+            'border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-300 w-full',
             isDragging
               ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20 scale-105'
               : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-gray-50 dark:hover:bg-gray-800/50',
@@ -362,6 +381,7 @@ export function MediaUpload({
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           onClick={handleButtonClick}
+          aria-label={isCoverImage ? 'Ajouter une image de couverture' : 'Télécharger un fichier'}
         >
           <div className={cn(
             'w-20 h-20 rounded-full flex items-center justify-center transition-colors',
@@ -398,7 +418,7 @@ export function MediaUpload({
               </div>
             </div>
           )}
-        </div>
+        </button>
       )}
 
       {/* Upload progress with preview */}
@@ -456,12 +476,13 @@ export function MediaUpload({
           </div>
         </div>
       )}
-
       {/* Enlarged preview modal */}
       {previewMode && getDisplayImageUrl() && isImage(getDisplayImageUrl()!) && (
-        <div 
-          className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-8" 
+        <button 
+          type="button"
+          className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-8 border-0" 
           onClick={togglePreviewMode}
+          aria-label="Fermer l'aperçu agrandi"
         >
           <div className="relative max-w-7xl max-h-[90vh] overflow-auto">
             <img 
@@ -479,7 +500,7 @@ export function MediaUpload({
               <X className="h-8 w-8" />
             </button>
           </div>
-        </div>
+        </button>
       )}
 
       {/* Uploaded file preview - Layout complètement séparé */}
@@ -569,7 +590,7 @@ export function MediaUpload({
             </div>
             {value && (
               <div className="text-xs text-gray-500 dark:text-gray-400 font-mono bg-gray-100 dark:bg-gray-700 p-2 rounded">
-                URL: {value}
+                URL: {getDebugUrlString(value)}
               </div>
             )}
           </div>

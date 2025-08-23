@@ -3,5 +3,6 @@
     "Codegeex.Chat.LanguagePreference": "English",
     "Codegeex.Comment.LanguagePreference": "English",
     "Codegeex.CommitMessage.LanguagePreference": "English",
-    "zencoder.enableRepoIndexing": true
+    "zencoder.enableRepoIndexing": true,
+    "kiroAgent.configureMCP": "Disabled"
 }

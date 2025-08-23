@@ -105,57 +105,29 @@ async function seed() {
 
     console.log('Categories created');
 
-    // Créer des articles
+    // Créer des articles avec contenu Tiptap
     const posts = [
       {
         title: 'Introduction à Fastify',
-        content: `
-# Introduction à Fastify
-
-Fastify est un framework web pour Node.js conçu pour être rapide et peu gourmand en ressources. Il est inspiré par Express et Hapi, mais offre de meilleures performances et une API plus moderne.
-
-## Pourquoi choisir Fastify ?
-
-- **Performance** : Fastify est l'un des frameworks Node.js les plus rapides disponibles.
-- **Validation** : Validation des schémas intégrée avec JSON Schema.
-- **Extensibilité** : Système de plugins puissant.
-- **TypeScript** : Support natif de TypeScript.
-
-## Installation
-
-\`\`\`bash
-npm install fastify
-\`\`\`
-
-## Exemple simple
-
-\`\`\`javascript
-import Fastify from 'fastify';
-
-const fastify = Fastify({
-  logger: true
-});
-
-fastify.get('/', async (request, reply) => {
-  return { hello: 'world' };
-});
-
-const start = async () => {
-  try {
-    await fastify.listen({ port: 3000 });
-  } catch (err) {
-    fastify.log.error(err);
-    process.exit(1);
-  }
-};
-
-start();
-\`\`\`
-
-## Conclusion
-
-Fastify est un excellent choix pour les applications Node.js modernes qui nécessitent des performances élevées et une bonne expérience de développement.
-        `,
+        contentBlocks: [{
+          type: 'tiptap',
+          data: {
+            doc: {
+              type: 'doc',
+              content: [
+                { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Introduction à Fastify' }] },
+                { type: 'paragraph', content: [{ type: 'text', text: 'Fastify est un framework web pour Node.js conçu pour être rapide et peu gourmand en ressources.' }] },
+                { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Pourquoi choisir Fastify ?' }] },
+                { type: 'bulletList', content: [
+                  { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Performance : Fastify est très rapide' }] }] },
+                  { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Validation : Schémas JSON intégrés' }] }] },
+                  { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'TypeScript : Support natif' }] }] }
+                ]},
+                { type: 'codeBlock', attrs: { language: 'bash' }, content: [{ type: 'text', text: 'npm install fastify' }] }
+              ]
+            }
+          }
+        }],
         author: admin._id,
         categories: [createdCategories[1]._id],
         tags: ['Fastify', 'Node.js', 'JavaScript', 'Backend'],
@@ -163,83 +135,22 @@ Fastify est un excellent choix pour les applications Node.js modernes qui néces
       },
       {
         title: 'Les bases de MongoDB avec Mongoose',
-        content: `
-# Les bases de MongoDB avec Mongoose
-
-MongoDB est une base de données NoSQL orientée documents qui offre de grandes performances et une excellente scalabilité. Mongoose est un ODM (Object Document Mapper) pour MongoDB et Node.js qui facilite l'interaction avec la base de données.
-
-## Installation
-
-\`\`\`bash
-npm install mongoose
-\`\`\`
-
-## Connexion à MongoDB
-
-\`\`\`javascript
-import mongoose from 'mongoose';
-
-mongoose.connect('mongodb://localhost:27017/myapp')
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => console.error('MongoDB connection error:', err));
-\`\`\`
-
-## Définition d'un schéma
-
-\`\`\`javascript
-const userSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  createdAt: { type: Date, default: Date.now }
-});
-
-const User = mongoose.model('User', userSchema);
-\`\`\`
-
-## Opérations CRUD
-
-### Création
-
-\`\`\`javascript
-const newUser = new User({
-  username: 'john_doe',
-  email: 'john@example.com',
-  password: 'hashedPassword'
-});
-
-await newUser.save();
-\`\`\`
-
-### Lecture
-
-\`\`\`javascript
-// Trouver tous les utilisateurs
-const users = await User.find();
-
-// Trouver un utilisateur par ID
-const user = await User.findById('userId');
-
-// Trouver un utilisateur par critères
-const user = await User.findOne({ username: 'john_doe' });
-\`\`\`
-
-### Mise à jour
-
-\`\`\`javascript
-await User.findByIdAndUpdate('userId', { email: 'newemail@example.com' });
-\`\`\`
-
-### Suppression
-
-\`\`\`javascript
-await User.findByIdAndDelete('userId');
-\`\`\`
-
-## Conclusion
-
-Mongoose simplifie considérablement l'utilisation de MongoDB dans les applications Node.js en fournissant une structure et des validations pour vos données.
-        `,
+        contentBlocks: [{
+          type: 'tiptap',
+          data: {
+            doc: {
+              type: 'doc',
+              content: [
+                { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Les bases de MongoDB avec Mongoose' }] },
+                { type: 'paragraph', content: [{ type: 'text', text: 'MongoDB est une base de données NoSQL orientée documents. Mongoose est un ODM pour Node.js.' }] },
+                { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Installation' }] },
+                { type: 'codeBlock', attrs: { language: 'bash' }, content: [{ type: 'text', text: 'npm install mongoose' }] },
+                { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Connexion' }] },
+                { type: 'codeBlock', attrs: { language: 'javascript' }, content: [{ type: 'text', text: "import mongoose from 'mongoose';\n\nmongoose.connect('mongodb://localhost:27017/myapp');" }] }
+              ]
+            }
+          }
+        }],
         author: editor._id,
         categories: [createdCategories[1]._id],
         tags: ['MongoDB', 'Mongoose', 'Node.js', 'Database'],
@@ -247,43 +158,24 @@ Mongoose simplifie considérablement l'utilisation de MongoDB dans les applicati
       },
       {
         title: 'Introduction à l\'Intelligence Artificielle',
-        content: `
-# Introduction à l'Intelligence Artificielle
-
-L'intelligence artificielle (IA) est un domaine de l'informatique qui vise à créer des machines capables de simuler l'intelligence humaine. Elle englobe plusieurs sous-domaines comme le machine learning, le deep learning et le traitement du langage naturel.
-
-## Les différents types d'IA
-
-### IA faible (ou étroite)
-
-L'IA faible est conçue pour effectuer une tâche spécifique, comme la reconnaissance vocale ou la conduite autonome. C'est le type d'IA que nous utilisons aujourd'hui.
-
-### IA forte (ou générale)
-
-L'IA forte serait capable de comprendre, d'apprendre et d'appliquer ses connaissances à n'importe quelle tâche, comme un être humain. Elle n'existe pas encore.
-
-## Applications de l'IA
-
-- **Santé** : Diagnostic médical, découverte de médicaments
-- **Finance** : Détection de fraudes, trading algorithmique
-- **Transport** : Véhicules autonomes
-- **Marketing** : Personnalisation, analyse de sentiments
-- **Éducation** : Systèmes d'apprentissage adaptatifs
-
-## Défis et considérations éthiques
-
-L'IA soulève de nombreuses questions éthiques :
-
-- Vie privée et surveillance
-- Biais algorithmiques
-- Automatisation et impact sur l'emploi
-- Responsabilité et transparence
-- Sécurité et contrôle
-
-## Conclusion
-
-L'IA continue de progresser rapidement et transforme de nombreux aspects de notre société. Comprendre ses principes fondamentaux, ses applications et ses implications éthiques est essentiel pour naviguer dans ce nouveau paysage technologique.
-        `,
+        contentBlocks: [{
+          type: 'tiptap',
+          data: {
+            doc: {
+              type: 'doc',
+              content: [
+                { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: "Introduction à l'Intelligence Artificielle" }] },
+                { type: 'paragraph', content: [{ type: 'text', text: "L'IA vise à créer des machines capables de simuler l'intelligence humaine." }] },
+                { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Applications' }] },
+                { type: 'bulletList', content: [
+                  { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Santé : Diagnostic médical' }] }] },
+                  { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Finance : Détection de fraudes' }] }] },
+                  { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Transport : Véhicules autonomes' }] }] }
+                ]}
+              ]
+            }
+          }
+        }],
         author: admin._id,
         categories: [createdCategories[2]._id],
         tags: ['IA', 'Machine Learning', 'Deep Learning', 'Éthique'],
@@ -291,77 +183,24 @@ L'IA continue de progresser rapidement et transforme de nombreux aspects de notr
       },
       {
         title: 'Sécuriser votre application web',
-        content: `
-# Sécuriser votre application web
-
-La sécurité est un aspect crucial du développement web. Voici quelques bonnes pratiques pour sécuriser votre application web.
-
-## 1. Authentification sécurisée
-
-- Utilisez des mots de passe forts et le hachage avec bcrypt ou Argon2
-- Implémentez l'authentification à deux facteurs (2FA)
-- Utilisez des tokens JWT avec une durée de vie limitée
-- Gérez correctement les sessions
-
-## 2. Protection contre les attaques courantes
-
-### Injection SQL
-
-Utilisez des requêtes paramétrées ou des ORM pour éviter les injections SQL.
-
-\`\`\`javascript
-// Mauvais
-db.query(\`SELECT * FROM users WHERE username = '\${username}'\`);
-
-// Bon
-db.query('SELECT * FROM users WHERE username = ?', [username]);
-\`\`\`
-
-### Cross-Site Scripting (XSS)
-
-Échappez toujours les données utilisateur avant de les afficher.
-
-\`\`\`javascript
-// Utilisez des bibliothèques comme DOMPurify
-import DOMPurify from 'dompurify';
-const clean = DOMPurify.sanitize(userInput);
-\`\`\`
-
-### Cross-Site Request Forgery (CSRF)
-
-Utilisez des tokens CSRF pour les formulaires et les requêtes.
-
-## 3. HTTPS
-
-Utilisez toujours HTTPS en production avec des certificats valides.
-
-## 4. Gestion des dépendances
-
-- Maintenez vos dépendances à jour
-- Utilisez npm audit ou snyk pour vérifier les vulnérabilités
-
-## 5. Validation des entrées
-
-Validez toujours les entrées utilisateur côté serveur.
-
-\`\`\`javascript
-import { z } from 'zod';
-
-const userSchema = z.object({
-  username: z.string().min(3).max(20),
-  email: z.string().email(),
-  age: z.number().min(18).max(120),
-});
-
-const validateUser = (data) => {
-  return userSchema.parse(data);
-};
-\`\`\`
-
-## Conclusion
-
-La sécurité est un processus continu, pas un état final. Restez informé des nouvelles vulnérabilités et mettez régulièrement à jour vos connaissances et vos applications.
-        `,
+        contentBlocks: [{
+          type: 'tiptap',
+          data: {
+            doc: {
+              type: 'doc',
+              content: [
+                { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Sécuriser votre application web' }] },
+                { type: 'paragraph', content: [{ type: 'text', text: 'La sécurité est cruciale en développement web.' }] },
+                { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Bonnes pratiques' }] },
+                { type: 'bulletList', content: [
+                  { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Utilisez HTTPS' }] }] },
+                  { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Validez les entrées' }] }] },
+                  { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Authentification sécurisée' }] }] }
+                ]}
+              ]
+            }
+          }
+        }],
         author: editor._id,
         categories: [createdCategories[3]._id, createdCategories[1]._id],
         tags: ['Sécurité', 'Web', 'HTTPS', 'Authentification'],
@@ -369,7 +208,17 @@ La sécurité est un processus continu, pas un état final. Restez informé des 
       },
       {
         title: 'Article en brouillon',
-        content: 'Ceci est un article en cours de rédaction...',
+        contentBlocks: [{
+          type: 'tiptap',
+          data: {
+            doc: {
+              type: 'doc',
+              content: [
+                { type: 'paragraph', content: [{ type: 'text', text: 'Ceci est un article en cours de rédaction...' }] }
+              ]
+            }
+          }
+        }],
         author: user._id,
         categories: [createdCategories[0]._id],
         tags: ['Brouillon'],
@@ -381,8 +230,9 @@ La sécurité est un processus continu, pas un état final. Restez informé des 
     for (const post of posts) {
       const newPost = new Post({
         title: post.title,
-        content: post.content,
-        excerpt: post.content.substring(0, 200) + '...',
+        content: '', // Vide car on utilise contentBlocks
+        contentBlocks: post.contentBlocks,
+        excerpt: post.title.substring(0, 200) + '...',
         slug: generateSlug(post.title),
         author: post.author,
         categories: post.categories,

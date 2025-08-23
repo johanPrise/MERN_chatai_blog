@@ -17,7 +17,7 @@ const blocksToPlainText = (blocks: any[] | undefined | null): string => {
     if (!b) continue;
     // Support either our flexible schema {type, data} or flattened blocks
     const type = b.type;
-    const data = (b.data ?? b);
+    const data = b.data ?? b;
     switch (type) {
       case 'paragraph':
         if (typeof data.text === 'string') parts.push(data.text);
@@ -161,6 +161,19 @@ export const getAllPosts = async (
     postObj.likes = likedBy.map((id: unknown) => String(id));
     postObj.dislikes = dislikedBy.map((id: unknown) => String(id));
 
+    // Alias frontend: summary = excerpt
+    (postObj as any).summary = postObj.excerpt ?? null;
+
+    // Normalize coverImage to string for frontend compatibility
+    if (postObj && (postObj as any).coverImage && typeof (postObj as any).coverImage === 'object') {
+      const ci: any = (postObj as any).coverImage;
+      if (ci && typeof ci.url === 'string') {
+        (postObj as any).coverImage = ci.url;
+        // Optionally expose original object for new UI if needed
+        (postObj as any).coverImageObj = ci;
+      }
+    }
+
     return postObj;
   });
 
@@ -250,6 +263,18 @@ export const getPostByIdOrSlug = async (
   postObj.likes = likedBy.map((id: unknown) => String(id));
   postObj.dislikes = dislikedBy.map((id: unknown) => String(id));
 
+  // Alias frontend: summary = excerpt
+  (postObj as any).summary = postObj.excerpt ?? null;
+
+  // Normalize coverImage to string for frontend compatibility
+  if (postObj && (postObj as any).coverImage && typeof (postObj as any).coverImage === 'object') {
+    const ci: any = (postObj as any).coverImage;
+    if (ci && typeof ci.url === 'string') {
+      (postObj as any).coverImage = ci.url;
+      (postObj as any).coverImageObj = ci;
+    }
+  }
+
   return postObj;
 };
 
@@ -257,7 +282,13 @@ export const getPostByIdOrSlug = async (
  * Service pour créer un nouvel article
  */
 export const createPost = async (postData: CreatePostInput, authorId: string) => {
-  const { title, content, contentBlocks, excerpt, categories, tags, featuredImage, coverImage, images, status } = postData;
+  const { title, categories, tags, featuredImage, coverImage, images, status } = postData;
+  let { content, contentBlocks, excerpt } = postData as any;
+
+  // Compatibilité: accepter 'summary' depuis le frontend et le mapper à 'excerpt'
+  if (!excerpt && (postData as any).summary) {
+    excerpt = (postData as any).summary;
+  }
 
   // Compatibilité avec le frontend: si on reçoit 'category' au lieu de 'categories'
   let finalCategories = categories;
@@ -278,6 +309,10 @@ export const createPost = async (postData: CreatePostInput, authorId: string) =>
     } else if (contentBlocks && contentBlocks.length > 0) {
       const plain = blocksToPlainText(contentBlocks as any);
       finalExcerpt = extractExcerpt(plain);
+      // Compat: si aucun content (markdown) fourni, remplir avec le texte brut issu des blocks
+      if (!content || !content.trim()) {
+        content = plain;
+      }
     }
   }
 
@@ -335,13 +370,27 @@ export const createPost = async (postData: CreatePostInput, authorId: string) =>
   const postObj = populated.toObject() as PostResponse;
   // Normaliser certains champs attendus par le frontend
   const likedBy = Array.isArray((populated as any).likedBy) ? (populated as any).likedBy : [];
-  const dislikedBy = Array.isArray((populated as any).dislikedBy) ? (populated as any).dislikedBy : [];
+  const dislikedBy = Array.isArray((populated as any).dislikedBy)
+    ? (populated as any).dislikedBy
+    : [];
   postObj.likes = likedBy.map((id: unknown) => String(id));
   postObj.dislikes = dislikedBy.map((id: unknown) => String(id));
   if (Array.isArray(postObj.categories) && postObj.categories.length > 0) {
     (postObj as any).category = postObj.categories[0];
   } else {
     (postObj as any).category = null as any;
+  }
+
+  // Alias frontend: summary = excerpt
+  (postObj as any).summary = postObj.excerpt ?? null;
+
+  // Normalize coverImage to string for frontend compatibility
+  if (postObj && (postObj as any).coverImage && typeof (postObj as any).coverImage === 'object') {
+    const ci: any = (postObj as any).coverImage;
+    if (ci && typeof ci.url === 'string') {
+      (postObj as any).coverImage = ci.url;
+      (postObj as any).coverImageObj = ci;
+    }
   }
 
   return postObj;
@@ -356,117 +405,241 @@ export const updatePost = async (
   currentUserId: string,
   currentUserRole: string
 ) => {
+  console.log('[updatePost] Service called', {
+    id,
+    currentUserId,
+    currentUserRole,
+    updateDataKeys: Object.keys(updateData),
+    status: updateData.status,
+    title: updateData.title?.substring(0, 50) + '...',
+  });
+
   // Vérifier si l'ID est valide
   if (!isValidObjectId(id)) {
+    console.log('[updatePost] Invalid ID', { id });
     throw new Error('ID article invalide');
   }
 
-  // Récupérer l'article
-  const post = (await Post.findById(id)) as IPost;
+  // Récupérer l'article avec populate pour avoir les infos complètes
+  const post = (await Post.findById(id).populate('author', '_id username role')) as IPost & {
+    author: { _id: string; username: string; role: string };
+  };
 
   // Vérifier si l'article existe
   if (!post) {
+    console.log('[updatePost] Post not found', { id });
     throw new Error('Article non trouvé');
   }
 
+  // Vérifier si l'article est supprimé
+  if (post.isDeleted) {
+    console.log('[updatePost] Post is deleted', { id });
+    throw new Error('Article non trouvé');
+  }
+
+  console.log('[updatePost] Post found', {
+    postId: post._id,
+    postTitle: post.title,
+    postAuthor: post.author._id,
+    postStatus: post.status,
+    currentUserId,
+    currentUserRole,
+  });
+
   // Vérifier si l'utilisateur actuel est autorisé à mettre à jour cet article
-  const authorId = (post.author as unknown as { toString(): string }).toString();
+  const authorId = post.author._id.toString();
   const isAuthor = authorId === currentUserId;
   const isAdminOrEditor = currentUserRole === 'admin' || currentUserRole === 'editor';
 
+  console.log('[updatePost] Permission check', {
+    authorId,
+    currentUserId,
+    isAuthor,
+    isAdminOrEditor,
+    currentUserRole,
+  });
+
   if (!isAuthor && !isAdminOrEditor) {
+    console.log('[updatePost] Permission denied', { authorId, currentUserId, currentUserRole });
     throw new Error("Vous n'êtes pas autorisé à mettre à jour cet article");
   }
 
+  // Préparer les données de mise à jour
+  const cleanUpdateData: any = { ...updateData };
+
   // Si le titre est modifié, générer un nouveau slug
-  if (updateData.title && updateData.title !== post.title) {
-    updateData.slug = generateSlug(updateData.title);
+  if (cleanUpdateData.title && cleanUpdateData.title !== post.title) {
+    cleanUpdateData.slug = generateSlug(cleanUpdateData.title);
+    console.log('[updatePost] Generated new slug', {
+      oldTitle: post.title,
+      newTitle: cleanUpdateData.title,
+      slug: cleanUpdateData.slug,
+    });
   }
 
   // Gérer le champ summary (compatibilité avec le frontend)
-  if (updateData.summary) {
-    updateData.excerpt = updateData.summary;
-    delete updateData.summary;
+  if (cleanUpdateData.summary) {
+    cleanUpdateData.excerpt = cleanUpdateData.summary;
+    delete cleanUpdateData.summary;
+    console.log('[updatePost] Converted summary to excerpt');
   }
 
   // Si le contenu est modifié et qu'il n'y a pas d'extrait fourni, générer un nouvel extrait
-  if (!updateData.excerpt) {
-    if (updateData.content && (!post.excerpt || updateData.content !== post.content)) {
-      updateData.excerpt = extractExcerpt(updateData.content);
-    } else if (updateData.contentBlocks && Array.isArray(updateData.contentBlocks)) {
-      const plain = blocksToPlainText(updateData.contentBlocks as any);
-      if (plain) updateData.excerpt = extractExcerpt(plain);
+  if (!cleanUpdateData.excerpt) {
+    if (cleanUpdateData.content && cleanUpdateData.content !== post.content) {
+      cleanUpdateData.excerpt = extractExcerpt(cleanUpdateData.content);
+      console.log('[updatePost] Generated excerpt from content');
+    } else if (cleanUpdateData.contentBlocks && Array.isArray(cleanUpdateData.contentBlocks)) {
+      const plain = blocksToPlainText(cleanUpdateData.contentBlocks as any);
+      if (plain) {
+        cleanUpdateData.excerpt = extractExcerpt(plain);
+        console.log('[updatePost] Generated excerpt from contentBlocks');
+      }
     }
   }
 
   // Gestion de la date de publication
-  if (updateData.status === PostStatus.PUBLISHED) {
+  if (cleanUpdateData.status === PostStatus.PUBLISHED) {
     if (post.status !== PostStatus.PUBLISHED) {
       // Premier passage en statut publié : définir publishedAt
-      updateData.publishedAt = new Date();
+      cleanUpdateData.publishedAt = new Date();
+      console.log('[updatePost] Setting publishedAt for first publication');
     }
     // Si déjà publié et qu'on reste publié, garder la date de publication originale
-  } else if (updateData.status === PostStatus.DRAFT && post.status === PostStatus.PUBLISHED) {
-    // Si on repasse en brouillon, on peut choisir de garder ou supprimer publishedAt
-    // Ici on la garde pour l'historique, mais on pourrait la supprimer
   }
 
   // Compatibilité avec le frontend: si on reçoit 'category' au lieu de 'categories'
-  if (!updateData.categories && (updateData as any).category) {
+  if (!cleanUpdateData.categories && (cleanUpdateData as any).category) {
     // Si on reçoit une catégorie unique, la convertir en tableau
-    updateData.categories = [(updateData as any).category];
-    console.log('Update: Converted single category to array:', updateData.categories);
+    const categoryId = (cleanUpdateData as any).category;
+    if (typeof categoryId === 'string') {
+      cleanUpdateData.categories = [categoryId];
+      console.log('[updatePost] Converted single category to array:', cleanUpdateData.categories);
+    }
+    delete (cleanUpdateData as any).category;
   }
 
   // Vérifier si les catégories existent
-  if (updateData.categories && updateData.categories.length > 0) {
-    console.log('Update: Checking categories:', updateData.categories);
+  if (cleanUpdateData.categories && cleanUpdateData.categories.length > 0) {
+    console.log('[updatePost] Checking categories:', cleanUpdateData.categories);
     const categoryCount = await Category.countDocuments({
-      _id: { $in: updateData.categories },
+      _id: { $in: cleanUpdateData.categories },
     });
 
-    if (categoryCount !== updateData.categories.length) {
+    if (categoryCount !== cleanUpdateData.categories.length) {
+      console.log('[updatePost] Invalid categories', {
+        provided: cleanUpdateData.categories,
+        found: categoryCount,
+      });
       throw new Error("Une ou plusieurs catégories n'existent pas");
     }
   }
 
+  // Nettoyer les champs undefined/null pour éviter les problèmes
+  Object.keys(cleanUpdateData).forEach(key => {
+    if (cleanUpdateData[key] === undefined) {
+      delete cleanUpdateData[key];
+    }
+  });
+
+  console.log('[updatePost] Final update data', {
+    keys: Object.keys(cleanUpdateData),
+    hasTitle: !!cleanUpdateData.title,
+    hasContent: !!cleanUpdateData.content,
+    hasExcerpt: !!cleanUpdateData.excerpt,
+    status: cleanUpdateData.status,
+    categories: cleanUpdateData.categories,
+  });
+
   // Mettre à jour l'article
   const updatedPost = (await Post.findByIdAndUpdate(
     id,
-    { $set: updateData },
-    { new: true }
+    {
+      $set: {
+        ...cleanUpdateData,
+        updatedAt: new Date(),
+      },
+    },
+    {
+      new: true,
+      runValidators: true,
+    }
   )) as IPost | null;
 
   // Vérifier si l'article a bien été mis à jour
   if (!updatedPost) {
+    console.log('[updatePost] Update failed - no result');
     throw new Error("Erreur lors de la mise à jour de l'article");
   }
 
+  console.log('[updatePost] Post updated successfully', {
+    id: updatedPost._id,
+    title: updatedPost.title,
+    status: updatedPost.status,
+  });
+
   // Retourner l'article complet peuplé pour inclure contentBlocks et autres champs
   const populated = await Post.findById(updatedPost._id)
-    .populate('author', '_id username profilePicture')
+    .populate('author', '_id username profilePicture role')
     .populate('categories', '_id name slug');
 
   if (!populated) {
-    // Fallback minimal si la récupération échoue
+    console.log('[updatePost] Failed to populate updated post');
+    // Fallback minimal si la récupération échoue - utilisation de String() pour conversion sûre
     return {
       _id: updatedPost._id,
-      title: updatedPost.title,
-      slug: updatedPost.slug,
-      status: updatedPost.status,
+      id: String(updatedPost._id),
+      title: updatedPost.title || '',
+      slug: updatedPost.slug || '',
+      status: updatedPost.status || PostStatus.DRAFT,
     };
   }
 
+  // Normaliser la réponse pour le frontend
   const postObj = populated.toObject() as PostResponse;
+
+  // Ajouter l'ID en format string pour le frontend
+  (postObj as any).id = postObj._id.toString();
+
+  // Normaliser les likes/dislikes
   const likedBy = Array.isArray((populated as any).likedBy) ? (populated as any).likedBy : [];
-  const dislikedBy = Array.isArray((populated as any).dislikedBy) ? (populated as any).dislikedBy : [];
+  const dislikedBy = Array.isArray((populated as any).dislikedBy)
+    ? (populated as any).dislikedBy
+    : [];
   postObj.likes = likedBy.map((id: unknown) => String(id));
   postObj.dislikes = dislikedBy.map((id: unknown) => String(id));
+
+  // Normaliser les catégories
   if (Array.isArray(postObj.categories) && postObj.categories.length > 0) {
     (postObj as any).category = postObj.categories[0];
   } else {
-    (postObj as any).category = null as any;
+    (postObj as any).category = null;
   }
+
+  // Alias frontend: summary = excerpt
+  (postObj as any).summary = postObj.excerpt ?? null;
+
+  // Normalize coverImage to string for frontend compatibility
+  if (postObj && (postObj as any).coverImage && typeof (postObj as any).coverImage === 'object') {
+    const ci: any = (postObj as any).coverImage;
+    if (ci && typeof ci.url === 'string') {
+      (postObj as any).coverImage = ci.url;
+      (postObj as any).coverImageObj = ci;
+    }
+  }
+
+  // Normaliser l'auteur
+  if (postObj.author && (postObj.author as any)._id && !(postObj.author as any).id) {
+    (postObj.author as any).id = (postObj.author as any)._id.toString();
+  }
+
+  console.log('[updatePost] Returning normalized post', {
+    id: (postObj as any).id,
+    title: postObj.title,
+    status: postObj.status,
+    hasAuthor: !!postObj.author,
+    hasCategories: Array.isArray(postObj.categories) && postObj.categories.length > 0,
+  });
 
   return postObj;
 };
@@ -571,7 +744,7 @@ export const likePost = async (id: string, userId: string) => {
     likeCount: post.likedBy.length, // Utiliser la longueur réelle du tableau
     dislikeCount: post.dislikedBy.length, // Utiliser la longueur réelle du tableau
     isLiked: !userHasLiked,
-    isDisliked: false
+    isDisliked: false,
   };
 };
 
@@ -598,9 +771,7 @@ export const unlikePost = async (id: string, userId: string) => {
   }
 
   // Retirer l'utilisateur de la liste des likes
-  post.likedBy = post.likedBy.filter(
-    (likeId: any) => likeId.toString() !== userId
-  );
+  post.likedBy = post.likedBy.filter((likeId: any) => likeId.toString() !== userId);
   await post.save();
 
   return {
@@ -609,7 +780,7 @@ export const unlikePost = async (id: string, userId: string) => {
     likeCount: post.likedBy.length,
     dislikeCount: post.dislikedBy.length,
     isLiked: false,
-    isDisliked: post.dislikedBy.some((id: any) => id.toString() === userId)
+    isDisliked: post.dislikedBy.some((id: any) => id.toString() === userId),
   };
 };
 
@@ -658,6 +829,6 @@ export const dislikePost = async (id: string, userId: string) => {
     likeCount: post.likedBy.length, // Utiliser la longueur réelle du tableau
     dislikeCount: post.dislikedBy.length, // Utiliser la longueur réelle du tableau
     isLiked: false,
-    isDisliked: !userHasDisliked
+    isDisliked: !userHasDisliked,
   };
 };

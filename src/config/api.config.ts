@@ -121,6 +121,10 @@ export function getImageUrl(imagePath?: string | null): string {
   
   // Si le chemin commence par '/', c'est déjà un chemin absolu local
   if (imagePath.startsWith('/')) {
+    // Spécial: servir les uploads depuis le backend (peut être sur un autre port/domaine)
+    if (imagePath.startsWith('/uploads/')) {
+      return `${SERVER_BASE_URL}${imagePath}`;
+    }
     return imagePath;
   }
   

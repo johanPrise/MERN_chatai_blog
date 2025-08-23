@@ -3,7 +3,7 @@
  */
 
 import React, { createContext, useContext, useReducer, useCallback, ReactNode } from 'react';
-import { PostData, CreatePostInput, UpdatePostInput, PostFilters, LoadingState, PostErrorState } from '../types/post.types';
+import { PostData, CreatePostInput, UpdatePostInput, PostFilters, LoadingState, PostErrorState, PostError } from '../types/post.types';
 import { PostApiService } from '../services/postApi';
 
 // State interface
@@ -26,7 +26,7 @@ interface PostState {
 // Action types
 type PostAction =
   | { type: 'SET_LOADING'; payload: Partial<LoadingState> }
-  | { type: 'SET_ERROR'; payload: { code: string; message: string; field?: string } }
+  | { type: 'SET_ERROR'; payload: PostError }
   | { type: 'CLEAR_ERRORS' }
   | { type: 'SET_POSTS'; payload: { posts: PostData[]; pagination?: any } }
   | { type: 'ADD_POST'; payload: PostData }
@@ -190,7 +190,7 @@ export function PostProvider({ children }: PostProviderProps) {
     dispatch({ type: 'SET_LOADING', payload: loading });
   }, []);
 
-  const setError = useCallback((error: { code: string; message: string; field?: string }) => {
+  const setError = useCallback((error: PostError) => {
     dispatch({ type: 'SET_ERROR', payload: error });
   }, []);
 
@@ -286,42 +286,75 @@ export function PostProvider({ children }: PostProviderProps) {
   }, [apiService, setLoading, clearErrors, setError]);
 
   const updatePost = useCallback(async (id: string, data: UpdatePostInput): Promise<PostData | null> => {
+    console.log('[PostContext] updatePost called', { 
+      id, 
+      dataKeys: Object.keys(data),
+      title: data.title?.substring(0, 50) + '...',
+      status: data.status
+    });
+
     try {
       setLoading({ isUpdating: true });
       clearErrors();
 
+      // Valider les données avant envoi
+      if (!id) {
+        throw new Error('Post ID is required');
+      }
+
+      if (!data.title?.trim()) {
+        throw new Error('Post title is required');
+      }
+
       const result = await apiService.updatePost(id, data);
-      try {
-        const cb = (result as any)?.data?.contentBlocks;
-        console.debug('[PostContext] updatePost result summary', {
-          success: result?.success,
-          id: (result as any)?.data?.id || (result as any)?.data?._id,
-          contentBlocks: Array.isArray(cb)
-            ? { length: cb.length, types: cb.map((b: any) => b?.type) }
-            : cb,
-        });
-      } catch {}
+      
+      console.log('[PostContext] updatePost result', {
+        success: result?.success,
+        hasData: !!result?.data,
+        error: result?.error,
+        postId: result?.data?.id
+      });
       
       if (result.success && result.data) {
+        // Mettre à jour le state avec le post modifié
         dispatch({ type: 'UPDATE_POST', payload: result.data });
+        
+        // Mettre à jour aussi currentPost si c'est le même
+        if (state.currentPost && state.currentPost.id === id) {
+          dispatch({ type: 'SET_CURRENT_POST', payload: result.data });
+        }
+        
+        console.log('[PostContext] Post updated successfully in context', {
+          id: result.data.id,
+          title: result.data.title,
+          status: result.data.status
+        });
+        
         return result.data;
       } else {
+        const errorMessage = result.error || 'Failed to update post';
+        console.error('[PostContext] Update failed', { error: errorMessage, validationErrors: result.validationErrors });
+        
         setError({
           code: 'UPDATE_ERROR',
-          message: result.error || 'Failed to update post',
+          message: errorMessage,
+          details: result.validationErrors
         });
         return null;
       }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update post';
+      console.error('[PostContext] Update error', { error: errorMessage });
+      
       setError({
         code: 'UPDATE_ERROR',
-        message: error instanceof Error ? error.message : 'Failed to update post',
+        message: errorMessage,
       });
       return null;
     } finally {
       setLoading({ isUpdating: false });
     }
-  }, [apiService, setLoading, clearErrors, setError]);
+  }, [apiService, setLoading, clearErrors, setError, state.currentPost]);
 
   const deletePost = useCallback(async (id: string, soft: boolean = true): Promise<boolean> => {
     try {

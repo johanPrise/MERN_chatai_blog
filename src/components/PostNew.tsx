@@ -10,7 +10,7 @@ import React, { useState, useEffect } from "react"
 import { API_ENDPOINTS } from "../config/api.config"
 import { UserContext } from "../UserContext"
 import { AspectRatio } from "@radix-ui/react-aspect-ratio"
-import { useImageWithFallback } from '../hooks/useImageUrl'
+import { useCoverImage, normalizeCoverImage } from '../hooks/useImageUrl'
 
 export interface PostProps {
   post: PostType
@@ -37,7 +37,7 @@ export default function PostNew({
   isFavorite = false,
   fixedHeight = true
 }: PostProps) {
-  const { _id, title, summary, cover, author, createdAt } = post
+  const { _id, title, summary, author, createdAt } = post
   const { userInfo } = UserContext()
   const userId = userInfo?.id
 
@@ -48,9 +48,9 @@ export default function PostNew({
   const [dislikeCount, setDislikeCount] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
 
-  // Hook pour l'image avec fallback
-  const { url: postImageWithFallback, onError: onPostImageError } = useImageWithFallback(
-    cover,
+  // Utiliser le hook pour l'image de couverture avec fallback
+  const { url: postImageWithFallback, alt: postImageAlt, onError: onPostImageError } = useCoverImage(
+    post.coverImage,
     "/placeholder.svg"
   )
 
@@ -151,7 +151,7 @@ export default function PostNew({
   // Composant image
   const PostImage = ({ className: imgClassName }: { className: string }) => (
     <img
-      alt={title}
+      alt={postImageAlt || title}
       src={postImageWithFallback}
       className={imgClassName}
       loading="lazy"

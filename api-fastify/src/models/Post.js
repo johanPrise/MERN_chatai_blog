@@ -1,22 +1,6 @@
-const postSchema = new mongoose.Schema(
-  {
-    // ... autres champs existants
-    likedBy: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      default: []
-    }],
-    likeCount: {
-      type: Number,
-      default: 0
-    },
-    dislikedBy: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      default: []
-    }],
-    dislikeCount: {
-      type: Number,
-      default: 0
-    },
-    // ... autres champs existants
+// Windows filesystems are case-insensitive. This file ensures that any import resolving to
+// "./Post.js" will forward to the actual model implementation with the correct schema
+// (including content and contentBlocks).
+// Do not add any schema definitions here.
+
+export * from './post.model.js';

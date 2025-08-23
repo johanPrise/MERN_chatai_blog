@@ -3,16 +3,195 @@ import { formatISO9075 } from "date-fns"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./ui/card"
 import { Badge } from "./ui/badge"
 import { Button } from "./ui/button"
-import { formatDate, getOptimizedImageUrl, cn } from "../lib/utils"
-import { getImageUrl } from "../config/api.config"
-import { CalendarIcon, User2, Eye, Heart, MessageCircle, Share2, BookmarkPlus, ExternalLink, Star, ThumbsDown } from "lucide-react"
+import { formatDate, cn } from "../lib/utils"
+import { CalendarIcon, User2, Eye, Heart, MessageCircle, Share2, BookmarkPlus, Star, ThumbsDown } from "lucide-react"
 import { Post as PostType } from '../types/PostType'
-import React, { useState, useEffect } from "react"
+import React, { useState } from "react"
 import { API_ENDPOINTS } from "../config/api.config"
 import { UserContext } from "../UserContext"
 import { AspectRatio } from "@radix-ui/react-aspect-ratio"
-import { useImageUrl, useImageWithFallback } from '../hooks/useImageUrl'
+import { useCoverImage, normalizeCoverImage } from '../hooks/useImageUrl'
 import { useLikes } from '../hooks/useLikes'
+
+// Helper functions
+const extractSummaryFromTiptap = (post: any): string => {
+  const blocks: any[] = post?.contentBlocks || []
+  if (!Array.isArray(blocks) || blocks.length === 0) return 'Aucun résumé disponible'
+  
+  const tiptapBlock = blocks.find(b => b.type === 'tiptap' && b.data?.doc)
+  if (!tiptapBlock?.data.doc.content) return 'Aucun résumé disponible'
+  
+  const firstParagraph = tiptapBlock.data.doc.content.find((node: any) => 
+    node.type === 'paragraph' && node.content?.length > 0
+  )
+  
+  if (!firstParagraph) return 'Aucun résumé disponible'
+  
+  const text = firstParagraph.content
+    .filter((node: any) => node.type === 'text')
+    .map((node: any) => node.text)
+    .join(' ')
+  
+  return text.substring(0, 150) + (text.length > 150 ? '...' : '')
+}
+
+const getCategory = (post: PostType) => {
+  const categoryFromArray = post.categories?.[0] || null
+  return post.category || categoryFromArray
+}
+
+const renderCategoryBadge = (category: any) => {
+  if (category?._id && category.name) {
+    return (
+      <Link to={`/category/${category._id}`}>
+        <Badge variant="outline" className="hover:bg-primary-50 hover:text-primary-700 transition-colors">
+          {category.name}
+        </Badge>
+      </Link>
+    )
+  }
+  return <Badge variant="outline">Non catégorisé</Badge>
+}
+
+const FavoriteIndicator = () => (
+  <div className="absolute top-2 right-2 z-10">
+    <span className="bg-yellow-500 text-white flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium shadow-md">
+      <Star className="h-3 w-3 fill-current" />
+      Favori
+    </span>
+  </div>
+)
+
+const getBookmarkTitle = (userId: string | undefined, isFavorite: boolean): string => {
+  if (!userId) return "Connectez-vous pour ajouter aux favoris"
+  return isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"
+}
+
+const getCommentCount = (commentsData: any): number => {
+  if (Array.isArray(commentsData)) return commentsData.length
+  if (commentsData.comments && Array.isArray(commentsData.comments)) return commentsData.comments.length
+  return 0
+}
+
+const PostImage = ({ title, alt, src, className, onError }: { 
+  title: string
+  alt?: string
+  src: string
+  className: string
+  onError: () => void
+}) => (
+  <img
+    alt={alt || title}
+    src={src}
+    className={className}
+    loading="lazy"
+    decoding="async"
+    onError={onError}
+  />
+)
+
+const ActionButtons = ({ 
+  showActions, 
+  handleLikeClick, 
+  handleDislikeClick, 
+  handleBookmark, 
+  handleShare,
+  isLiked,
+  isDisliked,
+  isBookmarked,
+  isFavorite,
+  likeCount,
+  dislikeCount,
+  userId,
+  likesLoading
+}: {
+  showActions: boolean
+  handleLikeClick: (e: React.MouseEvent) => void
+  handleDislikeClick: (e: React.MouseEvent) => void
+  handleBookmark: (e: React.MouseEvent) => void
+  handleShare: (e: React.MouseEvent) => void
+  isLiked: boolean
+  isDisliked: boolean
+  isBookmarked: boolean
+  isFavorite: boolean
+  likeCount: number
+  dislikeCount: number
+  userId: string | undefined
+  likesLoading: boolean
+}) => showActions && (
+  <div className="flex items-center gap-2 mt-2">
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={handleLikeClick}
+      className={cn("h-8 px-2", isLiked && "text-green-500")}
+      title={userId ? "J'aime" : "Connectez-vous pour aimer ce post"}
+      disabled={!userId || likesLoading}
+    >
+      <Heart className={cn("h-4 w-4 mr-1", isLiked && "fill-current")} />
+      {likeCount}
+    </Button>
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={handleDislikeClick}
+      className={cn("h-8 px-2", isDisliked && "text-red-500")}
+      title={userId ? "Je n'aime pas" : "Connectez-vous pour ne pas aimer ce post"}
+      disabled={!userId || likesLoading}
+    >
+      <ThumbsDown className={cn("h-4 w-4 mr-1", isDisliked && "fill-current")} />
+      {dislikeCount}
+    </Button>
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={handleBookmark}
+      className={cn("h-8 px-2", isBookmarked && "text-blue-500", isFavorite && "text-yellow-500")}
+      title={getBookmarkTitle(userId, isFavorite)}
+      disabled={!userId}
+    >
+      {isFavorite ? (
+        <Star className="h-4 w-4 fill-current" />
+      ) : (
+        <BookmarkPlus className={cn("h-4 w-4", isBookmarked && "fill-current")} />
+      )}
+    </Button>
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={handleShare}
+      className="h-8 px-2"
+    >
+      <Share2 className="h-4 w-4" />
+    </Button>
+  </div>
+)
+
+const StatsDisplay = ({ showStats, stats, likeCount, dislikeCount }: {
+  showStats: boolean
+  stats: { views: number; comments: number }
+  likeCount: number
+  dislikeCount: number
+}) => showStats && (
+  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+    <span className="flex items-center gap-1">
+      <Eye className="h-3 w-3" />
+      {stats.views}
+    </span>
+    <span className="flex items-center gap-1 text-green-500">
+      <Heart className="h-3 w-3" />
+      {likeCount}
+    </span>
+    <span className="flex items-center gap-1 text-red-500">
+      <ThumbsDown className="h-3 w-3" />
+      {dislikeCount}
+    </span>
+    <span className="flex items-center gap-1">
+      <MessageCircle className="h-3 w-3" />
+      {stats.comments}
+    </span>
+  </div>
+)
 
 export interface PostProps {
   post: PostType
@@ -39,23 +218,22 @@ export default function Post({
   isFavorite = false,
   fixedHeight = true
 }: PostProps) {
-  const { _id, title, summary, cover, author, createdAt } = post
-  // Récupérer l'ID de l'utilisateur actuel depuis UserContext
+  const { _id, title, summary, coverImage, author, createdAt } = post
+  
+  const displaySummary = React.useMemo(() => {
+    return summary?.trim() || extractSummaryFromTiptap(post)
+  }, [summary, post])
+
   const { userInfo } = UserContext()
   const userId = userInfo?.id
-
   const [isBookmarked, setIsBookmarked] = useState(false)
   
-  // Utilisation du hook pour l'image principale du post
-  const postImageUrl = useImageUrl(cover)
-  
-  // Utilisation du hook avec fallback pour l'image du post
-  const { url: postImageWithFallback, onError: onPostImageError } = useImageWithFallback(
-    cover,
+  // Utiliser le hook pour l'image de couverture avec fallback
+  const { url: postImageWithFallback, alt: postImageAlt, onError: onPostImageError } = useCoverImage(
+    coverImage,
     "/placeholder.svg"
   )
 
-  // Debug des données de likes
   console.log('Post data:', { 
     id: _id, 
     likes: post.likes, 
@@ -63,7 +241,6 @@ export default function Post({
     userId 
   })
 
-  // Utilisation du hook pour les likes
   const {
     isLiked,
     isDisliked,
@@ -78,67 +255,34 @@ export default function Post({
     initialDislikes: Array.isArray(post.dislikes) ? post.dislikes : []
   })
 
-  // Utiliser la catégorie principale ou la première catégorie du tableau si disponible
-  const categoryFromArray = post.categories && Array.isArray(post.categories) && post.categories.length > 0 
-    ? post.categories[0] 
-    : null
-  const category = post.category || categoryFromArray
+  const category = getCategory(post)
 
-  // État local pour gérer les statistiques mises à jour
   const [stats, setStats] = React.useState({
     views: post.views || 0,
     comments: Array.isArray(post.comments) ? post.comments.length : 0
   })
 
-  // Utilisez les données réelles du post - récupération des statistiques
-  // Note: Les statistiques sont récupérées directement depuis les données fournies par l'API
-  // - views: À implémenter - actuellement non disponible dans l'API
-  // - likes: Dénombrement du tableau post.likes fourni par l'API
-  // - comments: Récupération du nombre de commentaires depuis l'API
-  // Initialisation de l'état pour les statistiques
-
-  // Mettre à jour les statistiques avec des appels API pour obtenir les valeurs réelles
   React.useEffect(() => {
-    // Fonction pour récupérer le nombre de commentaires
     const fetchCommentCount = async () => {
       try {
         if (!_id) return;
-
-        // Utiliser l'endpoint de l'API pour récupérer les commentaires du post
         const commentsResponse = await fetch(API_ENDPOINTS.comments.byPost(_id));
         if (commentsResponse.ok) {
           const commentsData = await commentsResponse.json();
-
-          // Mettre à jour le nombre de commentaires
-          const commentCount = Array.isArray(commentsData) 
-            ? commentsData.length 
-            : (commentsData.comments && Array.isArray(commentsData.comments)) 
-              ? commentsData.comments.length 
-              : 0;
-
+          const commentCount = getCommentCount(commentsData);
           setStats(prev => ({ ...prev, comments: commentCount }));
         }
       } catch (error) {
         console.error('Erreur lors de la récupération des commentaires:', error);
       }
     };
-
-    // Appeler les fonctions de récupération des statistiques
     fetchCommentCount();
   }, [_id]);
 
-  // L'état local pour gérer les statistiques est déclaré plus haut dans le composant
-
-  // Handle actions
   const handleLikeClick = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    
-    if (!userId) {
-      console.warn('Utilisateur non connecté - like impossible');
-      return;
-    }
-    
+    if (!userId) return;
     await handleLike()
     onLike?.(_id)
   }
@@ -146,20 +290,13 @@ export default function Post({
   const handleDislikeClick = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    
-    if (!userId) {
-      console.warn('Utilisateur non connecté - dislike impossible');
-      return;
-    }
-    
+    if (!userId) return;
     await handleDislike()
   }
 
   const handleBookmark = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    // Si déjà en favori, on utilise cette action pour retirer des favoris
-    // sinon on met à jour le statut de bookmark normal
     if (!isFavorite) {
       setIsBookmarked(!isBookmarked)
     }
@@ -172,106 +309,20 @@ export default function Post({
     onShare?.(post)
   }
 
-  // Image component with error handling using the hook
-  const PostImage = ({ className: imgClassName }: { className: string }) => (
-    <img
-      alt={title}
-      src={postImageWithFallback}
-      className={imgClassName}
-      loading="lazy"
-      decoding="async"
-      onError={onPostImageError}
-    />
-  )
-
-  // Action buttons component
-  const ActionButtons = () => showActions && (
-    <div className="flex items-center gap-2 mt-2">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={handleLikeClick}
-        className={cn("h-8 px-2", isLiked && "text-green-500")}
-        title={userId ? "J'aime" : "Connectez-vous pour aimer ce post"}
-        disabled={!userId || likesLoading}
-      >
-        <Heart className={cn("h-4 w-4 mr-1", isLiked && "fill-current")} />
-        {likeCount}
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={handleDislikeClick}
-        className={cn("h-8 px-2", isDisliked && "text-red-500")}
-        title={userId ? "Je n'aime pas" : "Connectez-vous pour ne pas aimer ce post"}
-        disabled={!userId || likesLoading}
-      >
-        <ThumbsDown className={cn("h-4 w-4 mr-1", isDisliked && "fill-current")} />
-        {dislikeCount}
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={handleBookmark}
-        className={cn("h-8 px-2", isBookmarked && "text-blue-500", isFavorite && "text-yellow-500")}
-        title={!userId ? "Connectez-vous pour ajouter aux favoris" : (isFavorite ? "Retirer des favoris" : "Ajouter aux favoris")}
-        disabled={!userId}
-      >
-        {isFavorite ? (
-          <Star className="h-4 w-4 fill-current" />
-        ) : (
-          <BookmarkPlus className={cn("h-4 w-4", isBookmarked && "fill-current")} />
-        )}
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={handleShare}
-        className="h-8 px-2"
-      >
-        <Share2 className="h-4 w-4" />
-      </Button>
-    </div>
-  )
-
-  // Stats component
-  const StatsDisplay = () => showStats && (
-    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-      <span className="flex items-center gap-1">
-        <Eye className="h-3 w-3" />
-        {stats.views}
-      </span>
-      <span className="flex items-center gap-1 text-green-500">
-        <Heart className="h-3 w-3" />
-        {likeCount}
-      </span>
-      <span className="flex items-center gap-1 text-red-500">
-        <ThumbsDown className="h-3 w-3" />
-        {dislikeCount}
-      </span>
-      <span className="flex items-center gap-1">
-        <MessageCircle className="h-3 w-3" />
-        {stats.comments}
-      </span>
-    </div>
-  )
-
-  // List variant - horizontal layout
   if (variant === "list") {
     return (
       <Card className={cn("overflow-hidden w-full max-w-full", fixedHeight && "h-[250px]", className)}>
         <div className="flex flex-col sm:flex-row gap-4 p-4 w-full min-w-0">
           <Link to={`/Post/${_id}`} className="relative block w-full sm:w-48 flex-shrink-0 overflow-hidden rounded-lg min-w-0">
-            {isFavorite && (
-              <div className="absolute top-2 right-2 z-10">
-                <span className="bg-yellow-500 text-white flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium shadow-md">
-                  <Star className="h-3 w-3 fill-current" />
-                  Favori
-                </span>
-              </div>
-            )}
+            {isFavorite && <FavoriteIndicator />}
             <AspectRatio ratio={16/10} className="w-full">
-              <PostImage className="h-full w-full object-cover transition-transform duration-300 hover:scale-105" />
+              <PostImage 
+                title={title}
+                alt={postImageAlt}
+                src={postImageWithFallback}
+                className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+                onError={onPostImageError}
+              />
             </AspectRatio>
           </Link>
           <div className="flex-1 flex flex-col min-w-0">
@@ -284,7 +335,12 @@ export default function Post({
                 <User2 className="h-3 w-3 inline mr-1" />
                 {author.username}
               </span>
-              <StatsDisplay />
+              <StatsDisplay 
+                showStats={showStats}
+                stats={stats}
+                likeCount={likeCount}
+                dislikeCount={dislikeCount}
+              />
             </div>
             <h3 className="text-lg font-semibold mb-2">
               <Link
@@ -295,23 +351,29 @@ export default function Post({
                 {title}
               </Link>
             </h3>
-            <p className="line-clamp-2 text-sm text-muted-foreground mb-3 flex-grow">{summary}</p>
+            <p className="line-clamp-2 text-sm text-muted-foreground mb-3 flex-grow">{displaySummary}</p>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2">
-                {category && typeof category === 'object' && category._id && category.name ? (
-                  <Link to={`/category/${category._id}`}>
-                    <Badge variant="outline" className="hover:bg-primary-50 hover:text-primary-700 transition-colors">
-                      {category.name}
-                    </Badge>
-                  </Link>
-                ) : (
-                  <Badge variant="outline">Non catégorisé</Badge>
-                )}
+                {renderCategoryBadge(category)}
                 <Link to={`/Post/${_id}`} className="text-primary text-sm font-medium hover:underline">
                   Read more →
                 </Link>
               </div>
-              <ActionButtons />
+              <ActionButtons 
+                showActions={showActions}
+                handleLikeClick={handleLikeClick}
+                handleDislikeClick={handleDislikeClick}
+                handleBookmark={handleBookmark}
+                handleShare={handleShare}
+                isLiked={isLiked}
+                isDisliked={isDisliked}
+                isBookmarked={isBookmarked}
+                isFavorite={isFavorite}
+                likeCount={likeCount}
+                dislikeCount={dislikeCount}
+                userId={userId}
+                likesLoading={likesLoading}
+              />
             </div>
           </div>
         </div>
@@ -319,21 +381,19 @@ export default function Post({
     )
   }
 
-  // Compact variant
   if (variant === "compact") {
     return (
       <Card className={cn("overflow-hidden flex flex-col w-full max-w-full", fixedHeight && "h-[450px]", className)}>
         <Link to={`/Post/${_id}`} className="relative block overflow-hidden min-w-0">
-          {isFavorite && (
-            <div className="absolute top-2 right-2 z-10">
-              <span className="bg-yellow-500 text-white flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium shadow-md">
-                <Star className="h-3 w-3 fill-current" />
-                Favori
-              </span>
-            </div>
-          )}
+          {isFavorite && <FavoriteIndicator />}
           <AspectRatio ratio={16/10} className="w-full">
-            <PostImage className="h-full w-full object-cover transition-transform duration-300 hover:scale-105" />
+            <PostImage 
+              title={title}
+              alt={postImageAlt}
+              src={postImageWithFallback}
+              className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+              onError={onPostImageError}
+            />
           </AspectRatio>
         </Link>
         <CardHeader className="p-4 pb-2">
@@ -346,7 +406,12 @@ export default function Post({
               <User2 className="h-3 w-3 inline mr-1" />
               {author.username}
             </span>
-            <StatsDisplay />
+            <StatsDisplay 
+              showStats={showStats}
+              stats={stats}
+              likeCount={likeCount}
+              dislikeCount={dislikeCount}
+            />
           </div>
           <CardTitle className="text-lg">
             <Link
@@ -359,40 +424,43 @@ export default function Post({
           </CardTitle>
         </CardHeader>
         <CardContent className="p-4 pt-0 flex-grow">
-          <p className="line-clamp-2 text-sm text-muted-foreground">{summary}</p>
-          <ActionButtons />
+          <p className="line-clamp-2 text-sm text-muted-foreground">{displaySummary}</p>
+          <ActionButtons 
+            showActions={showActions}
+            handleLikeClick={handleLikeClick}
+            handleDislikeClick={handleDislikeClick}
+            handleBookmark={handleBookmark}
+            handleShare={handleShare}
+            isLiked={isLiked}
+            isDisliked={isDisliked}
+            isBookmarked={isBookmarked}
+            isFavorite={isFavorite}
+            likeCount={likeCount}
+            dislikeCount={dislikeCount}
+            userId={userId}
+            likesLoading={likesLoading}
+          />
         </CardContent>
         <CardFooter className="p-4 pt-0">
-          {category && typeof category === 'object' && category._id && category.name ? (
-            <Link to={`/category/${category._id}`}>
-              <Badge variant="outline" className="hover:bg-primary-50 hover:text-primary-700 transition-colors">
-                {category.name}
-              </Badge>
-            </Link>
-          ) : (
-            <Badge variant="outline">Non catégorisé</Badge>
-          )}
+          {renderCategoryBadge(category)}
         </CardFooter>
       </Card>
     )
   }
 
-  // Featured variant
   if (variant === "featured") {
     return (
       <Card className={cn("overflow-hidden border-0 shadow-none bg-transparent w-full max-w-full", fixedHeight && "h-[350px]", className)}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center w-full min-w-0">          
           <Link to={`/Post/${_id}`} className="relative block overflow-hidden rounded-xl min-w-0">
-            {isFavorite && (
-              <div className="absolute top-2 right-2 z-10">
-                <span className="bg-yellow-500 text-white flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium shadow-md">
-                  <Star className="h-3 w-3 fill-current" />
-                  Favori
-                </span>
-              </div>
-            )}
+            {isFavorite && <FavoriteIndicator />}
             <AspectRatio ratio={16/10} className="w-full">
-              <PostImage className="h-full w-full object-cover transition-transform duration-300 hover:scale-105" />
+              <PostImage 
+                title={title}
+                src={postImageWithFallback}
+                className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
+                onError={onPostImageError}
+              />
             </AspectRatio>
           </Link>
           <div className="flex flex-col min-w-0 w-full">
@@ -400,13 +468,7 @@ export default function Post({
               <Badge variant="outline" className="bg-primary-50 text-primary-700 border-primary-200">
                 Featured
               </Badge>
-              {category && typeof category === 'object' && category._id && category.name && (
-                <Link to={`/category/${category._id}`}>
-                  <Badge variant="outline" className="hover:bg-primary-50 hover:text-primary-700 transition-colors">
-                    {category.name}
-                  </Badge>
-                </Link>
-              )}
+              {category?._id && category.name && renderCategoryBadge(category)}
             </div>
             <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-3">
               <Link
@@ -426,14 +488,33 @@ export default function Post({
                 <User2 className="h-4 w-4 inline mr-1" />
                 {author.username}
               </span>
-              <StatsDisplay />
+              <StatsDisplay 
+                showStats={showStats}
+                stats={stats}
+                likeCount={likeCount}
+                dislikeCount={dislikeCount}
+              />
             </div>
-            <p className="text-muted-foreground mb-4 line-clamp-3">{summary}</p>
+            <p className="text-muted-foreground mb-4 line-clamp-3">{displaySummary}</p>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <Link to={`/Post/${_id}`} className="text-primary font-medium hover:underline">
                 Read more →
               </Link>
-              <ActionButtons />
+              <ActionButtons 
+                showActions={showActions}
+                handleLikeClick={handleLikeClick}
+                handleDislikeClick={handleDislikeClick}
+                handleBookmark={handleBookmark}
+                handleShare={handleShare}
+                isLiked={isLiked}
+                isDisliked={isDisliked}
+                isBookmarked={isBookmarked}
+                isFavorite={isFavorite}
+                likeCount={likeCount}
+                dislikeCount={dislikeCount}
+                userId={userId}
+                likesLoading={likesLoading}
+              />
             </div>
           </div>
         </div>
@@ -441,10 +522,8 @@ export default function Post({
     )
   }
 
-  // Default variant
   return (
     <Card className={cn("overflow-hidden flex flex-col group relative w-full max-w-full", fixedHeight && "h-[450px]", className)}>
-      {/* Gradient overlay for enhanced visual appeal */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10 pointer-events-none" />
       
       <Link to={`/Post/${_id}`} className="relative block overflow-hidden min-w-0">
@@ -457,8 +536,13 @@ export default function Post({
           </div>
         )}
         <div className="relative overflow-hidden">
-          <PostImage className="h-56 w-full object-cover transition-all duration-500 group-hover:scale-110 group-hover:brightness-110" />
-          {/* Image overlay gradient */}
+          <PostImage 
+            title={title}
+            alt={postImageAlt}
+            src={postImageWithFallback}
+            className="h-56 w-full object-cover transition-all duration-500 group-hover:scale-110 group-hover:brightness-110"
+            onError={onPostImageError}
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         </div>
       </Link>
@@ -472,7 +556,12 @@ export default function Post({
             <User2 className="h-3 w-3 inline mr-1" />
             {author.username}
           </span>
-          <StatsDisplay />
+          <StatsDisplay 
+            showStats={showStats}
+            stats={stats}
+            likeCount={likeCount}
+            dislikeCount={dislikeCount}
+          />
         </div>
         <CardTitle className="text-xl">
           <Link
@@ -485,19 +574,25 @@ export default function Post({
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4 pt-0 flex-grow">
-        <p className="line-clamp-3 text-muted-foreground mb-3">{summary}</p>
-        <ActionButtons />
+        <p className="line-clamp-3 text-muted-foreground mb-3">{displaySummary}</p>
+        <ActionButtons 
+          showActions={showActions}
+          handleLikeClick={handleLikeClick}
+          handleDislikeClick={handleDislikeClick}
+          handleBookmark={handleBookmark}
+          handleShare={handleShare}
+          isLiked={isLiked}
+          isDisliked={isDisliked}
+          isBookmarked={isBookmarked}
+          isFavorite={isFavorite}
+          likeCount={likeCount}
+          dislikeCount={dislikeCount}
+          userId={userId}
+          likesLoading={likesLoading}
+        />
       </CardContent>
       <CardFooter className="p-4 pt-0 flex justify-between items-center">
-        {category && typeof category === 'object' && category._id && category.name ? (
-          <Link to={`/category/${category._id}`}>
-            <Badge variant="outline" className="hover:bg-primary-50 hover:text-primary-700 transition-colors">
-              {category.name}
-            </Badge>
-          </Link>
-        ) : (
-          <Badge variant="outline">Non catégorisé</Badge>
-        )}
+        {renderCategoryBadge(category)}
         <Link to={`/Post/${_id}`} className="text-primary text-sm font-medium hover:underline">
           Read more →
         </Link>
@@ -507,3 +602,14 @@ export default function Post({
 }
 
 export type { PostType }
+export { 
+  extractSummaryFromTiptap,
+  getCategory,
+  renderCategoryBadge,
+  FavoriteIndicator,
+  getBookmarkTitle,
+  getCommentCount,
+  PostImage,
+  ActionButtons,
+  StatsDisplay
+}

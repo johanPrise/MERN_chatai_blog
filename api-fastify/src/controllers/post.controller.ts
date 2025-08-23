@@ -3,7 +3,6 @@ import { isValidObjectId } from '../utils/index.js';
 import { CreatePostInput, UpdatePostInput, PostStatus } from '../types/post.types.js';
 import * as PostService from '../services/post.service.js';
 
-
 /**
  * Contrôleur pour récupérer tous les articles (avec pagination et filtres)
  */
@@ -17,7 +16,7 @@ export const getPosts = async (
       tag?: string;
       author?: string;
       status?: PostStatus;
-    }
+    };
   }>,
   reply: FastifyReply
 ) => {
@@ -86,7 +85,7 @@ export const getPost = async (
   } catch (error) {
     request.log.error(error);
     return reply.status(500).send({
-      message: 'Une erreur est survenue lors de la récupération de l\'article',
+      message: "Une erreur est survenue lors de la récupération de l'article",
     });
   }
 };
@@ -108,7 +107,9 @@ export const createPost = async (
       request.log.debug({
         msg: '[createPost] incoming payload summary',
         hasContentBlocks: Array.isArray(cb),
-        contentBlocks: Array.isArray(cb) ? { length: cb.length, types: cb.map((b: any) => b?.type) } : cb,
+        contentBlocks: Array.isArray(cb)
+          ? { length: cb.length, types: cb.map((b: any) => b?.type) }
+          : cb,
       });
     } catch {}
 
@@ -123,7 +124,9 @@ export const createPost = async (
           msg: '[createPost] saved post summary',
           id: (result as any)?._id || (result as any)?.id,
           hasContentBlocks: Array.isArray(cb),
-          contentBlocks: Array.isArray(cb) ? { length: cb.length, types: cb.map((b: any) => b?.type) } : cb,
+          contentBlocks: Array.isArray(cb)
+            ? { length: cb.length, types: cb.map((b: any) => b?.type) }
+            : cb,
         });
       } catch {}
 
@@ -134,7 +137,7 @@ export const createPost = async (
       });
     } catch (error) {
       if (error instanceof Error) {
-        if (error.message === 'Une ou plusieurs catégories n\'existent pas') {
+        if (error.message === "Une ou plusieurs catégories n'existent pas") {
           return reply.status(400).send({
             message: error.message,
           });
@@ -145,7 +148,7 @@ export const createPost = async (
   } catch (error) {
     request.log.error(error);
     return reply.status(500).send({
-      message: 'Une erreur est survenue lors de la création de l\'article',
+      message: "Une erreur est survenue lors de la création de l'article",
     });
   }
 };
@@ -160,22 +163,29 @@ export const updatePost = async (
   try {
     const { id } = request.params;
     const updateData = request.body;
-    // Debug: summarize incoming contentBlocks
-    try {
-      const cb: any = (updateData as any)?.contentBlocks;
-      request.log.debug({
-        msg: '[updatePost] incoming payload summary',
-        id,
-        hasContentBlocks: Array.isArray(cb),
-        contentBlocks: Array.isArray(cb) ? { length: cb.length, types: cb.map((b: any) => b?.type) } : cb,
-      });
-    } catch {}
+
+    // Log détaillé pour debug
+    request.log.info({
+      msg: '[updatePost] Request received',
+      id,
+      userId: request.user._id,
+      userRole: request.user.role,
+      dataKeys: Object.keys(updateData),
+      hasTitle: !!updateData.title,
+      hasContent: !!updateData.content,
+      hasContentBlocks: Array.isArray((updateData as any)?.contentBlocks),
+      status: updateData.status,
+      categories: updateData.categories,
+    });
+
     const currentUserId = request.user._id;
     const currentUserRole = request.user.role;
 
     // Vérifier si l'ID est valide
     if (!isValidObjectId(id)) {
+      request.log.warn('[updatePost] Invalid post ID', { id });
       return reply.status(400).send({
+        success: false,
         message: 'ID article invalide',
       });
     }
@@ -184,38 +194,44 @@ export const updatePost = async (
     try {
       const result = await PostService.updatePost(id, updateData, currentUserId, currentUserRole);
 
-      // Debug: summarize saved contentBlocks
-      try {
-        const cb: any = (result as any)?.contentBlocks;
-        request.log.debug({
-          msg: '[updatePost] saved post summary',
-          id: (result as any)?._id || (result as any)?.id,
-          hasContentBlocks: Array.isArray(cb),
-          contentBlocks: Array.isArray(cb) ? { length: cb.length, types: cb.map((b: any) => b?.type) } : cb,
-        });
-      } catch {}
+      request.log.info({
+        msg: '[updatePost] Post updated successfully',
+        postId: (result as any)?._id || (result as any)?.id,
+        title: (result as any)?.title,
+        status: (result as any)?.status,
+      });
 
-      // Retourner la réponse
+      // Retourner la réponse avec structure cohérente
       return reply.status(200).send({
+        success: true,
         message: 'Article mis à jour avec succès',
         post: result,
+        data: result, // Ajout pour compatibilité frontend
       });
     } catch (error) {
+      request.log.error('[updatePost] Service error', {
+        error: error instanceof Error ? error.message : error,
+      });
+
       if (error instanceof Error) {
         if (error.message === 'ID article invalide') {
           return reply.status(400).send({
+            success: false,
             message: error.message,
           });
         } else if (error.message === 'Article non trouvé') {
           return reply.status(404).send({
+            success: false,
             message: error.message,
           });
-        } else if (error.message === 'Vous n\'êtes pas autorisé à mettre à jour cet article') {
+        } else if (error.message === "Vous n'êtes pas autorisé à mettre à jour cet article") {
           return reply.status(403).send({
+            success: false,
             message: error.message,
           });
-        } else if (error.message === 'Une ou plusieurs catégories n\'existent pas') {
+        } else if (error.message === "Une ou plusieurs catégories n'existent pas") {
           return reply.status(400).send({
+            success: false,
             message: error.message,
           });
         }
@@ -223,9 +239,16 @@ export const updatePost = async (
       throw error;
     }
   } catch (error) {
-    request.log.error(error);
+    request.log.error('[updatePost] Unexpected error', { error });
     return reply.status(500).send({
-      message: 'Une erreur est survenue lors de la mise à jour de l\'article',
+      success: false,
+      message: "Une erreur est survenue lors de la mise à jour de l'article",
+      error:
+        process.env.NODE_ENV === 'development'
+          ? error instanceof Error
+            ? error.message
+            : String(error)
+          : undefined,
     });
   }
 };
@@ -257,7 +280,7 @@ export const deletePost = async (
       // Retourner la réponse
       return reply.status(200).send({
         message: soft ? 'Article supprimé avec succès' : 'Article supprimé définitivement',
-        data: { soft, deletedAt: new Date() }
+        data: { soft, deletedAt: new Date() },
       });
     } catch (error) {
       if (error instanceof Error) {
@@ -273,8 +296,10 @@ export const deletePost = async (
           return reply.status(409).send({
             message: error.message,
           });
-        } else if (error.message === 'Vous n\'êtes pas autorisé à supprimer cet article' ||
-                   error.message === 'Seuls les administrateurs peuvent supprimer définitivement un article') {
+        } else if (
+          error.message === "Vous n'êtes pas autorisé à supprimer cet article" ||
+          error.message === 'Seuls les administrateurs peuvent supprimer définitivement un article'
+        ) {
           return reply.status(403).send({
             message: error.message,
           });
@@ -285,7 +310,7 @@ export const deletePost = async (
   } catch (error) {
     request.log.error(error);
     return reply.status(500).send({
-      message: 'Une erreur est survenue lors de la suppression de l\'article',
+      message: "Une erreur est survenue lors de la suppression de l'article",
     });
   }
 };
@@ -328,7 +353,7 @@ export const likePost = async (
         likeCount: result.likeCount,
         dislikeCount: result.dislikeCount,
         isLiked: result.isLiked,
-        isDisliked: result.isDisliked
+        isDisliked: result.isDisliked,
       });
     } catch (error) {
       if (error instanceof Error) {
@@ -351,7 +376,7 @@ export const likePost = async (
   } catch (error) {
     request.log.error(error);
     return reply.status(500).send({
-      message: 'Une erreur est survenue lors du like de l\'article',
+      message: "Une erreur est survenue lors du like de l'article",
     });
   }
 };
@@ -394,7 +419,7 @@ export const unlikePost = async (
         likeCount: result.likeCount,
         dislikeCount: result.dislikeCount,
         isLiked: result.isLiked,
-        isDisliked: result.isDisliked
+        isDisliked: result.isDisliked,
       });
     } catch (error) {
       if (error instanceof Error) {
@@ -406,7 +431,7 @@ export const unlikePost = async (
           return reply.status(404).send({
             message: error.message,
           });
-        } else if (error.message === 'Vous n\'avez pas liké cet article') {
+        } else if (error.message === "Vous n'avez pas liké cet article") {
           return reply.status(400).send({
             message: error.message,
           });
@@ -417,7 +442,7 @@ export const unlikePost = async (
   } catch (error) {
     request.log.error(error);
     return reply.status(500).send({
-      message: 'Une erreur est survenue lors du unlike de l\'article',
+      message: "Une erreur est survenue lors du unlike de l'article",
     });
   }
 };
@@ -460,7 +485,7 @@ export const dislikePost = async (
         likeCount: result.likeCount,
         dislikeCount: result.dislikeCount,
         isLiked: result.isLiked,
-        isDisliked: result.isDisliked
+        isDisliked: result.isDisliked,
       });
     } catch (error) {
       if (error instanceof Error) {
@@ -483,7 +508,7 @@ export const dislikePost = async (
   } catch (error) {
     request.log.error(error);
     return reply.status(500).send({
-      message: 'Une erreur est survenue lors du dislike de l\'article',
+      message: "Une erreur est survenue lors du dislike de l'article",
     });
   }
 };

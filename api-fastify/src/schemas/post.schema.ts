@@ -40,6 +40,7 @@ export const getPostsSchema: FastifySchema = {
                 nullable: true
               },
               excerpt: { type: 'string', nullable: true },
+              summary: { type: 'string', nullable: true },
               slug: { type: 'string' },
               author: {
                 type: 'object',
@@ -149,6 +150,7 @@ export const getPostSchema: FastifySchema = {
               nullable: true
             },
             excerpt: { type: 'string', nullable: true },
+            summary: { type: 'string', nullable: true },
             slug: { type: 'string' },
             author: {
               type: 'object',
@@ -248,6 +250,7 @@ export const createPostSchema: FastifySchema = {
         }
       },
       excerpt: { type: 'string', maxLength: 500 },
+      summary: { type: 'string', maxLength: 500 },
       categories: {
         type: 'array',
         items: { type: 'string' },
@@ -301,6 +304,7 @@ export const createPostSchema: FastifySchema = {
               nullable: true
             },
             excerpt: { type: 'string', nullable: true },
+            summary: { type: 'string', nullable: true },
             slug: { type: 'string' },
             author: {
               type: 'object',

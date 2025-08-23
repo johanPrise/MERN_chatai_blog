@@ -33,11 +33,19 @@ export function PostForm({
 }: PostFormProps) {
   const { state, actions } = usePostContext();
 
+  // Normalize cover image that may come as string or object { url, alt }
+  const normalizeCover = (ci: any): string => {
+    if (!ci) return '';
+    if (typeof ci === 'string') return ci;
+    if (typeof ci === 'object' && typeof ci.url === 'string') return ci.url;
+    return '';
+  };
+
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
     summary: initialData?.summary || '',
     content: initialData?.content || '',
-    coverImage: initialData?.coverImage || '',
+    coverImage: normalizeCover(initialData?.coverImage),
     category: initialData?.categories?.[0]?.id || '', // Use single category
     tags: initialData?.tags || [],
     status: initialData?.status || PostStatus.DRAFT,
@@ -59,13 +67,16 @@ export function PostForm({
   const { filterContent, testContent } = useSimpleContentFilter();
 
   // Update form data when initialData changes (important for edit mode)
+  // Use a ref to track if we've already initialized to prevent loops
+  const [isInitialized, setIsInitialized] = useState(false);
+  
   useEffect(() => {
-    if (initialData && initialData.id) {
+    if (initialData && initialData.id && !isInitialized) {
       const newFormData = {
         title: initialData.title || '',
         summary: initialData.summary || '',
         content: initialData.content || '',
-        coverImage: initialData.coverImage || '',
+        coverImage: normalizeCover(initialData.coverImage),
         category: initialData.categories?.[0]?.id || '',
         tags: initialData.tags || [],
         status: initialData.status || PostStatus.DRAFT,
@@ -73,35 +84,23 @@ export function PostForm({
       };
 
       setFormData(newFormData);
+      
+      // Set contentBlocks at the same time to avoid multiple re-renders
+      if (initialData.contentBlocks) {
+        setContentBlocks(initialData.contentBlocks);
+      }
 
       // Clear any existing errors when loading new data
       setErrors({});
+      setIsInitialized(true);
     }
-  }, [initialData?.id, initialData?.title, initialData?.summary, initialData?.content]);
-
-  // Keep contentBlocks in sync if initialData changes (edit mode)
-  useEffect(() => {
-    if (initialData?.contentBlocks) {
-      setContentBlocks(initialData.contentBlocks);
-    }
-  }, [initialData?.contentBlocks]);
-
-  // Additional effect to handle summary specifically (in case it comes later)
-  useEffect(() => {
-    if (initialData?.summary !== undefined && formData.summary !== initialData.summary) {
-      setFormData(prev => ({
-        ...prev,
-        summary: initialData.summary || ''
-      }));
-    }
-  }, [initialData?.summary]);
+  }, [initialData?.id, isInitialized]);
 
   // Auto-save for edit mode
   const {
     isAutoSaving,
     lastSaved,
     hasUnsavedChanges,
-    saveNow,
   } = useAutoSave(
     mode === 'edit' ? initialData?.id || null : null,
     formData.content,
@@ -128,20 +127,36 @@ export function PostForm({
     }));
   }, [testContent]);
 
-  // Update form data with content filtering
+  // Update form data with content filtering - stabilized version
   const updateFormData = useCallback((field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      // Avoid unnecessary re-renders if value hasn't changed
+      if (prev[field as keyof typeof prev] === value) {
+        return prev;
+      }
+      return { ...prev, [field]: value };
+    });
 
     // Clear field error when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
-    }
+    setErrors(prev => {
+      if (prev[field]) {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      }
+      return prev;
+    });
 
     // Check for inappropriate content in text fields
     if (typeof value === 'string' && ['title', 'summary', 'content'].includes(field)) {
-      checkContentFilter(field, value);
+      // Debounce content filtering to avoid excessive checks
+      const timeoutId = setTimeout(() => {
+        checkContentFilter(field, value);
+      }, 300);
+      
+      return () => clearTimeout(timeoutId);
     }
-  }, [errors, checkContentFilter]);
+  }, [checkContentFilter]);
 
   // Validate form
   const validateForm = useCallback(() => {
@@ -176,93 +191,73 @@ export function PostForm({
     return Object.keys(newErrors).length === 0;
   }, [formData, contentBlocks]);
 
-  // Handle form submission
-  const handleSubmit = useCallback(async (status?: PostStatus) => {
-    if (!validateForm()) {
-      return;
+  // Helper function to prepare submit data
+  const prepareSubmitData = useCallback((status?: PostStatus) => {
+    const titleResult = filterContent(formData.title);
+    const summaryResult = filterContent(formData.summary);
+    const contentResult = filterContent(formData.content);
+
+    if (titleResult.wasFiltered || summaryResult.wasFiltered || contentResult.wasFiltered) {
+      console.log('Content was filtered before submission:', {
+        title: titleResult.replacements,
+        summary: summaryResult.replacements,
+        content: contentResult.replacements,
+      });
     }
 
+    const submitData: any = {
+      ...formData,
+      title: titleResult.filteredContent,
+      summary: summaryResult.filteredContent,
+      content: '',
+      status: status || formData.status,
+      categories: formData.category ? [formData.category] : [],
+      contentBlocks
+    };
+
+    delete (submitData as any).category;
+
+    if (typeof submitData.content === 'string' && submitData.content.trim().length === 0) {
+      delete submitData.content;
+    }
+
+    if (typeof submitData.coverImage === 'string') {
+      if (submitData.coverImage.trim().length > 0) {
+        submitData.coverImage = { url: submitData.coverImage, alt: '' };
+      } else {
+        delete submitData.coverImage;
+      }
+    }
+
+    return submitData;
+  }, [formData, filterContent, contentBlocks]);
+
+  // Helper function to submit data
+  const submitFormData = useCallback(async (submitData: any) => {
+    if (onSubmit) {
+      await onSubmit(submitData);
+    } else if (mode === 'create') {
+      await actions.createPost(submitData);
+    } else if (mode === 'edit' && initialData?.id) {
+      const updateData = { ...submitData, id: initialData.id };
+      await actions.updatePost(initialData.id, updateData);
+    }
+  }, [onSubmit, mode, actions, initialData]);
+
+  // Handle form submission
+  const handleSubmit = useCallback(async (status?: PostStatus) => {
+    if (!validateForm()) return;
+
     setIsSubmitting(true);
-
     try {
-      // Apply content filtering before submission
-      const titleResult = filterContent(formData.title);
-      const summaryResult = filterContent(formData.summary);
-      const contentResult = filterContent(formData.content);
-
-      // Show notification if content was filtered
-      if (titleResult.wasFiltered || summaryResult.wasFiltered || contentResult.wasFiltered) {
-        console.log('Content was filtered before submission:', {
-          title: titleResult.replacements,
-          summary: summaryResult.replacements,
-          content: contentResult.replacements,
-        });
-      }
-
-      const submitData: any = {
-        ...formData,
-        title: titleResult.filteredContent,
-        summary: summaryResult.filteredContent,
-        // keep legacy markdown during transition when using old editor
-        // We are now tiptap-only: keep legacy markdown empty
-        content: '',
-        status: status || formData.status,
-        // Convert single category to categories array for backend compatibility
-        categories: formData.category ? [formData.category] : [],
-      };
-      submitData.contentBlocks = contentBlocks;
-
-      // Debug: log the payload we are about to submit (contentBlocks length and shape)
-      try {
-        const dbg = {
-          ...submitData,
-          // avoid logging full doc tree which can be huge
-          contentBlocks: Array.isArray(submitData.contentBlocks)
-            ? submitData.contentBlocks.map((b: any) => ({ type: b?.type, hasData: !!b?.data, keys: b?.data ? Object.keys(b.data) : [] }))
-            : submitData.contentBlocks,
-        };
-        console.debug('[PostForm] Submitting post payload', dbg);
-      } catch (e) {
-        console.debug('[PostForm] Could not serialize submit payload');
-      }
-
-      // Remove the single category field to avoid confusion
-      delete (submitData as any).category;
-
-      // Backend schema: content has minLength: 1 but is optional.
-      // If empty string, omit the field entirely to pass validation.
-      if (typeof submitData.content === 'string' && submitData.content.trim().length === 0) {
-        delete submitData.content;
-      }
-
-      // Backend schema expects coverImage as an object { url, alt } if provided.
-      // Our form stores a URL string. Convert or omit if empty.
-      if (typeof submitData.coverImage === 'string') {
-        if (submitData.coverImage.trim().length > 0) {
-          submitData.coverImage = { url: submitData.coverImage, alt: '' };
-        } else {
-          delete submitData.coverImage;
-        }
-      }
-
-      if (onSubmit) {
-        await onSubmit(submitData);
-      } else if (mode === 'create') {
-        await actions.createPost(submitData);
-      } else if (mode === 'edit' && initialData?.id) {
-        // Add id to submitData for UpdatePostInput type compatibility
-        const updateData = {
-          ...submitData,
-          id: initialData.id
-        };
-        await actions.updatePost(initialData.id, updateData);
-      }
+      const submitData = prepareSubmitData(status);
+      await submitFormData(submitData);
     } catch (error) {
       console.error('Form submission failed:', error);
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, validateForm, onSubmit, mode, actions, initialData, contentBlocks]);
+  }, [validateForm, prepareSubmitData, submitFormData]);
 
   // Handle save as draft
   const handleSaveDraft = useCallback(() => {
@@ -318,8 +313,11 @@ export function PostForm({
               <input
                 type="text"
                 id="title"
+                key={`title-${initialData?.id || 'new'}`} // Stable key
                 value={formData.title}
-                onChange={(e) => updateFormData('title', e.target.value)}
+                onChange={useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+                  updateFormData('title', e.target.value);
+                }, [updateFormData])}
                 placeholder="Enter your post title..."
                 className={cn(
                   'w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500',
@@ -346,8 +344,11 @@ export function PostForm({
               </label>
               <textarea
                 id="summary"
+                key={`summary-${initialData?.id || 'new'}`} // Stable key
                 value={formData.summary}
-                onChange={(e) => updateFormData('summary', e.target.value)}
+                onChange={useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+                  updateFormData('summary', e.target.value);
+                }, [updateFormData])}
                 placeholder="Write a brief summary of your post..."
                 rows={3}
                 className={cn(
@@ -377,14 +378,18 @@ export function PostForm({
 
             {/* Content Editor */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="content-editor" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Content *
               </label>
+              <input id="content-editor" type="hidden" />
               <div className="border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden">
                 <div className="p-3">
                   <TiptapBlockEditor
+                    key={`editor-${initialData?.id || 'new'}`} // Stable key to prevent re-mounting
                     value={contentBlocks}
-                    onChange={setContentBlocks}
+                    onChange={useCallback((blocks: ContentBlock[]) => {
+                      setContentBlocks(blocks);
+                    }, [])}
                     placeholder="Write your post with formatting, images, and links..."
                   />
                 </div>

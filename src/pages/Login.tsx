@@ -88,25 +88,27 @@ function Login(): JSX.Element {
 
       console.log("Test login response status:", response.status);
 
-      try {
-        const data = await response.json();
-        console.log("Test login response data:", data);
-
-        // Afficher la structure complète de la réponse
-        console.log("Response structure:", JSON.stringify(data, null, 2));
-
-        if (response.ok) {
-          if (data && data.user && data.user._id) {
-            setSuccessMessage(`Test de connexion réussi! Utilisateur: ${data.user.username}`);
-          } else {
-            setSuccessMessage("Test de connexion réussi, mais format de réponse inattendu");
-          }
-        } else {
-          setErrors({ general: data.message || "Échec du test de connexion" });
+      const contentType = response.headers.get('content-type');
+      let data: any = null;
+      
+      if (contentType && contentType.includes('application/json')) {
+        try {
+          data = await response.json();
+          console.log("Test login response data:", data);
+        } catch (jsonError) {
+          console.error("Erreur lors de la lecture de la réponse JSON:", jsonError);
         }
-      } catch (jsonError) {
-        console.error("Erreur lors de la lecture de la réponse JSON:", jsonError);
-        setErrors({ general: "Erreur lors de la lecture de la réponse du serveur" });
+      }
+
+      if (response.ok) {
+        if (data && data.user && data.user._id) {
+          setSuccessMessage(`Test de connexion réussi! Utilisateur: ${data.user.username}`);
+        } else {
+          setSuccessMessage("Test de connexion réussi, mais format de réponse inattendu");
+        }
+      } else {
+        const errorMessage = data?.message || `Erreur serveur (${response.status})`;
+        setErrors({ general: errorMessage });
       }
     } catch (error) {
       console.error("Test login error:", error);

@@ -24,6 +24,7 @@ import CreateCategory from "./pages/createCategory"
 import DeleteCategories from "./pages/DelCategory"
 import Search from "./pages/Search"
 
+
 // Components
 import Header from "./components/header"
 import Chatbot from "./components/Chatbot"
@@ -77,6 +78,7 @@ function App(): React.ReactElement {
                 <Route path="/posts/create" element={<NewCreatePost />} />
                 <Route path="/posts/edit/:id" element={<NewEditPost />} />
                 <Route path="/posts/drafts" element={<Drafts />} />
+
               </Routes>
             </ErrorBoundary>
           </div>

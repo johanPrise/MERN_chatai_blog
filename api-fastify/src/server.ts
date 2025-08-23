@@ -36,6 +36,7 @@ export async function buildServer(): Promise<FastifyInstance> {
       const allowedOrigins = [
         'https://iwomi-blog.netlify.app',
         'http://localhost:5173',
+        'http://localhost:4200',
         'http://localhost:3000',
         'https://mern-chatai-blog.vercel.app',
         'https://mern-chatai-blog-git-main.vercel.app',

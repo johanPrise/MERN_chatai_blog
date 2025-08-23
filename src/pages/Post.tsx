@@ -9,28 +9,71 @@ import { Button } from "../components/ui/button"
 import { Badge } from "../components/ui/badge"
 import { H1, H2, P } from "../components/ui/typography"
 import { formatDate } from "../lib/utils"
-import { getImageUrl } from "../config/api.config"
-import { formatContent } from "../lib/formatContent"
 import SafeImage from "../components/SafeImage"
 import { detectDarkMode, setupThemeListener } from "../lib/themeDetector"
 import { useSimpleContentFilter } from "../hooks/useContentFilter"
 import {
   CalendarIcon, User2, MessageCircle, Edit, Trash2,
-  Reply, Heart, ThumbsDown, AlertCircle, CheckCircle
+   Heart, ThumbsDown, AlertCircle
 } from "lucide-react"
+import { API_ENDPOINTS } from "../config/api.config"
 import AnimateOnView from "../components/AnimateOnView"
-import CommentReactions from "../components/CommentReactions"
-import { ActionStatus } from "../types/Action"
 import { Post, Comment } from "../types/PostType"
-import "../css/markdown.css"
 import "../css/theme-overrides.css"
-// Import highlight.js for syntax highlighting
-import hljs from 'highlight.js'
-import 'highlight.js/styles/github.css'
-import { EditorContent, useEditor } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
-import Image from '@tiptap/extension-image'
-import LinkExtension from '@tiptap/extension-link'
+import TiptapRenderer from '../components/TiptapRenderer'
+import { ErrorMessage, SuccessMessage } from './PostComponents'
+import { useCommentManagement, usePostInteractions } from './PostPageHooks'
+import {
+  validateComments,
+  renderCommentHeader,
+  renderCommentContent,
+  renderCommentActions,
+  renderReplyForm
+} from './PostPageHelpers'
+
+// Helper function to extract Tiptap doc from contentBlocks
+const getTiptapDoc = (blocks: any[]) => {
+  if (!Array.isArray(blocks) || blocks.length === 0) return null
+  
+  const tiptapBlock = blocks.find(b => b?.type === 'tiptap')
+  return tiptapBlock?.data?.doc || null
+}
+
+const slugify = (text: string): string =>
+  text
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+
+// Extract text from a node (flattened to avoid deep nesting)
+const extractTextFromNode = (node: any): string => {
+  if (!node) return ''
+  if (node.type === 'text' && typeof node.text === 'string') return node.text
+  const content = Array.isArray(node.content) ? node.content : []
+  return content.map(extractTextFromNode).join(' ')
+}
+
+// Visit nodes to extract headings (flattened to avoid deep nesting)
+const visitNodeForHeadings = (node: any, result: { id: string; text: string; level: number }[]) => {
+  if (!node) return
+  if (node.type === 'heading') {
+    const level = Number(node.attrs?.level || 1)
+    const text = extractTextFromNode(node).replace(/\s+/g, ' ').trim()
+    const id = slugify(text)
+    result.push({ id, text, level })
+  }
+  const content = Array.isArray(node.content) ? node.content : []
+  content.forEach(child => visitNodeForHeadings(child, result))
+}
+
+const extractTiptapHeadings = (tiptapDoc: any) => {
+  if (!tiptapDoc) return [] as { id: string; text: string; level: number }[]
+  const result: { id: string; text: string; level: number }[] = []
+  visitNodeForHeadings(tiptapDoc, result)
+  return result
+}
 
 // Helper to extract the category name safely
 const getCategoryName = (post: Post | null): string => {
@@ -48,165 +91,534 @@ const getCategoryName = (post: Post | null): string => {
     // @ts-ignore
     const firstCategory = post.categories[0];
     if (typeof firstCategory === 'object' && firstCategory && 'name' in firstCategory) {
-      return firstCategory.name;
+      return (firstCategory as any).name;
     }
     // Si c'est une chaîne de caractères, la retourner directement
     // @ts-ignore
     if (typeof firstCategory === 'string') {
-      return firstCategory;
+      return firstCategory as any;
     }
   }
 
   return "Non catégorisé";
 }
 
-// Action states
-interface ActionState {
-  status: ActionStatus
-  error: string | null
+// Helper to extract cover image URL safely
+const getCoverImageUrl = (postInfo: Post | null): string => {
+  if (!postInfo) return ''
+  
+  const ci: any = (postInfo as any)?.coverImage
+  
+  if (typeof ci === 'string') {
+    return ci
+  }
+  
+  if (ci && typeof ci.url === 'string') {
+    return ci.url
+  }
+  
+  return (postInfo as any)?.cover || ''
 }
 
-interface CommentActionStates {
-  [commentId: string]: ActionState
+// Move heavy logic out of PostPage to reduce its cognitive complexity
+async function fetchPostAndSetup(params: {
+  id: string | undefined,
+  userInfo: { id: string } | null | undefined,
+  setIsLoading: (b: boolean) => void,
+  setPostInfo: (p: Post | null) => void,
+  setLikes: (n: number) => void,
+  setDislikes: (n: number) => void,
+  setUserLiked: (b: boolean) => void,
+  setUserDisliked: (b: boolean) => void,
+  hasUserLiked: (likes: any, userId: string) => boolean,
+  hasUserDisliked: (dislikes: any, userId: string) => boolean,
+  fetchComments: () => Promise<void>,
+  setErrorMessage: (msg: string) => void,
+}) {
+  const {
+    id,
+    userInfo,
+    setIsLoading,
+    setPostInfo,
+    setLikes,
+    setDislikes,
+    setUserLiked,
+    setUserDisliked,
+    hasUserLiked,
+    hasUserDisliked,
+    fetchComments,
+    setErrorMessage,
+  } = params
+
+  setIsLoading(true)
+  try {
+    const response = await fetch(API_ENDPOINTS.posts.detail(id || ''), {
+      credentials: 'include',
+    })
+    if (!response.ok) throw new Error(`Failed to fetch post: ${response.status}`)
+    
+    const postData = await response.json()
+    const post = postData.post || postData
+
+    setPostInfo(post)
+    setLikes(post.likes?.length || 0)
+    setDislikes(post.dislikes?.length || 0)
+    
+    if (userInfo) {
+      setUserLiked(hasUserLiked(post.likes, (userInfo as any).id))
+      setUserDisliked(hasUserDisliked(post.dislikes, (userInfo as any).id))
+    }
+    await fetchComments()
+  } catch (error: any) {
+    setErrorMessage(error instanceof Error ? error.message : "Failed to load post data")
+  } finally {
+    setIsLoading(false)
+  }
 }
 
-// État d'interaction avec les articles
-interface PostInteractionState {
-  isLoading: boolean
-  error: string | null
-  success: string | null
+async function executePostDeletionApi(
+  postId: string,
+  setSuccessMessage: (msg: string) => void,
+  setErrorMessage: (msg: string) => void,
+) {
+  try {
+    const response = await fetch(`${API_ENDPOINTS.posts.delete(postId)}`, {
+      method: "DELETE",
+      credentials: "include",
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to delete post: ${response.status}`)
+    }
+
+    setSuccessMessage("Post deleted successfully")
+    setTimeout(() => { window.location.href = "/" }, 1500)
+  } catch (error: any) {
+    console.error("Error deleting post:", error)
+    setErrorMessage(error instanceof Error ? error.message : "Failed to delete post")
+  }
 }
 
-// Import API configuration
-import { API_BASE_URL, API_ENDPOINTS } from "../config/api.config"
-
-/**
- * Vérifie si un utilisateur a aimé un élément
- * @param likes - Tableau des IDs des utilisateurs qui ont aimé l'élément
- * @param userId - ID de l'utilisateur à vérifier
- * @returns true si l'utilisateur a aimé l'élément, false sinon
- */
-const hasUserLiked = (likes: any, userId: string | undefined): boolean => {
-  if (!userId) return false;
-  if (!likes) return false;
-  if (!Array.isArray(likes)) return false;
-  return likes.includes(userId);
+function LoadingSkeleton() {
+  return (
+    <Container className="py-16">
+      <div className="max-w-3xl mx-auto">
+        <div className="animate-pulse">
+          <div className="h-96 bg-muted rounded-lg mb-8"></div>
+          <div className="h-10 bg-muted rounded w-3/4 mb-4"></div>
+          <div className="h-4 bg-muted rounded w-1/4 mb-8"></div>
+          <div className="space-y-4">
+            <div className="h-4 bg-muted rounded"></div>
+            <div className="h-4 bg-muted rounded"></div>
+            <div className="h-4 bg-muted rounded w-5/6"></div>
+          </div>
+        </div>
+      </div>
+    </Container>
+  )
 }
 
-const hasUserDisliked = (dislikes: any, userId: string | undefined): boolean => {
-  if (!userId) return false;
-  if (!dislikes) return false;
-  if (!Array.isArray(dislikes)) return false;
-  return dislikes.includes(userId);
+function PostHero({ postInfo }: { postInfo: Post }) {
+  return (
+    <AnimateOnView animation="fade">
+      <div className="mb-8">
+        <div className="relative w-full h-[400px] bg-cover bg-center rounded-xl overflow-hidden">
+          <SafeImage
+            src={getCoverImageUrl(postInfo)}
+            alt={(postInfo as any).title}
+            className="w-full h-full object-cover"
+            height={400}
+            loading="eager"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+        </div>
+      </div>
+    </AnimateOnView>
+  )
+}
+
+function PostMeta({ postInfo, commentsCount }: { postInfo: Post, commentsCount: number }) {
+  return (
+    <AnimateOnView animation="slide-up" delay={100}>
+      <div className="mb-8">
+        <div className="flex flex-wrap gap-2 mb-4">
+          <Badge
+            variant="outline"
+            className="badge-outline bg-primary-50 text-primary-700 border-primary-200 dark:bg-primary-900 dark:text-primary-300 dark:border-primary-800 shadow-sm"
+          >
+            {getCategoryName(postInfo)}
+          </Badge>
+          <time className="text-sm text-muted-foreground flex items-center">
+            <CalendarIcon className="h-4 w-4 mr-1" />
+            {formatDate((postInfo as any).createdAt)}
+          </time>
+          <div className="text-sm text-muted-foreground flex items-center">
+            <User2 className="h-4 w-4 mr-1" />
+            {(postInfo as any).author?.username || "Unknown author"}
+          </div>
+          <div className="text-sm text-muted-foreground flex items-center">
+            <MessageCircle className="h-4 w-4 mr-1" />
+            {commentsCount} comments
+          </div>
+        </div>
+
+        <H1 className="text-3xl md:text-4xl font-bold mb-4">{(postInfo as any).title}</H1>
+        <P className="text-lg text-muted-foreground mb-6">{(postInfo as any).summary}</P>
+      </div>
+    </AnimateOnView>
+  )
+}
+
+function TableOfContents({ headings }: { headings: { id: string; text: string; level: number }[] }) {
+  const [activeId, setActiveId] = React.useState<string | null>(null)
+
+  // Smooth scroll with header offset handled by scroll-mt-* on headings
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    e.preventDefault()
+    const el = document.getElementById(id)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      // Update URL hash without jumping
+      history.replaceState(null, '', `#${id}`)
+    }
+  }
+
+  React.useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter(ent => ent.isIntersecting)
+          .sort((a, b) => (a.target as HTMLElement).offsetTop - (b.target as HTMLElement).offsetTop)
+        if (visible[0]) setActiveId(visible[0].target.id)
+      },
+      { rootMargin: '0px 0px -70% 0px', threshold: [0, 0.1, 0.5, 1] }
+    )
+
+    const headingEls = Array.from(document.querySelectorAll('h1[id], h2[id], h3[id]'))
+    headingEls.forEach(h => observer.observe(h))
+
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <AnimateOnView animation="slide-up" delay={200}>
+      <div className="table-of-contents mb-8 rounded-lg border bg-card/50 p-4">
+        <h3 className="flex items-center text-sm font-semibold text-muted-foreground mb-3">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+          </svg>
+          Sommaire
+        </h3>
+        {headings.length > 0 ? (
+          <ul className="space-y-1 text-sm">
+            {headings.map((heading) => (
+              <li key={heading.id} style={{ paddingLeft: `${(heading.level - 1) * 12}px` }}>
+                <a
+                  href={`#${heading.id}`}
+                  onClick={(e) => handleClick(e, heading.id)}
+                  className={`block rounded px-2 py-1 hover:bg-muted/60 transition-colors ${activeId === heading.id ? 'text-primary font-medium bg-muted/60' : 'text-muted-foreground'}`}
+                >
+                  {heading.text}
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground">Aucun titre trouvé dans le contenu</p>
+        )}
+      </div>
+    </AnimateOnView>
+  )
+}
+
+function ContentSection({ tiptapDoc, containerRef }: { tiptapDoc: any, containerRef: React.RefObject<HTMLDivElement> }) {
+  return (
+    <AnimateOnView animation="slide-up" delay={200}>
+      {tiptapDoc ? (
+        <div ref={containerRef} className="prose prose-green max-w-none dark:prose-invert mb-8">
+          <TiptapRenderer 
+            doc={tiptapDoc} 
+            className="prose prose-green max-w-none dark:prose-invert"
+          />
+        </div>
+      ) : (
+        <div className="prose prose-green max-w-none dark:prose-invert mb-8">
+          <p className="text-muted-foreground italic">Ce post n'a pas de contenu Tiptap disponible.</p>
+        </div>
+      )}
+    </AnimateOnView>
+  )
+}
+
+function ArticleInfoSection({ postInfo }: { postInfo: Post }) {
+  return (
+    <AnimateOnView animation="slide-up" delay={200}>
+      <div className="bg-muted/30 rounded-lg p-4 mb-8 text-sm text-muted-foreground">
+        <div className="flex items-center mb-2">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>Dernière mise à jour: {formatDate(((postInfo as any).updatedAt || (postInfo as any).createdAt))}</span>
+        </div>
+        <div className="flex items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+          </svg>
+          <span>Catégorie: {getCategoryName(postInfo)}</span>
+        </div>
+      </div>
+    </AnimateOnView>
+  )
+}
+
+function InteractionBar(props: {
+  likes: number,
+  dislikes: number,
+  userLiked: boolean,
+  userDisliked: boolean,
+  isLoading: boolean,
+  userInfo: any,
+  onLike: () => void,
+  onDislike: () => void,
+}) {
+  const { likes, dislikes, userLiked, userDisliked, isLoading, userInfo, onLike, onDislike } = props
+  return (
+    <AnimateOnView animation="slide-up" delay={300}>
+      <div className="flex justify-center items-center space-x-8 mb-8 border-t border-b py-6">
+        <button
+          onClick={onLike}
+          disabled={isLoading || !userInfo}
+          className={`flex items-center space-x-2 px-3 py-2 rounded-md border ${userLiked ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800" : "text-muted-foreground border-transparent hover:bg-muted/30"} ${isLoading ? "opacity-50 cursor-not-allowed" : ""} transition-colors`}
+          aria-label="J'aime cet article"
+          title={!userInfo ? "Vous devez être connecté pour aimer un article" : "J'aime cet article"}
+        >
+          <Heart className={`h-6 w-6 ${userLiked ? "text-green-700 dark:text-green-300" : ""} ${isLoading ? "animate-pulse" : ""}`} />
+          <span className="text-lg">{likes}</span>
+        </button>
+        <button
+          onClick={onDislike}
+          disabled={isLoading || !userInfo}
+          className={`flex items-center space-x-2 px-3 py-2 rounded-md border ${userDisliked ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800" : "text-muted-foreground border-transparent hover:bg-muted/30"} ${isLoading ? "opacity-50 cursor-not-allowed" : ""} transition-colors`}
+          aria-label="Je n'aime pas cet article"
+          title={!userInfo ? "Vous devez être connecté pour ne pas aimer un article" : "Je n'aime pas cet article"}
+        >
+          <ThumbsDown className={`h-6 w-6 ${userDisliked ? "text-red-700 dark:text-red-300" : ""} ${isLoading ? "animate-pulse" : ""}`} />
+          <span className="text-lg">{dislikes}</span>
+        </button>
+      </div>
+    </AnimateOnView>
+  )
+}
+
+function AuthorActions({ isAuthor, postId, onDelete }: { isAuthor: boolean, postId: string, onDelete: (id: string) => void }) {
+  if (!isAuthor) return null
+  return (
+    <AnimateOnView animation="slide-up" delay={400}>
+      <div className="flex justify-center space-x-4 mb-12">
+        <Link to={`/edit_page/${postId}`}>
+          <Button variant="outline" className="flex items-center gap-2">
+            <Edit className="h-4 w-4" />
+            Edit Post
+          </Button>
+        </Link>
+        <Button
+          variant="destructive"
+          onClick={() => onDelete(postId)}
+          className="flex items-center gap-2"
+        >
+          <Trash2 className="h-4 w-4" />
+          Delete Post
+        </Button>
+      </div>
+    </AnimateOnView>
+  )
+}
+
+function CommentComposer(props: {
+  username?: string,
+  newComment: string,
+  commentWarnings: string[],
+  handleCommentSubmit: (e: React.FormEvent) => Promise<void>,
+  handleCommentChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void,
+  isDarkMode: boolean,
+}) {
+  const { username, newComment, commentWarnings, handleCommentSubmit, handleCommentChange, isDarkMode } = props
+  return (
+    <AnimateOnView animation="slide-up" delay={500}>
+      <div className="bg-muted/30 rounded-xl p-6">
+        <H2 className="text-2xl font-bold mb-6">Discussion</H2>
+
+        {username ? (
+          <form onSubmit={handleCommentSubmit} className="mb-8">
+            <textarea
+              className="w-full p-3 border rounded-lg resize-none min-h-[150px] focus:ring-2 focus:ring-primary focus:border-transparent"
+              style={{
+                backgroundColor: isDarkMode ? '#1e1e1e' : '#ffffff',
+                color: isDarkMode ? '#e0e0e0' : '#000000',
+                borderColor: isDarkMode ? '#3a3a3a' : '#e5e7eb'
+              }}
+              placeholder="Share your thoughts..."
+              value={newComment}
+              onChange={handleCommentChange}
+              required
+            ></textarea>
+            {commentWarnings.length > 0 && (
+              <div className="mt-2 flex items-center text-sm text-orange-600 dark:text-orange-400">
+                <AlertCircle className="h-4 w-4 mr-1" />
+                <span>Content may be filtered: {commentWarnings.join(', ')}</span>
+              </div>
+            )}
+            <div className="flex justify-end mt-2">
+              <Button type="submit" className="flex items-center gap-2">
+                <MessageCircle className="h-4 w-4" />
+                Post Comment
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <div className="mb-6 p-4 bg-primary-50 dark:bg-primary-900/30 rounded-lg border border-primary-200 dark:border-primary-800">
+            <p className="text-muted-foreground">
+              Please{" "}
+              <Link to="/login_page" className="text-primary font-medium hover:underline">
+                log in
+              </Link>{" "}
+              to join the discussion.
+            </p>
+          </div>
+        )}
+
+        {/* Placeholder for children (comments list) to be rendered by parent */}
+      </div>
+    </AnimateOnView>
+  )
+}
+
+function renderCommentsTree({
+  commentsInput = [],
+  depth = 0,
+  parentId = null,
+  editingComment,
+  editedContent,
+  setEditedContent,
+  handleUpdateCommentWrapper,
+  setEditingComment,
+  isDarkMode,
+  userInfo,
+  setReplyingTo,
+  setReplyContent,
+  handleEditComment,
+  handleDeleteComment,
+  replyingTo,
+  replyContent,
+  checkReplyContent,
+  replyWarnings,
+  handleReply,
+}: {
+  commentsInput?: Comment[],
+  depth?: number,
+  parentId?: string | null,
+  editingComment: string | null,
+  editedContent: string,
+  setEditedContent: (s: string) => void,
+  handleUpdateCommentWrapper: (id: string) => Promise<void>,
+  setEditingComment: (id: string | null) => void,
+  isDarkMode: boolean,
+  userInfo: any,
+  setReplyingTo: (id: string | null) => void,
+  setReplyContent: (s: string) => void,
+  handleEditComment: (id: string) => void,
+  handleDeleteComment: (id: string) => void,
+  replyingTo: string | null,
+  replyContent: string,
+  checkReplyContent: (s: string) => void,
+  replyWarnings: string[],
+  handleReply: (parentId: string) => void,
+}) {
+  const validatedComments = validateComments(commentsInput)
+
+  return validatedComments.map((comment: Comment) => (
+    <div
+      key={`${(comment as any)._id}-${depth}`}
+      id={`comment-${(comment as any)._id}`}
+      className={`${depth > 0 ? "ml-8" : ""} bg-card rounded-lg shadow-sm p-4 mb-4 border`}
+    >
+      <div className="flex items-start space-x-3 mb-4">
+        <div className="flex-shrink-0">
+          <img
+            className="w-10 h-10 rounded-full"
+            src={`https://ui-avatars.com/api/?name=${(comment as any).author.username}&background=random`}
+            alt={(comment as any).author.username}
+          />
+        </div>
+        <div className="flex-1 min-w-0">
+          {renderCommentHeader(comment, parentId, validatedComments)}
+          {renderCommentContent(comment, editingComment, editedContent, setEditedContent, handleUpdateCommentWrapper, setEditingComment, isDarkMode)}
+          {renderCommentActions(comment, userInfo, setReplyingTo, setReplyContent, handleEditComment, handleDeleteComment)}
+        </div>
+      </div>
+      {renderReplyForm(comment, replyingTo, replyContent, setReplyContent, checkReplyContent, replyWarnings, handleReply, setReplyingTo, isDarkMode)}
+      {(comment as any).replies && Array.isArray((comment as any).replies) && (comment as any).replies.length > 0 && (
+        <div className="mt-4">{renderCommentsTree({ commentsInput: (comment as any).replies, depth: depth + 1, parentId: (comment as any)._id, editingComment, editedContent, setEditedContent, handleUpdateCommentWrapper, setEditingComment, isDarkMode, userInfo, setReplyingTo, setReplyContent, handleEditComment, handleDeleteComment, replyingTo, replyContent, checkReplyContent, replyWarnings, handleReply })}</div>
+      )}
+    </div>
+  ))
 }
 
 const PostPage = () => {
   // State for theme detection
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false)
 
-  // Post and comments state
+  // Post state
   const [postInfo, setPostInfo] = useState<Post | null>(null)
-  const [comments, setComments] = useState<Comment[]>([])
 
   // Comment form state
   const [newComment, setNewComment] = useState("")
-  const [replyContent, setReplyContent] = useState("") // Nouvel état pour les réponses
+  const [replyContent, setReplyContent] = useState("")
   const [replyingTo, setReplyingTo] = useState<string | null>(null)
   const [editingComment, setEditingComment] = useState<string | null>(null)
   const [editedContent, setEditedContent] = useState("")
 
-  // Post interaction state
-  const [likes, setLikes] = useState(0)
-  const [dislikes, setDislikes] = useState(0)
-  const [userLiked, setUserLiked] = useState(false)
-  const [userDisliked, setUserDisliked] = useState(false)
-  const [postInteraction, setPostInteraction] = useState<PostInteractionState>({
-    isLoading: false,
-    error: null,
-    success: null
-  })
-
   // UI state
   const [isLoading, setIsLoading] = useState(true)
-  const [isSubmittingComment, setIsSubmittingComment] = useState(false)
-  const [commentActionStates, setCommentActionStates] = useState<CommentActionStates>({})
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
-  // Tiptap read-only rendering for block content (if present)
+  // Extract Tiptap document from contentBlocks
   const tiptapDoc = React.useMemo(() => {
     const blocks: any[] = (postInfo as any)?.contentBlocks || []
-    if (!Array.isArray(blocks) || blocks.length === 0) return null
-    const block = blocks.find((b) => b && b.type === 'tiptap')
-    const data = block?.data
-    const doc = (data && (data.doc ?? data)) || null
-    return doc ?? null
+    return getTiptapDoc(blocks)
   }, [postInfo])
-
-  const tiptapEditor = useEditor({
-    extensions: [StarterKit, LinkExtension, Image],
-    editable: false,
-    content: tiptapDoc || undefined,
-  })
 
   // TOC support for Tiptap: collect headings and assign ids after render
   const tiptapContainerRef = React.useRef<HTMLDivElement>(null)
-
-  const slugify = (text: string): string =>
-    text
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-
   const tiptapHeadings = React.useMemo(() => {
-    if (!tiptapDoc) return [] as { id: string; text: string; level: number }[]
-    const result: { id: string; text: string; level: number }[] = []
-    const extractText = (node: any): string => {
-      if (!node) return ''
-      if (node.type === 'text' && typeof node.text === 'string') return node.text
-      const content = Array.isArray(node.content) ? node.content : []
-      return content.map(extractText).join(' ')
-    }
-    const visit = (node: any) => {
-      if (!node) return
-      if (node.type === 'heading') {
-        const level = Number(node.attrs?.level || 1)
-        const text = extractText(node).replace(/\s+/g, ' ').trim()
-        const id = slugify(text)
-        result.push({ id, text, level })
-      }
-      const content = Array.isArray(node.content) ? node.content : []
-      content.forEach(visit)
-    }
-    visit(tiptapDoc)
-    return result
+    // Ensure unique ids in case of duplicate headings
+    const raw = extractTiptapHeadings(tiptapDoc)
+    const seen = new Map<string, number>()
+    return raw.map(h => {
+      const count = seen.get(h.id) || 0
+      const uniqueId = count === 0 ? h.id : `${h.id}-${count}`
+      seen.set(h.id, count + 1)
+      return { ...h, id: uniqueId }
+    })
   }, [tiptapDoc])
 
-  // Debug: log derived doc
   React.useEffect(() => {
-    try {
-      const blocks: any[] = (postInfo as any)?.contentBlocks || []
-      const summary = Array.isArray(blocks) ? { length: blocks.length, types: blocks.map((b) => b?.type) } : blocks
-      console.debug('[PostPage] derived tiptapDoc', {
-        postId: (postInfo as any)?.id || (postInfo as any)?._id,
-        hasDoc: !!tiptapDoc,
-        blocks: summary,
-      })
-    } catch {}
-  }, [postInfo, tiptapDoc])
+    if (!tiptapDoc || !tiptapContainerRef.current) return
 
-  React.useEffect(() => {
-    if (!tiptapDoc) return
-    // After content renders, assign ids to headings based on our TOC
-    const el = tiptapContainerRef.current
-    if (!el) return
-    const headings = el.querySelectorAll('h1, h2, h3')
+    const headings = tiptapContainerRef.current.querySelectorAll('h1, h2, h3')
+    const seen = new Map<string, number>()
     headings.forEach((h) => {
       const text = (h.textContent || '').replace(/\s+/g, ' ').trim()
-      const id = slugify(text)
-      if (id) h.id = id
+      let baseId = slugify(text)
+      const count = seen.get(baseId) || 0
+      const finalId = count === 0 ? baseId : `${baseId}-${count}`
+      seen.set(baseId, count + 1)
+      if (finalId) (h as any).id = finalId
+      // Add utility class to ensure scroll offset works even without TiptapRenderer change
+      h.classList.add('scroll-mt-24')
     })
-  }, [tiptapDoc, tiptapEditor])
+  }, [tiptapDoc])
 
   // Content filtering
   const { filterContent, testContent } = useSimpleContentFilter()
@@ -223,8 +635,6 @@ const PostPage = () => {
     const testResult = testContent(content)
     setReplyWarnings(testResult.flaggedWords)
   }, [testContent])
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   // Confirmation modal state
   const [confirmModalIsOpen, setConfirmModalIsOpen] = useState(false)
@@ -234,1368 +644,183 @@ const PostPage = () => {
   const { userInfo } = UserContext()
   const { id } = useParams<{ id: string }>()
 
-  /**
-   * Fetch comments for the current post
-   */
-  const fetchComments = useCallback(async () => {
-    if (!id) return
+  // Custom hooks for complex logic
+  const {
+    comments,
+    fetchComments,
+    handleCommentSubmit: handleCommentSubmitHook,
+    handleUpdateComment,
+    executeCommentDeletion,
+    handleReply: handleReplyHook
+  } = useCommentManagement(id, userInfo, filterContent, setErrorMessage, setSuccessMessage)
 
-    try {
-      setErrorMessage(null)
-      console.log('Fetching comments for post:', id)
-      const response = await fetch(API_ENDPOINTS.comments.byPost(id), {
-        credentials: 'include',
-      })
+  const {
+    likes,
+    dislikes,
+    userLiked,
+    userDisliked,
+    isLoading: postInteractionLoading,
+    setLikes,
+    setDislikes,
+    setUserLiked,
+    setUserDisliked,
+    hasUserLiked,
+    hasUserDisliked,
+    handleLikePost,
+    handleDislikePost
+  } = usePostInteractions(id, userInfo, setErrorMessage, setSuccessMessage)
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch comments: ${response.status}`)
-      }
-
-      const responseData = await response.json()
-      console.log('Comments API response:', responseData)
-
-      // Vérifier si la réponse contient un tableau de commentaires ou un objet avec une propriété comments
-      let fetchedComments: Comment[] = 
-        Array.isArray(responseData) ? responseData : 
-        (responseData.comments && Array.isArray(responseData.comments)) ? responseData.comments : []
-
-      // Créer un Set pour suivre les IDs de commentaires déjà vus
-      const seenCommentIds = new Set<string>()
-
-      // Filtrer les commentaires pour supprimer les doublons
-      fetchedComments = fetchedComments.filter(comment => {
-        if (!comment._id) return true // Garder les commentaires sans ID
-
-        // Si on a déjà vu cet ID, on supprime le doublon
-        if (seenCommentIds.has(comment._id)) {
-          return false
-        }
-
-        // Sinon, on l'ajoute au set et on garde le commentaire
-        seenCommentIds.add(comment._id)
-        return true
-      })
-
-      // S'assurer que tous les commentaires et réponses (à tous les niveaux) ont les champs nécessaires
-      const normalizeComment = (c: any): Comment => {
-        console.log(`Comment ${c?._id} - likes:`, c?.likes, 'dislikes:', c?.dislikes)
-        const normalized: any = {
-          ...c,
-          likes: Array.isArray(c?.likes) ? c.likes : [],
-          dislikes: Array.isArray(c?.dislikes) ? c.dislikes : [],
-          replies: Array.isArray(c?.replies)
-            ? c.replies.map((reply: any) => normalizeComment(reply))
-            : []
-        }
-        return normalized as Comment
-      }
-
-      const commentsWithDefaults = fetchedComments.map((comment) => normalizeComment(comment))
-
-      console.log('Processed comments (after deduplication and defaults):', commentsWithDefaults)
-      setComments(commentsWithDefaults)
-    } catch (error) {
-      console.error("Error fetching comments:", error)
-      setErrorMessage(error instanceof Error ? error.message : "Failed to fetch comments")
-    }
-  }, [id])
-
-  // Les fonctions de formatage de contenu et de détection de thème
-  // ont été déplacées vers les helpers src/lib/formatContent.ts et src/lib/themeDetector.ts
-
-  /**
-   * Update comment action state
-   * @param commentId - ID of the comment
-   * @param status - New status
-   * @param error - Error message (if any)
-   */
-  const updateCommentActionState = (commentId: string, status: ActionStatus, error: string | null = null) => {
-    setCommentActionStates(prev => ({
-      ...prev,
-      [commentId]: { status, error }
-    }))
-  }
-
-
-
-  /**
-   * Set a comment for editing
-   * @param commentId - ID of the comment to edit
-   */
+  // Handlers (simple wrappers)
   const handleEditComment = (commentId: string) => {
-    const comment = comments.find((c) => c._id === commentId)
+    const comment = comments.find((c) => (c as any)._id === commentId)
     setEditingComment(commentId)
-    setEditedContent(comment ? comment.content : "")
+    setEditedContent(comment ? (comment as any).content : "")
   }
 
-  /**
-   * Update a comment
-   * @param commentId - ID of the comment to update
-   */
-  const handleUpdateComment = async (commentId: string) => {
-    updateCommentActionState(commentId, "loading")
-
-    try {
-      const response = await fetch(`${API_ENDPOINTS.comments.update(commentId)}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ content: editedContent }),
-        credentials: "include",
-      })
-
-      if (!response.ok) {
-        throw new Error(`Failed to update comment: ${response.status}`)
-      }
-
-      await fetchComments()
-      setEditingComment(null)
-      updateCommentActionState(commentId, "success")
-      setSuccessMessage("Comment updated successfully")
-
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccessMessage(null), 3000)
-    } catch (error) {
-      console.error("Error updating comment:", error)
-      updateCommentActionState(commentId, "error", error instanceof Error ? error.message : "Failed to update comment")
-      setErrorMessage(error instanceof Error ? error.message : "Failed to update comment")
-    }
-  }
-
-  /**
-   * Delete a comment
-   * @param commentId - ID of the comment to delete
-   */
   const handleDeleteComment = async (commentId: string) => {
-    // Use the confirmation modal instead of window.confirm
+    const confirmAction = () => {
+      executeCommentDeletion(commentId)
+      setConfirmModalIsOpen(false)
+    }
     setConfirmModalIsOpen(true)
-    setConfirmModalOnConfirm(() => async () => {
-      updateCommentActionState(commentId, "loading")
-
-      try {
-        // Fix the incorrect URL
-        const response = await fetch(`${API_ENDPOINTS.comments.delete(commentId)}`, {
-          method: "DELETE",
-          credentials: "include",
-        })
-
-        if (!response.ok) {
-          throw new Error(`Failed to delete comment: ${response.status}`)
-        }
-
-        await fetchComments()
-        updateCommentActionState(commentId, "success")
-        setSuccessMessage("Comment deleted successfully")
-
-        // Clear success message after 3 seconds
-        setTimeout(() => setSuccessMessage(null), 3000)
-      } catch (error) {
-        console.error("Error deleting comment:", error)
-        updateCommentActionState(commentId, "error", error instanceof Error ? error.message : "Failed to delete comment")
-        setErrorMessage(error instanceof Error ? error.message : "Failed to delete comment")
-      } finally {
-        setConfirmModalIsOpen(false)
-      }
-    })
+    setConfirmModalOnConfirm(() => confirmAction)
   }
 
-  /**
-   * Sanitize comment payload to avoid circular structures and ensure proper schema
-   * @param content - Comment content
-   * @param postId - ID of the post
-   * @param parentId - ID of the parent comment (if replying)
-   * @returns Sanitized payload object
-   */
-  function sanitizeCommentPayload(
-    content: string,
-    postId: string,
-    parentId: string | null = null
-  ) {
-    // Just string or undefined/null for parent; nothing else!
-    const sanitized: { content: string, post: string, parent?: string } = {
-      content,
-      post: postId
-    }
-    if (typeof parentId === "string" && parentId.trim().length > 0) {
-      sanitized.parent = parentId
-    }
-    return sanitized
-  }
-
-  /**
-   * Reply to a comment
-   * @param parentId - ID of the parent comment
-   * @param content - Content of the reply
-   */
   const handleReply = async (parentId: string) => {
-    if (!userInfo) {
-      setErrorMessage("You must be logged in to reply")
-      return
-    }
-
-    if (!replyContent.trim()) {
-      setErrorMessage("Reply cannot be empty")
-      return
-    }
-
-    // Éviter les soumissions multiples
-    if (isSubmittingComment) {
-      return
-    }
-
-    updateCommentActionState(parentId, "loading")
-    setIsSubmittingComment(true)
-
-    try {
-      // Apply content filtering before submission
-      const filterResult = filterContent(replyContent)
-      
-      // Show notification if content was filtered
-      if (filterResult.wasFiltered) {
-        console.log('Reply content was filtered:', filterResult.replacements)
-        setSuccessMessage("Your reply has been filtered for inappropriate content")
-        setTimeout(() => setSuccessMessage(null), 5000)
-      }
-
-      const payload = sanitizeCommentPayload(filterResult.filteredContent, id || "", parentId)
-      console.log("[handleReply] Payload:", payload)
-
-      // Defensive check - ensure payload can be serialized
-      JSON.stringify(payload)
-
-      const response = await fetch(API_ENDPOINTS.comments.create, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-        credentials: "include",
-      })
-
-      // Read the response body once
-      const responseData = await response.json()
-
-      if (!response.ok) {
-        throw new Error(responseData.message || `Failed to post reply: ${response.status}`)
-      }
-
-      // Si nous avons reçu les données du commentaire dans la réponse,
-      // nous l'utilisons directement au lieu de refaire un fetchComments
-      if (responseData && responseData.comment) {
-        // Nous ne manipulons pas manuellement le state ici, car cela pourrait créer des doublons
-        // lors du prochain rechargement des commentaires
-        console.log("Reply created successfully, fetching all comments")
-      }
-
-      // Dans tous les cas, nous rechargeons tous les commentaires pour assurer la cohérence
-      await fetchComments()
-
-      // Réinitialiser le contenu de la réponse et fermer le formulaire
-      setReplyContent("")
-      setReplyingTo(null)
-      updateCommentActionState(parentId, "success")
-      setSuccessMessage("Reply posted successfully")
-
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccessMessage(null), 3000)
-    } catch (error) {
-      console.error("Error posting reply:", error)
-      updateCommentActionState(parentId, "error", error instanceof Error ? error.message : "Failed to post reply")
-      setErrorMessage(error instanceof Error ? error.message : "Failed to post reply")
-    } finally {
-      setIsSubmittingComment(false)
-    }
+    await handleReplyHook(parentId, replyContent)
+    setReplyContent("")
+    setReplyingTo(null)
   }
 
-  /**
-   * Submit a new comment
-   * @param e - Form event
-   * @param parentId - ID of the parent comment (if replying)
-   */
   const handleCommentSubmit = async (e: React.FormEvent, parentId: string | null = null) => {
-    e.preventDefault()
-
-    if (!userInfo) {
-      setErrorMessage("You must be logged in to comment")
-      return
-    }
-
-    if (!newComment.trim()) {
-      setErrorMessage("Comment cannot be empty")
-      return
-    }
-
-    setIsSubmittingComment(true)
-
-    try {
-      // Apply content filtering before submission
-      const filterResult = filterContent(newComment)
-      
-      // Show notification if content was filtered
-      if (filterResult.wasFiltered) {
-        console.log('Comment content was filtered:', filterResult.replacements)
-        setSuccessMessage("Your comment has been filtered for inappropriate content")
-        setTimeout(() => setSuccessMessage(null), 5000)
-      }
-
-      // Use sanitized payload with filtered content
-      const payload = sanitizeCommentPayload(filterResult.filteredContent, id || "", parentId)
-      console.log("[handleCommentSubmit] Payload:", payload)
-
-      // Defensive check - ensure payload can be serialized
-      JSON.stringify(payload)
-
-      const response = await fetch(API_ENDPOINTS.comments.create, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-        credentials: "include",
-      })
-
-      // Read the response body once
-      const responseData = await response.json()
-
-      if (!response.ok) {
-        throw new Error(responseData.message || "Failed to post comment")
-      }
-
-      // Nous rechargerons tous les commentaires pour éviter les problèmes de duplication
-      console.log("Comment created successfully, fetching all comments")
-      await fetchComments()
-
-      setNewComment("")
-      setReplyingTo(null)
-      setSuccessMessage("Comment posted successfully")
-
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccessMessage(null), 3000)
-    } catch (error) {
-      console.error("Error posting comment:", error)
-      setErrorMessage(error instanceof Error ? error.message : "An error occurred while posting your comment")
-    } finally {
-      setIsSubmittingComment(false)
-    }
+    await handleCommentSubmitHook(e, newComment, parentId)
+    setNewComment("")
+    setReplyingTo(null)
   }
 
-    // Effect to detect theme changes
-    useEffect(() => {
-      // Importer les fonctions pour la gestion du thème
-      // Forcer l'application des variables CSS pour le contenu Markdown avec une spécificité accrue
-      const style = document.createElement('style');
-      style.id = 'markdown-theme-overrides';
-      style.textContent = `
-        /* Augmenter la spécificité des variables CSS pour surcharger le thème du navigateur */
-        html:root {
-          --md-text-heading: #111827 !important; 
-          --md-text-body: #374151 !important;   
-          --md-border: #e5e7eb !important;      
-        }
+  const handleUpdateCommentWrapper = async (commentId: string) => {
+    await handleUpdateComment(commentId, editedContent)
+    setEditingComment(null)
+  }
 
-        html.dark:root, html[data-theme="dark"]:root, html[data-mode="dark"]:root {
-          --md-text-heading: #f5f5f5 !important; 
-          --md-text-body: #d4d4d4 !important;    
-          --md-border: #333 !important;          
-        }
+  const handleCommentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setNewComment(e.target.value)
+    checkCommentContent(e.target.value)
+  }
 
-        /* Forcer les styles sur les éléments Markdown spécifiques */
-        .markdown-body h1, .markdown-body h2, .markdown-body h3, 
-        .markdown-body h4, .markdown-body h5, .markdown-body h6 {
-          color: var(--md-text-heading) !important;
-        }
-
-        .markdown-body p, .markdown-body li, .markdown-body td {
-          color: var(--md-text-body) !important;
-        }
-
-        .markdown-body pre, .markdown-body code {
-          background-color: var(--md-code-block-bg, #1a1a1a) !important;
-          border-color: var(--md-code-block-border, #333) !important;
-        }
-      `;
-
-      // Remplacer le style s'il existe déjà
-      const existingStyle = document.getElementById('markdown-theme-overrides');
-      if (existingStyle) {
-        existingStyle.replaceWith(style);
-      } else {
-        document.head.appendChild(style);
-      }
-
-      // Détection initiale du thème
-      setIsDarkMode(detectDarkMode());
-
-      // Configuration de l'écouteur de changement de thème
-      const cleanup = setupThemeListener((isDark) => {
-        setIsDarkMode(isDark);
-        console.log('Theme detection - Dark mode:', isDark);
-
-        // Forcer une mise à jour des styles après un changement de thème
-        document.querySelectorAll('.markdown-body pre').forEach(pre => {
-          (pre as HTMLElement).style.backgroundColor = '';
-          (pre as HTMLElement).style.borderColor = '';
-          setTimeout(() => {
-            (pre as HTMLElement).style.backgroundColor = getComputedStyle(pre as HTMLElement).backgroundColor;
-            (pre as HTMLElement).style.borderColor = getComputedStyle(pre as HTMLElement).borderColor;
-          }, 0);
-        });
-      });
-
-      // Nettoyage lors du démontage du composant
-      return cleanup;
-    }, []);
+  // Effect to detect theme changes
+  useEffect(() => {
+    setIsDarkMode(detectDarkMode())
+    const cleanup = setupThemeListener(setIsDarkMode)
+    return cleanup
+  }, [])
 
   useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true)
-      try {
-        const response = await fetch(API_ENDPOINTS.posts.detail(id || ''), {
-          credentials: 'include',
-        })
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch post: ${response.status}`)
-        }
-
-        const postData = await response.json()
-        // Correction : compatibilité avec backend qui retourne { post }
-        const post = postData.post || postData
-        // Debug: summarize contentBlocks from API
-        try {
-          const cb = (post as any)?.contentBlocks
-          console.debug('[PostPage] fetched post summary', {
-            id: (post as any)?.id || (post as any)?._id,
-            hasContentBlocks: Array.isArray(cb),
-            contentBlocks: Array.isArray(cb) ? { length: cb.length, types: cb.map((b: any) => b?.type) } : cb,
-          })
-        } catch {}
-        setPostInfo(post)
-        setLikes(post.likes?.length || 0)
-        setDislikes(post.dislikes?.length || 0)
-        if (userInfo) {
-          // Utiliser la fonction dédiée pour vérifier si l'utilisateur a aimé le post
-          setUserLiked(hasUserLiked(post.likes, userInfo.id))
-          setUserDisliked(hasUserDisliked(post.dislikes, userInfo.id))
-        }
-
-        await fetchComments()
-      } catch (error) {
-        console.error("Error fetching data:", error)
-        setErrorMessage(error instanceof Error ? error.message : "Failed to load post data")
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchData()
-
-    // Vérifier si highlight.js est disponible
-    const isHighlightJsAvailable = () => {
-      try {
-        return typeof hljs !== 'undefined' && hljs !== null && typeof hljs.highlight === 'function';
-      } catch (e) {
-        console.error("highlight.js n'est pas disponible:", e);
-        return false;
-      }
-    };
-
-    // Initialiser highlight.js s'il est disponible
-    if (isHighlightJsAvailable()) {
-      try {
-        hljs.configure({
-          languages: ['javascript', 'typescript', 'python', 'html', 'css', 'bash', 'json', 'markdown'],
-          ignoreUnescapedHTML: true
-        });
-        console.log("highlight.js initialisé avec succès");
-      } catch (e) {
-        console.error("Erreur lors de l'initialisation de highlight.js:", e);
-      }
-    } else {
-      console.warn("highlight.js n'est pas disponible, la coloration syntaxique sera désactivée");
-    }
-
-    // Add styles for animations and interactions
-    const style = document.createElement("style")
-    style.textContent = `
-      .highlight {
-        animation: highlightFade 2s;
-      }
-      @keyframes highlightFade {
-        0% { background-color: rgba(34, 197, 94, 0.2); }
-        100% { background-color: transparent; }
-      }
-
-      /* Animation pour les éléments qui apparaissent au défilement */
-      [data-aos] {
-        opacity: 0;
-        transition: opacity 0.8s, transform 0.8s;
-      }
-
-      [data-aos="fade-up"] {
-        transform: translateY(20px);
-      }
-
-      [data-aos="fade-right"] {
-        transform: translateX(-20px);
-      }
-
-      [data-aos="zoom-in"] {
-        transform: scale(0.95);
-      }
-
-      [data-aos].aos-animate {
-        opacity: 1;
-        transform: translateY(0) translateX(0) scale(1);
-      }
-
-      /* Style pour la table des matières */
-      .table-of-contents {
-        background-color: #f9f9f9;
-        border-radius: 0.5rem;
-        padding: 1.5rem;
-        margin-bottom: 2rem;
-        border: 1px solid #eaeaea;
-      }
-
-      .table-of-contents h3 {
-        margin-top: 0;
-        margin-bottom: 1rem;
-        font-size: 1.2rem;
-      }
-
-      .table-of-contents ul {
-        list-style-type: none;
-        padding-left: 0;
-      }
-
-      .table-of-contents li {
-        margin-bottom: 0.5rem;
-      }
-
-      .table-of-contents a {
-        color: #16a34a;
-        text-decoration: none;
-        transition: color 0.2s;
-      }
-
-      .table-of-contents a:hover {
-        color: #15803d;
-        text-decoration: underline;
-      }
-
-      /* Style pour le mode sombre */
-      @media (prefers-color-scheme: dark) {
-        .table-of-contents {
-          background-color: #222;
-          border-color: #333;
-        }
-
-        .table-of-contents a {
-          color: #4ade80;
-        }
-
-        .table-of-contents a:hover {
-          color: #86efac;
-        }
-      }
-    `
-    document.head.appendChild(style)
-
-    // Fonction pour animer les éléments au défilement
-    const animateOnScroll = () => {
-      const elements = document.querySelectorAll('[data-aos]')
-
-      elements.forEach(element => {
-        const elementPosition = element.getBoundingClientRect().top
-        const windowHeight = window.innerHeight
-
-        if (elementPosition < windowHeight * 0.85) {
-          element.classList.add('aos-animate')
-        }
-      })
-    }
-
-    // Ajouter les écouteurs d'événements
-    window.addEventListener('scroll', animateOnScroll)
-
-    // Déclencher l'animation initiale
-    setTimeout(animateOnScroll, 100)
-
-    return () => {
-      document.head.removeChild(style)
-      window.removeEventListener('scroll', animateOnScroll)
-    }
+    fetchPostAndSetup({
+      id,
+      userInfo: userInfo as any,
+      setIsLoading,
+      setPostInfo,
+      setLikes,
+      setDislikes,
+      setUserLiked,
+      setUserDisliked,
+      hasUserLiked,
+      hasUserDisliked,
+      fetchComments,
+      setErrorMessage: (msg: string) => setErrorMessage(msg),
+    })
   }, [id, userInfo, fetchComments])
 
-  /**
-   * Aimer un article
-   */
-  const handleLikePost = async () => {
-      if (!userInfo) {
-        setPostInteraction({
-          isLoading: false,
-          error: "Vous devez être connecté pour aimer un article",
-          success: null
-        })
-        return
-      }
-  
-      // Éviter les soumissions multiples
-      if (postInteraction.isLoading) return
-  
-      // Set loading state
-      setPostInteraction({
-        isLoading: true,
-        error: null,
-        success: null
-      })
-  
-      // Store original values for rollback
-      const originalLikes = likes;
-      const originalDislikes = dislikes;
-      const originalUserLiked = userLiked;
-      const originalUserDisliked = userDisliked;
-  
-      // Optimistic update
-      const wasLiked = userLiked;
-      const wasDisliked = userDisliked;
-      const optimisticLikes = wasLiked ? likes - 1 : likes + 1;
-      const optimisticDislikes = wasDisliked ? dislikes - 1 : dislikes;
-  
-      setLikes(optimisticLikes);
-      setDislikes(optimisticDislikes);
-      setUserLiked(!wasLiked);
-      setUserDisliked(false);
-  
-      try {
-        const response = await fetch(`${API_ENDPOINTS.posts.like(id || '')}`, {
-          method: "POST",
-          credentials: "include",
-        })
-  
-        const data = await response.json()
-        console.log('Like response:', data)
-  
-        if (response.ok) {
-          // Update with server data
-          const serverLikes = Array.isArray(data.likes) ? data.likes : []
-          const serverDislikes = Array.isArray(data.dislikes) ? data.dislikes : []
-          setLikes(serverLikes.length)
-          setDislikes(serverDislikes.length)
-          setUserLiked(hasUserLiked(serverLikes, userInfo?.id))
-          setUserDisliked(hasUserDisliked(serverDislikes, userInfo?.id))
-          
-          setPostInteraction({
-            isLoading: false,
-            error: null,
-            success: "Article aimé avec succès"
-          })
-          
-          // Clear success message after 3 seconds
-          setTimeout(() => {
-            setPostInteraction(prev => ({ ...prev, success: null }))
-          }, 3000)
-        } else {
-          // Rollback on API error
-          setLikes(originalLikes)
-          setDislikes(originalDislikes)
-          setUserLiked(originalUserLiked)
-          setUserDisliked(originalUserDisliked)
-          
-          const errorMessage = data.message || "Erreur lors de l'action d'aimer l'article"
-          setPostInteraction({
-            isLoading: false,
-            error: errorMessage,
-            success: null
-          })
-          console.warn("Erreur lors du like:", data.message)
-        }
-      } catch (error) {
-        // Rollback on network error
-        setLikes(originalLikes)
-        setDislikes(originalDislikes)
-        setUserLiked(originalUserLiked)
-        setUserDisliked(originalUserDisliked)
-        
-        const errorMessage = error instanceof Error ? error.message : "Erreur de connexion lors de l'action d'aimer l'article"
-        setPostInteraction({
-          isLoading: false,
-          error: errorMessage,
-          success: null
-        })
-        console.error("Erreur lors de l'action d'aimer l'article:", error)
-      }
+  const deletePost = (postId: string) => {
+    const confirmAction = () => {
+      setConfirmModalIsOpen(false)
+      executePostDeletionApi(postId, setSuccessMessage, setErrorMessage)
     }
-
-  /**
-   * Ne pas aimer un article
-   */
-  const handleDislikePost = async () => {
-      if (!userInfo) {
-        setPostInteraction({
-          isLoading: false,
-          error: "Vous devez être connecté pour ne pas aimer un article",
-          success: null
-        })
-        return
-      }
-  
-      // Éviter les soumissions multiples
-      if (postInteraction.isLoading) return
-  
-      // Set loading state
-      setPostInteraction({
-        isLoading: true,
-        error: null,
-        success: null
-      })
-  
-      // Store original values for rollback
-      const originalLikes = likes;
-      const originalDislikes = dislikes;
-      const originalUserLiked = userLiked;
-      const originalUserDisliked = userDisliked;
-  
-      // Optimistic update
-      const wasLiked = userLiked;
-      const wasDisliked = userDisliked;
-      const optimisticLikes = wasLiked ? likes - 1 : likes;
-      const optimisticDislikes = wasDisliked ? dislikes - 1 : dislikes + 1;
-  
-      setLikes(optimisticLikes);
-      setDislikes(optimisticDislikes);
-      setUserLiked(false);
-      setUserDisliked(!wasDisliked);
-  
-      try {
-        const response = await fetch(`${API_ENDPOINTS.posts.dislike(id || '')}`, {
-          method: "POST",
-          credentials: "include",
-        })
-  
-        const data = await response.json()
-        console.log('Dislike response:', data)
-  
-        if (response.ok) {
-          // Update with server data
-          const serverLikes = Array.isArray(data.likes) ? data.likes : []
-          const serverDislikes = Array.isArray(data.dislikes) ? data.dislikes : []
-          setLikes(serverLikes.length)
-          setDislikes(serverDislikes.length)
-          setUserLiked(hasUserLiked(serverLikes, userInfo?.id))
-          setUserDisliked(hasUserDisliked(serverDislikes, userInfo?.id))
-          
-          setPostInteraction({
-            isLoading: false,
-            error: null,
-            success: "Article disliké avec succès"
-          })
-          
-          // Clear success message after 3 seconds
-          setTimeout(() => {
-            setPostInteraction(prev => ({ ...prev, success: null }))
-          }, 3000)
-        } else {
-          // Rollback on API error
-          setLikes(originalLikes)
-          setDislikes(originalDislikes)
-          setUserLiked(originalUserLiked)
-          setUserDisliked(originalUserDisliked)
-          
-          const errorMessage = data.message || "Erreur lors de l'action de ne pas aimer l'article"
-          setPostInteraction({
-            isLoading: false,
-            error: errorMessage,
-            success: null
-          })
-          console.warn("Erreur lors du dislike:", data.message)
-        }
-      } catch (error) {
-        // Rollback on network error
-        setLikes(originalLikes)
-        setDislikes(originalDislikes)
-        setUserLiked(originalUserLiked)
-        setUserDisliked(originalUserDisliked)
-        
-        const errorMessage = error instanceof Error ? error.message : "Erreur de connexion lors de l'action de ne pas aimer l'article"
-        setPostInteraction({
-          isLoading: false,
-          error: errorMessage,
-          success: null
-        })
-        console.error("Erreur lors de l'action de ne pas aimer l'article:", error)
-      }
-    }
-
-  /**
-   * Scroll to a specific comment and highlight it
-   * @param commentId - ID of the comment to scroll to
-   */
-  const scrollToComment = (commentId: string): void => {
-    const element = document.getElementById(`comment-${commentId}`)
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth" })
-      element.classList.add("highlight")
-      setTimeout(() => {
-        element.classList.remove("highlight")
-      }, 2000)
-    }
-  }
-
-  /**
-   * Render comments recursively with proper indentation
-   * @param comments - Array of comments to render
-   * @param depth - Current depth level for indentation
-   * @param parentId - ID of the parent comment (if any)
-   */
-  const renderComments = (commentsInput: Comment[] = [], depth = 0, parentId: string | null = null) => {
-    // Defensive: always use an array and filter out invalid comments
-    const comments = Array.isArray(commentsInput) 
-      ? commentsInput.filter(comment => 
-          comment && typeof comment === 'object' && comment._id && 
-          // S'assurer que l'auteur existe
-          comment.author && typeof comment.author === 'object')
-      : []
-
-    // Vérifier les doublons pour déboguer
-    const commentIds = comments.map(c => c._id)
-    const duplicateIds = commentIds.filter((id, index) => commentIds.indexOf(id) !== index)
-    if (duplicateIds.length > 0) {
-      console.warn('Duplicate comment IDs found:', duplicateIds)
-    }
-
-    return comments.map((comment: Comment, index) => {
-
-
-      // FIX: Wrap the returned JSX in parentheses so the arrow function returns it
-      return (
-        <div
-          key={`${comment._id}-${depth}-${index}`}
-          id={`comment-${comment._id}`}
-          className={`${depth > 0 ? "ml-8" : ""} bg-card rounded-lg shadow-sm p-4 mb-4 border`}
-        >
-        <div className="flex items-start space-x-3 mb-4">
-          <div className="flex-shrink-0">
-            <img
-              className="w-10 h-10 rounded-full"
-              src={`https://ui-avatars.com/api/?name=${comment.author.username}&background=random`}
-              alt={comment.author.username}
-            />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between">
-              <h4 className="font-semibold text-sm">{comment.author.username}</h4>
-              <time className="text-xs text-muted-foreground">{formatDate(comment.createdAt)}</time>
-            </div>
-
-            {parentId && (
-              <div className="text-xs text-muted-foreground mt-1 mb-2">
-                replying to{" "}
-                <button
-                  onClick={(e) => {
-                    e.preventDefault()
-                    scrollToComment(parentId)
-                  }}
-                  className="text-primary hover:underline"
-                >
-                  {comments.find((c) => c._id === parentId)?.author.username}
-                </button>
-              </div>
-            )}
-
-            {editingComment === comment._id ? (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  handleUpdateComment(comment._id)
-                }}
-                className="mt-2"
-              >
-                <textarea
-                  value={editedContent}
-                  onChange={(e) => setEditedContent(e.target.value)}
-                  className="w-full p-2 border rounded text-sm resize-none min-h-[100px]"
-                  style={{
-                    backgroundColor: isDarkMode ? '#1e1e1e' : '#ffffff',
-                    color: isDarkMode ? '#e0e0e0' : '#000000',
-                    borderColor: isDarkMode ? '#3a3a3a' : '#e5e7eb'
-                  }}
-                  required
-                />
-                <div className="flex justify-end mt-2 space-x-2">
-                  <Button type="submit" size="sm">
-                    Update
-                  </Button>
-                  <Button onClick={() => setEditingComment(null)} variant="outline" size="sm">
-                    Cancel
-                  </Button>
-                </div>
-              </form>
-            ) : (
-              <p className="text-foreground mt-1">{comment.content}</p>
-            )}
-
-            <div className="flex items-center space-x-4 mt-3">
-              <CommentReactions
-                commentId={comment._id}
-                userId={userInfo?.id}
-                initialLikes={Array.isArray(comment.likes) ? comment.likes : []}
-                initialDislikes={Array.isArray(comment.dislikes) ? comment.dislikes : []}
-              />
-              <button
-                onClick={() => {
-                  setReplyingTo(comment._id)
-                  setReplyContent("") // Réinitialiser le contenu de la réponse
-                }}
-                className="flex items-center space-x-1 text-sm text-muted-foreground hover:text-primary transition-colors"
-              >
-                <Reply className="h-4 w-4" />
-                <span>Reply</span>
-              </button>
-              {userInfo && userInfo.id === comment.author._id && (
-                <>
-                  <button
-                    onClick={() => handleEditComment(comment._id)}
-                    className="flex items-center space-x-1 text-sm text-muted-foreground hover:text-primary transition-colors"
-                  >
-                    <Edit className="h-4 w-4" />
-                    <span>Edit</span>
-                  </button>
-                  <button
-                    onClick={() => handleDeleteComment(comment._id)}
-                    className="flex items-center space-x-1 text-sm text-muted-foreground hover:text-destructive transition-colors"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    <span>Delete</span>
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {replyingTo === comment._id && (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              handleReply(comment._id)
-            }}
-            className="mt-4"
-          >
-            <textarea
-              value={replyContent}
-              onChange={(e) => {
-                setReplyContent(e.target.value)
-                checkReplyContent(e.target.value)
-              }}
-              placeholder="Write your reply..."
-              className="w-full p-3 border rounded-md text-sm resize-none min-h-[100px] focus:ring-2 focus:ring-primary focus:border-transparent"
-              style={{
-                backgroundColor: isDarkMode ? '#1e1e1e' : '#ffffff',
-                color: isDarkMode ? '#e0e0e0' : '#000000',
-                borderColor: isDarkMode ? '#3a3a3a' : '#e5e7eb'
-              }}
-              required
-            />
-            {replyWarnings.length > 0 && (
-              <div className="mt-2 flex items-center text-sm text-orange-600 dark:text-orange-400">
-                <AlertCircle className="h-4 w-4 mr-1" />
-                <span>Content may be filtered: {replyWarnings.join(', ')}</span>
-              </div>
-            )}
-            <div className="flex justify-end mt-2 space-x-2">
-              <Button type="submit" size="sm">
-                Post Reply
-              </Button>
-              <Button
-                onClick={() => {
-                  setReplyingTo(null)
-                  setReplyContent("")
-                }}
-                variant="outline"
-                size="sm"
-              >
-                Cancel
-              </Button>
-            </div>
-          </form>
-        )}
-
-        {comment.replies && Array.isArray(comment.replies) && comment.replies.length > 0 && (
-          <div className="mt-4">{renderComments(comment.replies, depth + 1, comment._id)}</div>
-        )}
-      </div>
-      )
-    })
+    setConfirmModalIsOpen(true)
+    setConfirmModalOnConfirm(() => confirmAction)
   }
 
   if (isLoading) {
-    return (
-      <Container className="py-16">
-        <div className="max-w-3xl mx-auto">
-          <div className="animate-pulse">
-            <div className="h-96 bg-muted rounded-lg mb-8"></div>
-            <div className="h-10 bg-muted rounded w-3/4 mb-4"></div>
-            <div className="h-4 bg-muted rounded w-1/4 mb-8"></div>
-            <div className="space-y-4">
-              <div className="h-4 bg-muted rounded"></div>
-              <div className="h-4 bg-muted rounded"></div>
-              <div className="h-4 bg-muted rounded w-5/6"></div>
-            </div>
-          </div>
-        </div>
-      </Container>
-    )
+    return <LoadingSkeleton />
   }
 
   if (!postInfo) return null
 
-  const username = userInfo?.username
-  const userId = userInfo?.id
+  const username = (userInfo as any)?.username
+  const userId = (userInfo as any)?.id
 
   // Check if the current user is the author of the post
-  const isAuthor = userId && postInfo?.author?._id === userId
+  const isAuthor = userId && (postInfo as any)?.author?._id === userId
 
-  /**
-   * Delete a post with confirmation
-   * @param postId - ID of the post to delete
-   */
-  async function deletePost(postId: string): Promise<void> {
-    try {
-      // Show confirmation modal
-      setConfirmModalIsOpen(true)
-
-      // Wait for user confirmation
-      const confirmDeletion = await new Promise<boolean>((resolve) => {
-        setConfirmModalOnConfirm(() => {
-          resolve(true)
-          setConfirmModalIsOpen(false)
-        })
-      })
-
-      if (confirmDeletion) {
-        // Show loading state
-        setIsSubmittingComment(true)
-
-        const response = await fetch(`${API_ENDPOINTS.posts.delete(postId)}`, {
-          method: "DELETE",
-          credentials: "include",
-        })
-
-        if (!response.ok) {
-          throw new Error(`Failed to delete post: ${response.status}`)
-        }
-
-        setSuccessMessage("Post deleted successfully")
-
-        // Redirect to home page after a short delay
-        setTimeout(() => {
-          window.location.href = "/"
-        }, 1500)
-      }
-    } catch (error) {
-      console.error("Error deleting post:", error)
-      setErrorMessage(error instanceof Error ? error.message : "Failed to delete post")
-    } finally {
-      setIsSubmittingComment(false)
-    }
-  }
-
-  /**
-   * Format image path to handle both relative and absolute URLs safely
-   * @param path - Image path (may be undefined or null)
-   * @returns Formatted image URL or a placeholder if not valid
-   */
-  const formatImagePath = (path?: string | null): string => {
-    if (!path || path.trim() === '') {
-      // Return a default placeholder
-      return "/images/placeholder.png";
-    }
-    if (path.startsWith("http")) {
-      return path;
-    }
-    return `${API_BASE_URL}/${path.replace(/\\/g, "/")}`;
-  }
-
-  // Render error message
-  const renderErrorMessage = () => {
-    // Déterminer le message d'erreur à afficher (priorité aux erreurs d'interaction avec les articles)
-    const displayedError = postInteraction.error || errorMessage;
-
-    if (!displayedError) return null;
-
-    return (
-      <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start">
-        <AlertCircle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
-        <div>
-          <p className="text-red-800 text-sm font-medium">{displayedError}</p>
-          <button
-            onClick={() => {
-              setErrorMessage(null);
-              setPostInteraction(prev => ({ ...prev, error: null }));
-            }}
-            className="text-xs text-red-600 hover:text-red-800 mt-1"
-          >
-            Fermer
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  // Render success message
-  const renderSuccessMessage = () => {
-    // Déterminer le message de succès à afficher (priorité aux messages d'interaction avec les articles)
-    const displayedSuccess = postInteraction.success || successMessage;
-
-    if (!displayedSuccess) return null;
-
-    return (
-      <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md flex items-start">
-        <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" />
-        <div>
-          <p className="text-green-800 text-sm font-medium">{displayedSuccess}</p>
-          <button
-            onClick={() => {
-              setSuccessMessage(null);
-              setPostInteraction(prev => ({ ...prev, success: null }));
-            }}
-            className="text-xs text-green-600 hover:text-green-800 mt-1"
-          >
-            Fermer
-          </button>
-        </div>
-      </div>
-    );
-  };
+  
+  const handleDismissError = () => setErrorMessage(null)
+  const handleDismissSuccess = () => setSuccessMessage(null)
 
   return (
-    <> 
     <main className="py-10">
-            <Container>
+      <Container>
         <article className="max-w-3xl mx-auto">
           {/* Error and success messages */}
-          {renderErrorMessage()}
-          {renderSuccessMessage()}
+          <ErrorMessage message={errorMessage} onDismiss={handleDismissError} />
+          <SuccessMessage message={successMessage} onDismiss={handleDismissSuccess} />
 
-          <AnimateOnView animation="fade">
-            <div className="mb-8">
-              <div className="relative w-full h-[400px] bg-cover bg-center rounded-xl overflow-hidden">
-                <SafeImage
-                  src={postInfo.cover}
-                  alt={postInfo.title}
-                  className="w-full h-full object-cover"
-                  height={400}
-                  loading="eager"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
-              </div>
-            </div>
-          </AnimateOnView>
+          <PostHero postInfo={postInfo} />
+          <PostMeta postInfo={postInfo} commentsCount={comments.length} />
 
-          <AnimateOnView animation="slide-up" delay={100}>
-            <div className="mb-8">
-              <div className="flex flex-wrap gap-2 mb-4">
-                <Badge
-                  variant="outline"
-                  className="badge-outline bg-primary-50 text-primary-700 border-primary-200 dark:bg-primary-900 dark:text-primary-300 dark:border-primary-800 shadow-sm"
-                >
-                  {getCategoryName(postInfo)}
-                </Badge>
-                <time className="text-sm text-muted-foreground flex items-center">
-                  <CalendarIcon className="h-4 w-4 mr-1" />
-                  {formatDate(postInfo.createdAt)}
-                </time>
-                <div className="text-sm text-muted-foreground flex items-center">
-                  <User2 className="h-4 w-4 mr-1" />
-                  {postInfo.author?.username || "Unknown author"}
-                </div>
-                <div className="text-sm text-muted-foreground flex items-center">
-                  <MessageCircle className="h-4 w-4 mr-1" />
-                  {comments.length} comments
-                </div>
-              </div>
+          <TableOfContents headings={tiptapHeadings} />
+          <ContentSection tiptapDoc={tiptapDoc} containerRef={tiptapContainerRef} />
+          <ArticleInfoSection postInfo={postInfo} />
 
-              <H1 className="text-3xl md:text-4xl font-bold mb-4">{postInfo.title}</H1>
-              <P className="text-lg text-muted-foreground mb-6">{postInfo.summary}</P>
-            </div>
-          </AnimateOnView>
+          <InteractionBar
+            likes={likes}
+            dislikes={dislikes}
+            userLiked={userLiked}
+            userDisliked={userDisliked}
+            isLoading={postInteractionLoading}
+            userInfo={userInfo}
+            onLike={handleLikePost}
+            onDislike={handleDislikePost}
+          />
 
-          <AnimateOnView animation="slide-up" delay={200}>
-            {/* Table des matières générée automatiquement */}
-            <div className="table-of-contents mb-8">
-              <h3 className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
-                </svg>
-                Sommaire
-              </h3>
-              {tiptapDoc ? (
-                <ul>
-                  {tiptapHeadings.map((heading, index) => (
-                    <li key={index} style={{ paddingLeft: `${(heading.level - 1) * 1}rem` }}>
-                      <a href={`#${heading.id}`}>{heading.text}</a>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                (() => {
-                  // Extraire les titres du contenu pour générer la table des matières (markdown)
-                  const headings: {id: string, text: string, level: number}[] = [];
-                  const parser = new DOMParser();
-                  const htmlContent = formatContent(postInfo.content);
-                  const doc = parser.parseFromString(htmlContent, 'text/html');
-
-                  doc.querySelectorAll('h1, h2, h3').forEach((heading) => {
-                    const id = heading.getAttribute('id') || '';
-                    const level = parseInt(heading.tagName.substring(1));
-                    headings.push({
-                      id,
-                      text: heading.textContent?.replace('#', '') || '',
-                      level
-                    });
-                  });
-
-                  // Générer la liste des liens
-                  return (
-                    <ul>
-                      {headings.map((heading, index) => (
-                        <li key={index} style={{ paddingLeft: `${(heading.level - 1) * 1}rem` }}>
-                          <a href={`#${heading.id}`}>{heading.text}</a>
-                        </li>
-                      ))}
-                    </ul>
-                  );
-                })()
-              )}
-            </div>
-
-            {/* Contenu principal avec mise en forme améliorée */}
-            {tiptapDoc ? (
-              <div ref={tiptapContainerRef} className="prose prose-green max-w-none dark:prose-invert mb-8">
-                <EditorContent editor={tiptapEditor} />
-              </div>
-            ) : (
-              <div className="prose prose-green max-w-none dark:prose-invert mb-8 markdown-content">
-                <div
-                  dangerouslySetInnerHTML={{ __html: formatContent(postInfo.content) }}
-                  className="markdown-body"
-                />
-              </div>
-            )}
-
-            {/* Informations sur l'article */}
-            <div className="bg-muted/30 rounded-lg p-4 mb-8 text-sm text-muted-foreground">
-              <div className="flex items-center mb-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>Dernière mise à jour: {formatDate(postInfo.updatedAt || postInfo.createdAt)}</span>
-              </div>
-              <div className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
-                </svg>
-                <span>Catégorie: {getCategoryName(postInfo)}</span>
-              </div>
-            </div>
-          </AnimateOnView>
-
-          <AnimateOnView animation="slide-up" delay={300}>
-            <div className="flex justify-center items-center space-x-8 mb-8 border-t border-b py-6">
-              <button
-                onClick={handleLikePost}
-                disabled={postInteraction.isLoading || !userInfo}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-md border ${userLiked ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800" : "text-muted-foreground border-transparent hover:bg-muted/30"} ${postInteraction.isLoading ? "opacity-50 cursor-not-allowed" : ""} transition-colors`}
-                aria-label="J'aime cet article"
-                title={!userInfo ? "Vous devez être connecté pour aimer un article" : "J'aime cet article"}
-              >
-                <Heart className={`h-6 w-6 ${userLiked ? "text-green-700 dark:text-green-300" : ""} ${postInteraction.isLoading ? "animate-pulse" : ""}`} />
-                <span className="text-lg">{likes}</span>
-              </button>
-              <button
-                onClick={handleDislikePost}
-                disabled={postInteraction.isLoading || !userInfo}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-md border ${userDisliked ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800" : "text-muted-foreground border-transparent hover:bg-muted/30"} ${postInteraction.isLoading ? "opacity-50 cursor-not-allowed" : ""} transition-colors`}
-                aria-label="Je n'aime pas cet article"
-                title={!userInfo ? "Vous devez être connecté pour ne pas aimer un article" : "Je n'aime pas cet article"}
-              >
-                <ThumbsDown className={`h-6 w-6 ${userDisliked ? "text-red-700 dark:text-red-300" : ""} ${postInteraction.isLoading ? "animate-pulse" : ""}`} />
-                <span className="text-lg">{dislikes}</span>
-              </button>
-            </div>
-          </AnimateOnView>
-
-          {isAuthor && (
-            <AnimateOnView animation="slide-up" delay={400}>
-              <div className="flex justify-center space-x-4 mb-12">
-                <Link to={`/edit_page/${postInfo._id}`}>
-                  <Button variant="outline" className="flex items-center gap-2">
-                    <Edit className="h-4 w-4" />
-                    Edit Post
-                  </Button>
-                </Link>
-                <Button
-                  variant="destructive"
-                  onClick={() => deletePost(postInfo._id)}
-                  className="flex items-center gap-2"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Delete Post
-                </Button>
-              </div>
-            </AnimateOnView>
-          )}
+          <AuthorActions isAuthor={Boolean(isAuthor)} postId={(postInfo as any)._id} onDelete={deletePost} />
 
           <AnimateOnView animation="slide-up" delay={500}>
             <div className="bg-muted/30 rounded-xl p-6">
               <H2 className="text-2xl font-bold mb-6">Discussion ({comments.length})</H2>
 
-              {username ? (
-                <form onSubmit={handleCommentSubmit} className="mb-8">
-                  <textarea
-                    className="w-full p-3 border rounded-lg resize-none min-h-[150px] focus:ring-2 focus:ring-primary focus:border-transparent"
-                    style={{
-                      backgroundColor: isDarkMode ? '#1e1e1e' : '#ffffff',
-                      color: isDarkMode ? '#e0e0e0' : '#000000',
-                      borderColor: isDarkMode ? '#3a3a3a' : '#e5e7eb'
-                    }}
-                    placeholder="Share your thoughts..."
-                    value={newComment}
-                    onChange={(e) => {
-                      setNewComment(e.target.value)
-                      checkCommentContent(e.target.value)
-                    }}
-                    required
-                  ></textarea>
-                  {commentWarnings.length > 0 && (
-                    <div className="mt-2 flex items-center text-sm text-orange-600 dark:text-orange-400">
-                      <AlertCircle className="h-4 w-4 mr-1" />
-                      <span>Content may be filtered: {commentWarnings.join(', ')}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-end mt-2">
-                    <Button type="submit" className="flex items-center gap-2">
-                      <MessageCircle className="h-4 w-4" />
-                      Post Comment
-                    </Button>
-                  </div>
-                </form>
-              ) : (
-                <div className="mb-6 p-4 bg-primary-50 dark:bg-primary-900/30 rounded-lg border border-primary-200 dark:border-primary-800">
-                  <p className="text-muted-foreground">
-                    Please{" "}
-                    <Link to="/login_page" className="text-primary font-medium hover:underline">
-                      log in
-                    </Link>{" "}
-                    to join the discussion.
-                  </p>
-                </div>
-              )}
+              <CommentComposer
+                username={username}
+                newComment={newComment}
+                commentWarnings={commentWarnings}
+                handleCommentSubmit={handleCommentSubmit as any}
+                handleCommentChange={handleCommentChange}
+                isDarkMode={isDarkMode}
+              />
 
-              <div className="space-y-6">{renderComments(comments)}</div>
+              <div className="space-y-6">
+                {renderCommentsTree({
+                  commentsInput: comments,
+                  depth: 0,
+                  parentId: null,
+                  editingComment,
+                  editedContent,
+                  setEditedContent,
+                  handleUpdateCommentWrapper,
+                  setEditingComment,
+                  isDarkMode,
+                  userInfo,
+                  setReplyingTo,
+                  setReplyContent,
+                  handleEditComment,
+                  handleDeleteComment,
+                  replyingTo,
+                  replyContent,
+                  checkReplyContent,
+                  replyWarnings,
+                  handleReply,
+                })}
+              </div>
             </div>
           </AnimateOnView>
         </article>
@@ -1607,7 +832,6 @@ const PostPage = () => {
         onConfirm={confirmModalOnConfirm}
       />
     </main>
-     </>
   )
 }
 

@@ -10,7 +10,7 @@ import { PostCard } from '../components/PostList/PostCard';
 import { PostStatus } from '../types/post.types';
 import { UserContext } from '../../../UserContext';
 import { cn } from '../../../lib/utils';
-import { Plus, RefreshCw, FileText, Edit3, Globe, AlertCircle } from 'lucide-react';
+import { Plus, RefreshCw, FileText, Edit3 } from 'lucide-react';
 
 interface DraftsProps {
   className?: string;
@@ -90,6 +90,12 @@ function DraftsContent({ className = '' }: DraftsProps) {
   
   const hasError = state.errors.hasError;
 
+  // Helper function to get drafts count message
+  const getDraftsCountMessage = () => {
+    if (draftPosts.length === 0) return 'No drafts found';
+    return `${draftPosts.length} draft${draftPosts.length !== 1 ? 's' : ''} found`;
+  };
+
   // Redirect if user doesn't have access
   if (authLoading) {
     return (
@@ -117,10 +123,7 @@ function DraftsContent({ className = '' }: DraftsProps) {
               My Drafts
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mt-2">
-              {draftPosts.length > 0 
-                ? `${draftPosts.length} draft${draftPosts.length !== 1 ? 's' : ''} found`
-                : 'No drafts found'
-              }
+              {getDraftsCountMessage()}
             </p>
           </div>
 
@@ -217,10 +220,12 @@ function DraftsContent({ className = '' }: DraftsProps) {
                     Draft
                   </span>
                 </div>
-                
+
                 <PostCard
                   post={post}
                   layout="grid"
+                  linkBase="/posts/edit"
+                  linkLabel="Edit Post"
                   onEdit={(id) => {
                     window.location.href = `/posts/edit/${id}`;
                   }}

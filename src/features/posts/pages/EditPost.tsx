@@ -5,7 +5,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { PostForm } from '../components/PostForm';
+import { StablePostForm } from '../components/PostForm/StablePostForm';
 import { PostProvider, usePostContext } from '../context/PostContext';
 import { UpdatePostInput, CreatePostInput } from '../types/post.types';
 import { useNavigation } from '../hooks/useNavigation';
@@ -16,6 +16,7 @@ function EditPostContent() {
   const { id } = useParams<{ id: string }>();
   const { navigateToPost, navigateToHome, validatePostId } = useNavigation();
   const { state, actions } = usePostContext();
+  const { fetchPost } = actions;
   const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   // Load post data on mount
@@ -28,7 +29,7 @@ function EditPostContent() {
       }
 
       try {
-        await actions.fetchPost(id);
+        await fetchPost(id);
       } catch (error) {
         console.error('Failed to load post:', error);
         toast.error('Failed to load post data');
@@ -38,7 +39,7 @@ function EditPostContent() {
     };
 
     loadPost();
-  }, [id, actions, navigateToHome, validatePostId]);
+  }, [id, fetchPost, navigateToHome, validatePostId]);
 
   // Handle form submission
   const handleSubmit = async (data: UpdatePostInput | CreatePostInput) => {
@@ -142,7 +143,7 @@ function EditPostContent() {
             <p className="text-gray-900 dark:text-gray-100">Updating your post...</p>
           </div>
         </div>
-        <PostForm
+        <StablePostForm
           mode="edit"
           initialData={state.currentPost}
           onSubmit={handleSubmit}
@@ -154,7 +155,7 @@ function EditPostContent() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <PostForm
+      <StablePostForm
         mode="edit"
         initialData={state.currentPost}
         onSubmit={handleSubmit}

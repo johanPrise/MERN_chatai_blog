@@ -197,46 +197,135 @@ export class PostApiService {
    */
   async updatePost(id: string, data: UpdatePostInput): Promise<PostOperationResult> {
     try {
+      console.log('[PostApiService] updatePost called', { 
+        id, 
+        dataKeys: Object.keys(data),
+        title: data.title?.substring(0, 50) + '...',
+        status: data.status
+      });
+
+      // Nettoyer les données avant envoi
+      const cleanData = { ...data };
+      
+      // Supprimer les champs undefined/null
+      Object.keys(cleanData).forEach(key => {
+        if (cleanData[key as keyof UpdatePostInput] === undefined || cleanData[key as keyof UpdatePostInput] === null) {
+          delete cleanData[key as keyof UpdatePostInput];
+        }
+      });
+
+      // S'assurer que l'ID est présent
+      if (!cleanData.id) {
+        cleanData.id = id;
+      }
+
+      console.log('[PostApiService] Sending clean data', {
+        keys: Object.keys(cleanData),
+        hasTitle: !!cleanData.title,
+        hasContent: !!cleanData.content,
+        hasCategories: Array.isArray(cleanData.categories) && cleanData.categories.length > 0,
+        status: cleanData.status
+      });
+
       const response = await this.fetchWithAuth(API_ENDPOINTS.posts.update(id), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(cleanData),
       });
 
       const result = await response.json();
 
+      console.log('[PostApiService] Response received', {
+        ok: response.ok,
+        status: response.status,
+        success: result.success,
+        hasPost: !!(result.post || result.data),
+        message: result.message
+      });
+
       if (!response.ok) {
+        console.error('[PostApiService] Update failed', {
+          status: response.status,
+          message: result.message,
+          errors: result.errors
+        });
+        
         return {
           success: false,
-          error: result.message || 'Failed to update post',
+          error: result.message || `Failed to update post (${response.status})`,
           validationErrors: result.errors
         };
       }
 
+      // Extraire les données du post de la réponse
       const postData = result.post || result.data;
       
-      // Transform _id to id for frontend compatibility
-      if (postData && postData._id) {
-        postData.id = postData._id;
+      if (!postData) {
+        console.error('[PostApiService] No post data in response', { result });
+        return {
+          success: false,
+          error: 'No post data returned from server'
+        };
       }
-      // Normalize author object to have author.id
-      if (postData && postData.author && postData.author._id && !postData.author.id) {
-        postData.author.id = postData.author._id;
-      }
+
+      // Normaliser les données pour le frontend
+      const normalizedPost = this.normalizePostData(postData);
+      
+      console.log('[PostApiService] Post updated successfully', {
+        id: normalizedPost.id,
+        title: normalizedPost.title,
+        status: normalizedPost.status
+      });
       
       return {
         success: true,
-        data: postData
+        data: normalizedPost
       };
     } catch (error) {
-      console.error('Error updating post:', error);
+      console.error('[PostApiService] Update error:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to update post'
       };
     }
+  }
+
+  /**
+   * Normalize post data for frontend consistency
+   */
+  private normalizePostData(postData: any): any {
+    if (!postData) return postData;
+
+    // Transform _id to id for frontend compatibility
+    if (postData._id && !postData.id) {
+      postData.id = postData._id.toString();
+    }
+
+    // Normalize author object
+    if (postData.author) {
+      if (postData.author._id && !postData.author.id) {
+        postData.author.id = postData.author._id.toString();
+      }
+    }
+
+    // Normalize categories
+    if (Array.isArray(postData.categories)) {
+      postData.categories = postData.categories.map((cat: any) => {
+        if (cat._id && !cat.id) {
+          cat.id = cat._id.toString();
+        }
+        return cat;
+      });
+    }
+
+    // Ensure summary field exists (alias for excerpt)
+    if (postData.excerpt && !postData.summary) {
+      postData.summary = postData.excerpt;
+    }
+
+    return postData;
   }
 
   /**
