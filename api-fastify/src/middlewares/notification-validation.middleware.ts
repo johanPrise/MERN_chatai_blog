@@ -90,14 +90,13 @@ export const validateNotificationQuery = async (
  */
 export const sanitizeInput = async (
   request: FastifyRequest,
-  reply: FastifyReply
 ) => {
   // Sanitiser les paramètres de requête
   if (request.query) {
     for (const [key, value] of Object.entries(request.query)) {
       if (typeof value === 'string') {
         // Supprimer les caractères potentiellement dangereux
-        (request.query as any)[key] = value.replace(/[<>\"'&]/g, '');
+        (request.query as any)[key] = value.replace(/[<>"'&]/g, '');
       }
     }
   }
@@ -106,7 +105,7 @@ export const sanitizeInput = async (
   if (request.params) {
     for (const [key, value] of Object.entries(request.params)) {
       if (typeof value === 'string') {
-        (request.params as any)[key] = value.replace(/[<>\"'&]/g, '');
+        (request.params as any)[key] = value.replace(/[<>"'&]/g, '');
       }
     }
   }

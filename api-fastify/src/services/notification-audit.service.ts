@@ -128,7 +128,6 @@ class NotificationAuditService {
     userId: string,
     action: string,
     ip: string,
-    timeWindow: number = 60000 // 1 minute
   ): boolean {
     // Cette méthode pourrait être étendue pour détecter des patterns suspects
     // comme trop de requêtes dans un court laps de temps, etc.

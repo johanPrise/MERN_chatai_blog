@@ -9,125 +9,120 @@ import {
   IPost,
   PostResponse,
 } from '../types/post.types.js';
-import { onPostPublished } from './notification-hooks.service.js';
+
+// Helper: extract text from a single block
+const extractTextFromBlock = (block: any): string => {
+  if (!block) return '';
+  const type = block.type;
+  const data = block.data ?? block;
+  
+  if (['paragraph', 'heading', 'quote', 'callout'].includes(type) && typeof data.text === 'string') {
+    return data.text;
+  }
+  if (type === 'list' && Array.isArray(data.items)) {
+    return data.items.join(' ');
+  }
+  if (type === 'code' && typeof data.code === 'string') {
+    return data.code;
+  }
+  return '';
+};
 
 // Helper: convert block-based content to plain text for excerpt/search
 const blocksToPlainText = (blocks: any[] | undefined | null): string => {
   if (!Array.isArray(blocks)) return '';
-  const parts: string[] = [];
-  for (const b of blocks) {
-    if (!b) continue;
-    // Support either our flexible schema {type, data} or flattened blocks
-    const type = b.type;
-    const data = b.data ?? b;
-    switch (type) {
-      case 'paragraph':
-        if (typeof data.text === 'string') parts.push(data.text);
-        break;
-      case 'heading':
-        if (typeof data.text === 'string') parts.push(data.text);
-        break;
-      case 'list':
-        if (Array.isArray(data.items)) parts.push(data.items.join(' '));
-        break;
-      case 'quote':
-        if (typeof data.text === 'string') parts.push(data.text);
-        break;
-      case 'callout':
-        if (typeof data.text === 'string') parts.push(data.text);
-        break;
-      case 'code':
-        if (typeof data.code === 'string') parts.push(data.code);
-        break;
-      case 'image':
-      case 'embed':
-      default:
-        // ignore non-text blocks
-        break;
+  return blocks.map(extractTextFromBlock).filter(Boolean).join(' ').trim();
+};
+
+interface GetPostsOptions {
+  page?: number;
+  limit?: number;
+  search?: string;
+  category?: string;
+  tag?: string;
+  author?: string;
+  status?: PostStatus;
+  currentUserId?: string;
+  currentUserRole?: string;
+}
+
+// Helper: build status query
+const buildStatusQuery = (status?: PostStatus, currentUserId?: string, currentUserRole?: string) => {
+  if (!currentUserId) return { status: PostStatus.PUBLISHED };
+  
+  const isAdminOrEditor = currentUserRole === 'admin' || currentUserRole === 'editor';
+  
+  if (status) {
+    if (isAdminOrEditor) return { status };
+    return status === PostStatus.DRAFT 
+      ? { status: PostStatus.DRAFT, author: currentUserId }
+      : { status: PostStatus.PUBLISHED };
+  }
+  
+  return isAdminOrEditor ? {} : {
+    $or: [
+      { status: PostStatus.PUBLISHED },
+      { status: PostStatus.DRAFT, author: currentUserId },
+    ]
+  };
+};
+
+// Helper: build query for posts
+const buildPostQuery = (options: GetPostsOptions) => {
+  const { search, category, tag, author, status, currentUserId, currentUserRole } = options;
+  let query: any = { isDeleted: { $ne: true } };
+
+  Object.assign(query, buildStatusQuery(status, currentUserId, currentUserRole));
+
+  if (search) query.$or = [{ title: { $regex: search, $options: 'i' } }, { content: { $regex: search, $options: 'i' } }];
+  if (category) query.categories = category;
+  if (tag) query.tags = tag;
+  if (author) query.author = author;
+
+  return query;
+};
+
+// Helper: normalize post object for frontend
+const normalizePostForFrontend = (post: any, currentUserId?: string): PostResponse => {
+  const postObj = post.toObject() as PostResponse;
+  const likedBy = Array.isArray(post.likedBy) ? post.likedBy : [];
+  const dislikedBy = Array.isArray(post.dislikedBy) ? post.dislikedBy : [];
+
+  if (currentUserId) {
+    postObj.isLiked = likedBy.some((id: unknown) => String(id) === currentUserId);
+    postObj.isDisliked = dislikedBy.some((id: unknown) => String(id) === currentUserId);
+  }
+
+  postObj.category = Array.isArray(postObj.categories) && postObj.categories.length > 0 
+    ? postObj.categories[0] : null;
+  
+  postObj.likes = likedBy.map((id: unknown) => String(id));
+  postObj.dislikes = dislikedBy.map((id: unknown) => String(id));
+  
+  (postObj as any).summary = postObj.excerpt ?? null;
+  (postObj as any).views = postObj.viewCount ?? 0;
+
+  // Normalize coverImage
+  if (postObj && (postObj as any).coverImage) {
+    if (typeof (postObj as any).coverImage === 'string') {
+      (postObj as any).coverImage = { url: (postObj as any).coverImage, alt: '' };
+    }
+    if (typeof (postObj as any).coverImage === 'object' && !(postObj as any).coverImage.alt) {
+      (postObj as any).coverImage.alt = '';
     }
   }
-  return parts.join(' ').trim();
+
+  return postObj;
 };
 
 /**
  * Service pour récupérer tous les articles (avec pagination et filtres)
  */
-export const getAllPosts = async (
-  page: number = 1,
-  limit: number = 10,
-  search: string = '',
-  category?: string,
-  tag?: string,
-  author?: string,
-  status: PostStatus = PostStatus.PUBLISHED,
-  currentUserId?: string,
-  currentUserRole?: string
-) => {
+export const getAllPosts = async (options: GetPostsOptions = {}) => {
+  const { page = 1, limit = 10, currentUserId } = options;
   const skip = (page - 1) * limit;
+  const query = buildPostQuery(options);
 
-  // Construire la requête de base
-  let query: any = {};
-
-  // Exclure les articles supprimés (soft delete)
-  query.isDeleted = { $ne: true };
-
-  // Ajouter le filtre de statut
-  // Si l'utilisateur n'est pas connecté, ne montrer que les articles publiés
-  if (!currentUserId) {
-    query.status = PostStatus.PUBLISHED;
-  } else {
-    // Si l'utilisateur est connecté mais n'est pas l'auteur ou un admin, ne montrer que les articles publiés
-    if (status) {
-      if (currentUserRole === 'admin' || currentUserRole === 'editor') {
-        query.status = status;
-      } else {
-        // Pour les utilisateurs normaux, ne montrer que leurs propres brouillons ou les articles publiés
-        if (status === PostStatus.DRAFT) {
-          query.status = PostStatus.DRAFT;
-          query.author = currentUserId;
-        } else if (status === PostStatus.PUBLISHED) {
-          query.status = PostStatus.PUBLISHED;
-        } else {
-          query.status = PostStatus.PUBLISHED;
-        }
-      }
-    } else {
-      // Si aucun statut n'est spécifié, montrer les articles publiés et les brouillons de l'utilisateur
-      if (currentUserRole === 'admin' || currentUserRole === 'editor') {
-        // Les admins et éditeurs peuvent voir tous les articles
-      } else {
-        query.$or = [
-          { status: PostStatus.PUBLISHED },
-          { status: PostStatus.DRAFT, author: currentUserId },
-        ];
-      }
-    }
-  }
-
-  // Ajouter le filtre de recherche
-  if (search) {
-    query.$or = [
-      { title: { $regex: search, $options: 'i' } },
-      { content: { $regex: search, $options: 'i' } },
-    ];
-  }
-
-  // Ajouter le filtre de catégorie
-  if (category) {
-    query.categories = category;
-  }
-
-  // Ajouter le filtre de tag
-  if (tag) {
-    query.tags = tag;
-  }
-
-  // Ajouter le filtre d'auteur
-  if (author) {
-    query.author = author;
-  }
-
-  // Récupérer les articles avec pagination
   const posts = await Post.find(query)
     .populate('author', '_id username profilePicture')
     .populate('categories', '_id name slug')
@@ -135,66 +130,11 @@ export const getAllPosts = async (
     .skip(skip)
     .limit(limit);
 
-  // Compter le nombre total d'articles
   const total = await Post.countDocuments(query);
-
-  // Calculer le nombre total de pages
   const totalPages = Math.ceil(total / limit);
+  const postsWithLikeStatus = posts.map(post => normalizePostForFrontend(post, currentUserId));
 
-  // Ajouter le champ isLiked pour chaque article si l'utilisateur est connecté
-  const postsWithLikeStatus = posts.map(post => {
-    const postObj = post.toObject() as PostResponse;
-    const likedBy = Array.isArray((post as any).likedBy) ? (post as any).likedBy : [];
-    const dislikedBy = Array.isArray((post as any).dislikedBy) ? (post as any).dislikedBy : [];
-
-    if (currentUserId) {
-      postObj.isLiked = likedBy.some((id: unknown) => String(id) === currentUserId);
-      postObj.isDisliked = dislikedBy.some((id: unknown) => String(id) === currentUserId);
-    }
-
-    // Correction : ajouter un champ category (singulier, objet)
-    if (Array.isArray(postObj.categories) && postObj.categories.length > 0) {
-      postObj.category = postObj.categories[0];
-    } else {
-      postObj.category = null;
-    }
-
-    // Normaliser les noms des champs pour le frontend (toujours des chaînes)
-    postObj.likes = likedBy.map((id: unknown) => String(id));
-    postObj.dislikes = dislikedBy.map((id: unknown) => String(id));
-
-    // Alias frontend: summary = excerpt
-    (postObj as any).summary = postObj.excerpt ?? null;
-    
-    // Alias frontend: views = viewCount
-    (postObj as any).views = postObj.viewCount ?? 0;
-
-    // Keep coverImage as object structure for consistent frontend handling
-    if (postObj && (postObj as any).coverImage) {
-      // Ensure coverImage is always an object with url and alt
-      if (typeof (postObj as any).coverImage === 'string') {
-        // Handle legacy string data by converting to object
-        (postObj as any).coverImage = {
-          url: (postObj as any).coverImage,
-          alt: ''
-        };
-      }
-      // Ensure object has required properties
-      if (typeof (postObj as any).coverImage === 'object' && !(postObj as any).coverImage.alt) {
-        (postObj as any).coverImage.alt = '';
-      }
-    }
-
-    return postObj;
-  });
-
-  return {
-    posts: postsWithLikeStatus,
-    total,
-    page,
-    limit,
-    totalPages,
-  };
+  return { posts: postsWithLikeStatus, total, page, limit, totalPages };
 };
 
 /**
@@ -262,51 +202,7 @@ export const getPostByIdOrSlug = async (
     console.log('[getPostByIdOrSlug] View count not incremented (author viewing own post)');
   }
 
-  // Convertir en objet pour pouvoir ajouter des propriétés
-  const postObj = post.toObject() as PostResponse;
-
-  // Correction : ajouter un champ category (singulier, objet)
-  if (Array.isArray(postObj.categories) && postObj.categories.length > 0) {
-    postObj.category = postObj.categories[0];
-  } else {
-    postObj.category = null;
-  }
-
-  // Ajouter les flags et tableaux normalisés en s'appuyant sur le document Mongoose
-  const likedBy = Array.isArray((post as any).likedBy) ? (post as any).likedBy : [];
-  const dislikedBy = Array.isArray((post as any).dislikedBy) ? (post as any).dislikedBy : [];
-
-  if (currentUserId) {
-    postObj.isLiked = likedBy.some((id: unknown) => String(id) === currentUserId);
-    postObj.isDisliked = dislikedBy.some((id: unknown) => String(id) === currentUserId);
-  }
-
-  postObj.likes = likedBy.map((id: unknown) => String(id));
-  postObj.dislikes = dislikedBy.map((id: unknown) => String(id));
-
-  // Alias frontend: summary = excerpt
-  (postObj as any).summary = postObj.excerpt ?? null;
-  
-  // Alias frontend: views = viewCount
-  (postObj as any).views = postObj.viewCount ?? 0;
-
-  // Keep coverImage as object structure for consistent frontend handling
-  if (postObj && (postObj as any).coverImage) {
-    // Ensure coverImage is always an object with url and alt
-    if (typeof (postObj as any).coverImage === 'string') {
-      // Handle legacy string data by converting to object
-      (postObj as any).coverImage = {
-        url: (postObj as any).coverImage,
-        alt: ''
-      };
-    }
-    // Ensure object has required properties
-    if (typeof (postObj as any).coverImage === 'object' && !(postObj as any).coverImage.alt) {
-      (postObj as any).coverImage.alt = '';
-    }
-  }
-
-  return postObj;
+  return normalizePostForFrontend(post, currentUserId);
 };
 
 /**
@@ -399,8 +295,7 @@ export const createPost = async (postData: CreatePostInput, authorId: string) =>
         metadata: {
           postId: String(newPost._id),
           postTitle: newPost.title,
-          username: author.username,
-          status: newPost.status
+          username: author.username
         },
       });
     }
@@ -423,43 +318,7 @@ export const createPost = async (postData: CreatePostInput, authorId: string) =>
     };
   }
 
-  const postObj = populated.toObject() as PostResponse;
-  // Normaliser certains champs attendus par le frontend
-  const likedBy = Array.isArray((populated as any).likedBy) ? (populated as any).likedBy : [];
-  const dislikedBy = Array.isArray((populated as any).dislikedBy)
-    ? (populated as any).dislikedBy
-    : [];
-  postObj.likes = likedBy.map((id: unknown) => String(id));
-  postObj.dislikes = dislikedBy.map((id: unknown) => String(id));
-  if (Array.isArray(postObj.categories) && postObj.categories.length > 0) {
-    (postObj as any).category = postObj.categories[0];
-  } else {
-    (postObj as any).category = null as any;
-  }
-
-  // Alias frontend: summary = excerpt
-  (postObj as any).summary = postObj.excerpt ?? null;
-  
-  // Alias frontend: views = viewCount
-  (postObj as any).views = postObj.viewCount ?? 0;
-
-  // Keep coverImage as object structure for consistent frontend handling
-  if (postObj && (postObj as any).coverImage) {
-    // Ensure coverImage is always an object with url and alt
-    if (typeof (postObj as any).coverImage === 'string') {
-      // Handle legacy string data by converting to object
-      (postObj as any).coverImage = {
-        url: (postObj as any).coverImage,
-        alt: ''
-      };
-    }
-    // Ensure object has required properties
-    if (typeof (postObj as any).coverImage === 'object' && !(postObj as any).coverImage.alt) {
-      (postObj as any).coverImage.alt = '';
-    }
-  }
-
-  return postObj;
+  return normalizePostForFrontend(populated);
 };
 
 /**
@@ -663,63 +522,22 @@ export const updatePost = async (
     };
   }
 
-  // Normaliser la réponse pour le frontend
-  const postObj = populated.toObject() as PostResponse;
-
-  // Ajouter l'ID en format string pour le frontend
-  (postObj as any).id = postObj._id.toString();
-
-  // Normaliser les likes/dislikes
-  const likedBy = Array.isArray((populated as any).likedBy) ? (populated as any).likedBy : [];
-  const dislikedBy = Array.isArray((populated as any).dislikedBy)
-    ? (populated as any).dislikedBy
-    : [];
-  postObj.likes = likedBy.map((id: unknown) => String(id));
-  postObj.dislikes = dislikedBy.map((id: unknown) => String(id));
-
-  // Normaliser les catégories
-  if (Array.isArray(postObj.categories) && postObj.categories.length > 0) {
-    (postObj as any).category = postObj.categories[0];
-  } else {
-    (postObj as any).category = null;
-  }
-
-  // Alias frontend: summary = excerpt
-  (postObj as any).summary = postObj.excerpt ?? null;
+  const normalizedPost = normalizePostForFrontend(populated);
+  (normalizedPost as any).id = normalizedPost._id.toString();
   
-  // Alias frontend: views = viewCount
-  (postObj as any).views = postObj.viewCount ?? 0;
-
-  // Keep coverImage as object structure for consistent frontend handling
-  if (postObj && (postObj as any).coverImage) {
-    // Ensure coverImage is always an object with url and alt
-    if (typeof (postObj as any).coverImage === 'string') {
-      // Handle legacy string data by converting to object
-      (postObj as any).coverImage = {
-        url: (postObj as any).coverImage,
-        alt: ''
-      };
-    }
-    // Ensure object has required properties
-    if (typeof (postObj as any).coverImage === 'object' && !(postObj as any).coverImage.alt) {
-      (postObj as any).coverImage.alt = '';
-    }
-  }
-
-  // Normaliser l'auteur
-  if (postObj.author && (postObj.author as any)._id && !(postObj.author as any).id) {
-    (postObj.author as any).id = (postObj.author as any)._id.toString();
+  if (normalizedPost.author && (normalizedPost.author as any)._id && !(normalizedPost.author as any).id) {
+    (normalizedPost.author as any).id = (normalizedPost.author as any)._id.toString();
   }
 
   console.log('[updatePost] Returning normalized post', {
-    id: (postObj as any).id,
-    title: postObj.title,
-    status: postObj.status,
-    hasAuthor: !!postObj.author,
-    hasCategories: Array.isArray(postObj.categories) && postObj.categories.length > 0,
+    id: (normalizedPost as any).id,
+    title: normalizedPost.title,
+    status: normalizedPost.status,
+    hasAuthor: !!normalizedPost.author,
+    hasCategories: Array.isArray(normalizedPost.categories) && normalizedPost.categories.length > 0,
   });
 
-  return postObj;
+  return normalizedPost;
 };
 
 /**

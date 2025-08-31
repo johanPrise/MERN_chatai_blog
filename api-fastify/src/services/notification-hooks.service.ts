@@ -12,7 +12,7 @@ import { logger } from './logger.service.js';
 /**
  * Hook appelé lors de l'inscription d'un nouvel utilisateur
  */
-export async function onUserRegistered(userId: string, username: string, email: string): Promise<void> {
+export async function onUserRegistered(userId: string, username: string): Promise<void> {
   try {
     logger.info(`[NotificationHooks] User registered: ${username} (${userId})`);
     
@@ -28,7 +28,7 @@ export async function onUserRegistered(userId: string, username: string, email: 
 /**
  * Hook appelé lors de la publication d'un nouveau post
  */
-export async function onPostPublished(postId: string, postTitle: string, authorId: string, authorName: string): Promise<void> {
+export async function onPostPublished(postId: string, postTitle: string, authorName: string): Promise<void> {
   try {
     logger.info(`[NotificationHooks] Post published: "${postTitle}" by ${authorName} (${postId})`);
     
@@ -44,7 +44,7 @@ export async function onPostPublished(postId: string, postTitle: string, authorI
 /**
  * Hook appelé lors d'une erreur système
  */
-export async function onSystemError(errorCode: string, errorMessage: string, context?: any): Promise<void> {
+export async function onSystemError(errorCode: string, errorMessage: string): Promise<void> {
   try {
     logger.info(`[NotificationHooks] System error occurred: ${errorCode} - ${errorMessage}`);
     
@@ -128,7 +128,7 @@ export function withErrorNotification<T extends any[], R>(
       const errorCode = `${errorContext}_ERROR`;
       
       // Appeler le hook d'erreur système de manière asynchrone pour ne pas bloquer
-      onSystemError(errorCode, errorMessage, { context: errorContext, args }).catch(notifError => {
+      onSystemError(errorCode, errorMessage).catch(notifError => {
         logger.error(`[NotificationHooks] Failed to create error notification:`, notifError);
       });
       
