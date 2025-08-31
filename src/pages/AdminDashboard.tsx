@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { UserContext } from "../UserContext"
 import React from "react"
 import { User as UserType } from "../types/User"
@@ -9,11 +9,13 @@ import {UsersTable} from "../components/UsersTable";
 import {Pagination} from "../components/AdminPagination";
 import { AddUserModal } from "../components/AddUserModal";
 import { AdminStatistics } from "../components/AdminStatistics";
-import { AdminSettings } from "../components/AdminSettings";
+
 import AdminHeader from "../components/AdminHeader";
 import { API_ENDPOINTS } from "../config/api.config"
+import { motion, AnimatePresence } from "framer-motion"
+import { RefreshCw, AlertCircle, X } from "lucide-react"
 
-// Composant principal
+// Main component
 function AdminDashboard() {
   const [users, setUsers] = useState<UserType[]>([])
   const [isAdmin, setIsAdmin] = useState(false)
@@ -25,20 +27,22 @@ function AdminDashboard() {
   const [sort, setSort] = useState("username")
   const [order, setOrder] = useState("asc")
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<"users" | "statistics" | "settings">("users")
+  const [activeTab, setActiveTab] = useState<"users" | "statistics">("users")
+  const [retryCount, setRetryCount] = useState(0)
+  const dashboardRef = useRef<HTMLDivElement>(null)
 
-  // Utiliser le hook UserContext pour accéder au contexte utilisateur
+  // Use UserContext hook to access user context
   const { userInfo } = UserContext()
 
-  // Vérifier le statut d'administrateur en utilisant la route dédiée
+  // Check admin status using dedicated route
   const checkAdminStatus = useCallback(async () => {
     try {
       setIsLoading(true)
-      console.log("Vérification du statut d'administrateur...")
+      console.log("Checking admin status...")
 
-      // Vérifier si userInfo contient déjà le rôle
+      // Check if userInfo already contains the role
       if (userInfo && userInfo.role === 'admin') {
-        console.log("Utilisateur déjà identifié comme admin via userInfo")
+        console.log("User already identified as admin via userInfo")
         setIsAdmin(true)
         return
       }
@@ -47,55 +51,55 @@ function AdminDashboard() {
         credentials: "include",
       })
 
-      console.log("Réponse de vérification admin:", response.status)
+      console.log("Admin check response:", response.status)
 
       if (!response.ok) {
-        // Essayer de récupérer les détails de l'erreur depuis la réponse
-        let errorMessage = "Échec de la vérification du statut d'administrateur";
+        // Try to get error details from response
+        let errorMessage = "Failed to verify admin status";
         try {
           const errorData = await response.json();
           errorMessage = errorData.message || errorMessage;
-          console.error("Détails de l'erreur:", errorData);
+          console.error("Error details:", errorData);
         } catch (e) {
-          console.error("Impossible de parser la réponse d'erreur:", e);
+          console.error("Could not parse error response:", e);
         }
         throw new Error(`${errorMessage} (${response.status})`);
       }
 
       const data = await response.json()
-      console.log("Données de vérification admin:", data)
+      console.log("Admin check data:", data)
 
-      // La route /auth/check-admin renvoie { isAdmin: boolean }
+      // The /auth/check-admin route returns { isAdmin: boolean }
       setIsAdmin(data.isAdmin)
     } catch (error) {
       console.error("Error checking admin status:", error)
       setIsAdmin(false)
-      setError(`Impossible de vérifier les privilèges d'administrateur: ${error instanceof Error ? error.message : "Erreur inconnue"}`)
+      setError(`Unable to verify admin privileges: ${error instanceof Error ? error.message : "Unknown error"}`)
     } finally {
       setIsLoading(false)
     }
   }, [userInfo])
 
-  // Récupérer la liste des utilisateurs
+  // Fetch user list
   const fetchUsers = useCallback(async () => {
     setIsLoading(true)
     setError(null)
 
     try {
-      // Construire l'URL avec les paramètres de requête
+      // Build URL with query parameters
       const baseUrl = API_ENDPOINTS.users.list
 
-      // Vérifier si baseUrl est une URL complète ou un chemin relatif
+      // Check if baseUrl is a full URL or relative path
       let url;
       try {
-        // Essayer de créer une URL complète
+        // Try to create a full URL
         url = new URL(baseUrl);
       } catch (e) {
-        // Si baseUrl est un chemin relatif, créer une URL avec l'origine actuelle
+        // If baseUrl is a relative path, create a URL with the current origin
         url = new URL(baseUrl, window.location.origin);
       }
 
-      // Ajouter les paramètres de requête
+      // Add query parameters
       url.searchParams.append("page", page.toString())
       url.searchParams.append("search", search)
       url.searchParams.append("sort", sort)
@@ -108,48 +112,48 @@ function AdminDashboard() {
       })
 
       if (!response.ok) {
-        // Essayer de récupérer les détails de l'erreur depuis la réponse
-        let errorMessage = "Échec de la récupération des utilisateurs";
+        // Try to get error details from response
+        let errorMessage = "Failed to fetch users";
         try {
           const errorData = await response.json();
           errorMessage = errorData.message || errorMessage;
-          console.error("Détails de l'erreur:", errorData);
+          console.error("Error details:", errorData);
         } catch (e) {
-          console.error("Impossible de parser la réponse d'erreur:", e);
+          console.error("Could not parse error response:", e);
         }
         throw new Error(`${errorMessage} (${response.status})`);
       }
 
       const data = await response.json();
-      console.log("Données des utilisateurs reçues:", data);
+      console.log("Received user data:", data);
 
-      // Vérifier si data contient un tableau users
+      // Check if data contains a users array
       if (data && Array.isArray(data.users)) {
         setUsers(data.users);
         setTotalPages(data.totalPages || 1);
       } else if (Array.isArray(data)) {
-        // Si data est directement un tableau d'utilisateurs
+        // If data is directly a user array
         setUsers(data);
         setTotalPages(1);
       } else {
-        console.error("Format de données inattendu:", data);
-        throw new Error("Format de données inattendu");
+        console.error("Unexpected data format:", data);
+        throw new Error("Unexpected data format");
       }
     } catch (error) {
       console.error("Error fetching users:", error);
-      setError(`Impossible de récupérer la liste des utilisateurs: ${error instanceof Error ? error.message : "Erreur inconnue"}`);
+      setError(`Unable to retrieve user list: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsLoading(false);
     }
   }, [page, search, sort, order])
 
-  // Changer le rôle d'un utilisateur
+  // Change user role
   const handleRoleChange = useCallback(async (userId: string, newRole: "user" | "author" | "admin" | "editor") => {
     setIsLoading(true)
     setError(null)
 
     try {
-      console.log(`Changement de rôle pour l'utilisateur ${userId} vers ${newRole}`)
+      console.log(`Changing role for user ${userId} to ${newRole}`)
 
       const response = await fetch(API_ENDPOINTS.users.changeRole(userId), {
         method: "PATCH",
@@ -160,43 +164,43 @@ function AdminDashboard() {
         credentials: "include",
       })
 
-      console.log("Réponse de changement de rôle:", response.status)
+      console.log("Role change response:", response.status)
 
       if (!response.ok) {
-        // Essayer de récupérer les détails de l'erreur depuis la réponse
-        let errorMessage = "Une erreur est survenue lors du changement de rôle";
+        // Try to get error details from response
+        let errorMessage = "An error occurred while changing role";
         try {
           const errorData = await response.json();
           errorMessage = errorData.message || errorMessage;
-          console.error("Détails de l'erreur:", errorData);
+          console.error("Error details:", errorData);
         } catch (e) {
-          console.error("Impossible de parser la réponse d'erreur:", e);
+          console.error("Could not parse error response:", e);
         }
         throw new Error(`${errorMessage} (${response.status})`);
       }
 
       const data = await response.json()
-      console.log("Données de changement de rôle:", data)
+      console.log("Role change data:", data)
 
-      // Mise à jour de l'interface utilisateur avec les données du serveur
+      // Update UI with server data
       setUsers((prevUsers) =>
         prevUsers.map((user) =>
           user._id === userId ? { ...user, role: newRole } : user
         )
       )
 
-      console.log(data.message || "Rôle modifié avec succès")
+      console.log(data.message || "Role changed successfully")
     } catch (error) {
-      console.error("Erreur lors du changement de rôle:", error)
-      setError(error instanceof Error ? error.message : "Une erreur inconnue est survenue")
+      console.error("Error changing role:", error)
+      setError(error instanceof Error ? error.message : "An unknown error occurred")
     } finally {
       setIsLoading(false)
     }
   }, [])
 
-  // Supprimer un utilisateur
+  // Delete user
   const handleDeleteUser = useCallback(async (userId: string, username: string) => {
-    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer l'utilisateur ${username} ?`)) {
+    if (!window.confirm(`Are you sure you want to delete user ${username}?`)) {
       return
     }
 
@@ -204,47 +208,47 @@ function AdminDashboard() {
     setError(null)
 
     try {
-      console.log(`Suppression de l'utilisateur ${userId}`)
+      console.log(`Deleting user ${userId}`)
 
       const response = await fetch(API_ENDPOINTS.users.detail(userId), {
         method: "DELETE",
         credentials: "include",
       })
 
-      console.log("Réponse de suppression d'utilisateur:", response.status)
+      console.log("User deletion response:", response.status)
 
       if (!response.ok) {
-        // Essayer de récupérer les détails de l'erreur depuis la réponse
-        let errorMessage = "Une erreur est survenue lors de la suppression de l'utilisateur";
+        // Try to get error details from response
+        let errorMessage = "An error occurred while deleting user";
         try {
           const errorData = await response.json();
           errorMessage = errorData.message || errorMessage;
-          console.error("Détails de l'erreur:", errorData);
+          console.error("Error details:", errorData);
         } catch (e) {
-          console.error("Impossible de parser la réponse d'erreur:", e);
+          console.error("Could not parse error response:", e);
         }
         throw new Error(`${errorMessage} (${response.status})`);
       }
 
       const data = await response.json()
-      console.log("Données de suppression d'utilisateur:", data)
+      console.log("User deletion data:", data)
 
-      // Mise à jour de l'interface utilisateur en retirant l'utilisateur supprimé
+      // Update UI by removing deleted user
       setUsers((prevUsers) => prevUsers.filter((user) => user._id !== userId))
 
-      // Afficher un message de succès
-      alert(data.message || "Utilisateur supprimé avec succès")
+      // Show success message
+      alert(data.message || "User deleted successfully")
     } catch (error) {
-      console.error("Erreur lors de la suppression de l'utilisateur:", error)
-      setError(error instanceof Error ? error.message : "Une erreur inconnue est survenue")
+      console.error("Error deleting user:", error)
+      setError(error instanceof Error ? error.message : "An unknown error occurred")
     } finally {
       setIsLoading(false)
     }
   }, [])
 
-  // Envoyer un email de réinitialisation de mot de passe
+  // Send password reset email
   const handleResetPassword = useCallback(async (email: string, username: string) => {
-    if (!window.confirm(`Envoyer un email de réinitialisation de mot de passe à ${username} (${email}) ?`)) {
+    if (!window.confirm(`Send password reset email to ${username} (${email})?`)) {
       return
     }
 
@@ -252,7 +256,7 @@ function AdminDashboard() {
     setError(null)
 
     try {
-      console.log(`Envoi d'un email de réinitialisation à ${email}`)
+      console.log(`Sending password reset to ${email}`)
 
       const response = await fetch(API_ENDPOINTS.auth.forgotPassword, {
         method: "POST",
@@ -263,54 +267,101 @@ function AdminDashboard() {
         credentials: "include",
       })
 
-      console.log("Réponse de réinitialisation de mot de passe:", response.status)
+      console.log("Password reset response:", response.status)
 
       if (!response.ok) {
-        // Essayer de récupérer les détails de l'erreur depuis la réponse
-        let errorMessage = "Une erreur est survenue lors de l'envoi de l'email de réinitialisation";
+        // Try to get error details from response
+        let errorMessage = "An error occurred while sending password reset email";
         try {
           const errorData = await response.json();
           errorMessage = errorData.message || errorMessage;
-          console.error("Détails de l'erreur:", errorData);
+          console.error("Error details:", errorData);
         } catch (e) {
-          console.error("Impossible de parser la réponse d'erreur:", e);
+          console.error("Could not parse error response:", e);
         }
         throw new Error(`${errorMessage} (${response.status})`);
       }
 
       const data = await response.json()
-      console.log("Données de réinitialisation de mot de passe:", data)
+      console.log("Password reset data:", data)
 
-      // Afficher un message de succès
-      alert(data.message || "Email de réinitialisation envoyé avec succès")
+      // Show success message
+      alert(data.message || "Password reset email sent successfully")
     } catch (error) {
-      console.error("Erreur lors de l'envoi de l'email de réinitialisation:", error)
-      setError(error instanceof Error ? error.message : "Une erreur inconnue est survenue")
+      console.error("Error sending password reset email:", error)
+      setError(error instanceof Error ? error.message : "An unknown error occurred")
     } finally {
       setIsLoading(false)
     }
   }, [])
 
-  // Vérifier le statut d'administrateur au chargement
+  // Check admin status on load
   useEffect(() => {
     checkAdminStatus()
   }, [checkAdminStatus])
 
-  // Récupérer les utilisateurs lorsque les filtres changent
+  // Fetch users when filters change
   useEffect(() => {
     if (isAdmin) {
       fetchUsers()
     }
   }, [isAdmin, fetchUsers])
 
-  // Afficher un message si l'utilisateur n'est pas administrateur
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Refresh data with F5 or Ctrl/Cmd + R
+      if (e.key === 'F5' || (e.key === 'r' && (e.ctrlKey || e.metaKey))) {
+        e.preventDefault()
+        if (activeTab === 'users') {
+          fetchUsers()
+        } else {
+          checkAdminStatus()
+        }
+      }
+      
+      // Open add user modal with Ctrl/Cmd + N
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault()
+        if (activeTab === 'users') {
+          setIsAddUserModalOpen(true)
+        }
+      }
+      
+      // Close modals with ESC
+      if (e.key === 'Escape') {
+        setIsAddUserModalOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [activeTab, fetchUsers, checkAdminStatus])
+
+  // Auto-retry on error
+  useEffect(() => {
+    if (error && retryCount < 3) {
+      const timer = setTimeout(() => {
+        setRetryCount(prev => prev + 1)
+        if (activeTab === 'users') {
+          fetchUsers()
+        } else {
+          checkAdminStatus()
+        }
+      }, 3000)
+      
+      return () => clearTimeout(timer)
+    }
+  }, [error, retryCount, activeTab, fetchUsers, checkAdminStatus])
+
+  // Show message if user is not admin
   if (!userInfo || !isAdmin) {
     return (
       <div className="mx-auto max-w-screen-xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-lg">
-          <h1 className="text-center text-2xl font-bold text-indigo-600 sm:text-3xl">Accès Non Autorisé</h1>
+          <h1 className="text-center text-2xl font-bold text-indigo-600 sm:text-3xl">Unauthorized Access</h1>
           <p className="mx-auto mt-4 max-w-md text-center text-gray-500">
-            Cette page est réservée aux administrateurs. Veuillez vous connecter avec un compte administrateur.
+            This page is reserved for administrators. Please log in with an administrator account.
           </p>
         </div>
       </div>
@@ -318,29 +369,37 @@ function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
-      {/* Header amélioré */}
+    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900" ref={dashboardRef}>
+      {/* Enhanced header */}
       <AdminHeader activeTab={activeTab} onTabChange={setActiveTab} />
 
-      <div className="flex-grow py-6">
+      <div className="flex-grow py-6 pt-22">
         <div className="mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8">
-          {/* Titre de la page en fonction de l'onglet actif */}
-          <div className="mb-8">
+          {/* Page title based on active tab */}
+          <motion.div 
+            className="mb-8"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              {activeTab === "users" && "Gestion des Utilisateurs"}
-              {activeTab === "statistics" && "Statistiques du Site"}
-              {activeTab === "settings" && "Paramètres du Système"}
+              {activeTab === "users" && "User Management"}
+              {activeTab === "statistics" && "Site Statistics"}
             </h1>
             <p className="mt-2 text-gray-600 dark:text-gray-400">
-              {activeTab === "users" && "Gérez les utilisateurs, leurs rôles et leurs permissions."}
-              {activeTab === "statistics" && "Consultez les statistiques et l'activité de votre site."}
-              {activeTab === "settings" && "Configurez les paramètres de votre application."}
+              {activeTab === "users" && "Manage users, their roles and permissions."}
+              {activeTab === "statistics" && "View statistics and activity of your site."}
             </p>
-          </div>
+          </motion.div>
 
-          {/* Cartes de statistiques rapides - uniquement sur l'onglet utilisateurs */}
+          {/* Quick stats cards - only on users tab */}
           {activeTab === "users" && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <motion.div 
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+            >
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700">
                 <div className="flex items-center">
                   <div className="p-3 rounded-full bg-lime-100 dark:bg-lime-900 text-lime-600 dark:text-lime-400 mr-4">
@@ -349,7 +408,7 @@ function AdminDashboard() {
                     </svg>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Utilisateurs</p>
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Users</p>
                     <p className="text-2xl font-semibold text-gray-900 dark:text-white">{users.length}</p>
                   </div>
                 </div>
@@ -363,7 +422,7 @@ function AdminDashboard() {
                     </svg>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Auteurs</p>
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Authors</p>
                     <p className="text-2xl font-semibold text-gray-900 dark:text-white">
                       {users.filter(user => user.role === 'author').length}
                     </p>
@@ -379,7 +438,7 @@ function AdminDashboard() {
                     </svg>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Éditeurs</p>
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Editors</p>
                     <p className="text-2xl font-semibold text-gray-900 dark:text-white">
                       {users.filter(user => user.role === 'editor').length}
                     </p>
@@ -395,98 +454,160 @@ function AdminDashboard() {
                     </svg>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Administrateurs</p>
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Administrators</p>
                     <p className="text-2xl font-semibold text-gray-900 dark:text-white">
                       {users.filter(user => user.role === 'admin').length}
                     </p>
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           )}
 
-        {/* Contenu principal en fonction de l'onglet actif */}
-        {isLoading ? (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-lime-500"></div>
-            <span className="ml-3 text-gray-700 dark:text-gray-300">Chargement des données...</span>
-          </div>
-        ) : error ? (
-          <div className="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-300 px-4 py-3 rounded-lg shadow" role="alert">
-            <div className="flex items-center">
-              <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-              </svg>
-              <div>
-                <p className="font-bold">Erreur</p>
-                <p className="text-sm">{error}</p>
-              </div>
-            </div>
-            <div className="mt-3 flex justify-end">
-              <button
-                onClick={() => fetchUsers()}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-              >
-                Réessayer
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* Onglet Utilisateurs */}
-            {activeTab === "users" && (
-              <>
-                {/* Contrôles de recherche et de tri */}
-                <SearchAndSortControls
-                  search={search}
-                  setSearch={setSearch}
-                  sort={sort}
-                  setSort={setSort}
-                  order={order}
-                  setOrder={setOrder}
-                />
-
-                {users.length === 0 ? (
-                  <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                    </svg>
-                    <h3 className="mt-2 text-lg font-medium text-gray-900 dark:text-white">Aucun utilisateur trouvé</h3>
-                    <p className="mt-1 text-gray-500 dark:text-gray-400">Essayez de modifier vos critères de recherche ou de filtrage.</p>
-                  </div>
-                ) : (
-                  <>
-                    <UsersTable
-                      users={users}
-                      onRoleChange={handleRoleChange}
-                      onDeleteUser={handleDeleteUser}
-                      onResetPassword={handleResetPassword}
-                    />
-
-                    {/* Pagination */}
-                    <div className="mt-6">
-                      <Pagination page={page} totalPages={totalPages} setPage={setPage} />
+        {/* Main content based on active tab */}
+        <AnimatePresence mode="wait">
+          {isLoading ? (
+            <motion.div 
+              className="space-y-6"
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              {/* Skeleton for stats cards */}
+              {activeTab === "users" && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 border border-gray-200 dark:border-gray-700 animate-pulse">
+                      <div className="flex items-center">
+                        <div className="w-12 h-12 bg-gray-300 dark:bg-gray-600 rounded-full mr-4"></div>
+                        <div className="flex-1">
+                          <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded mb-2"></div>
+                          <div className="h-6 bg-gray-300 dark:bg-gray-600 rounded w-16"></div>
+                        </div>
+                      </div>
                     </div>
-                  </>
-                )}
-              </>
-            )}
+                  ))}
+                </div>
+              )}
+              {/* Skeleton for main content */}
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 animate-pulse">
+                <div className="p-6 space-y-4">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="h-12 bg-gray-300 dark:bg-gray-600 rounded"></div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          ) : error ? (
+            <motion.div 
+              className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6"
+              key="error"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                </div>
+                <div className="ml-3 flex-1">
+                  <h3 className="text-sm font-medium text-red-800 dark:text-red-200">An error occurred</h3>
+                  <p className="mt-1 text-sm text-red-700 dark:text-red-300">{error}</p>
+                  <div className="mt-4 flex space-x-3">
+                    <button
+                      onClick={() => {
+                        setError(null)
+                        setRetryCount(0)
+                        if (activeTab === 'users') fetchUsers()
+                        else checkAdminStatus()
+                      }}
+                      className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center"
+                    >
+                      <RefreshCw className={`w-4 h-4 mr-1 ${retryCount > 0 ? 'animate-spin' : ''}`} />
+                      Retry
+                    </button>
+                    <button
+                      onClick={() => setError(null)}
+                      className="bg-white hover:bg-gray-50 text-red-600 border border-red-300 px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center"
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Dismiss
+                    </button>
+                  </div>
+                  {retryCount > 0 && (
+                    <p className="mt-2 text-xs text-red-600 dark:text-red-400">
+                      Retrying... ({retryCount}/3)
+                    </p>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="content"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              {/* Users tab */}
+              {activeTab === "users" && (
+                <>
+                  {/* Search and sort controls */}
+                  <SearchAndSortControls
+                    search={search}
+                    setSearch={setSearch}
+                    sort={sort}
+                    setSort={setSort}
+                    order={order}
+                    setOrder={setOrder}
+                  />
 
-            {/* Onglet Statistiques */}
-            {activeTab === "statistics" && (
-              <AdminStatistics users={users} />
-            )}
+                  {users.length === 0 ? (
+                    <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+                      <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                      </svg>
+                      <h3 className="mt-2 text-lg font-medium text-gray-900 dark:text-white">No users found</h3>
+                      <p className="mt-1 text-gray-500 dark:text-gray-400">Try adjusting your search or filter criteria.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <UsersTable
+                        users={users}
+                        onRoleChange={handleRoleChange}
+                        onDeleteUser={handleDeleteUser}
+                        onResetPassword={handleResetPassword}
+                      />
 
-            {/* Onglet Paramètres */}
-            {activeTab === "settings" && (
-              <AdminSettings />
-            )}
-          </>
-        )}
+                      {/* Pagination */}
+                      <div className="mt-6">
+                        <Pagination page={page} totalPages={totalPages} setPage={setPage} />
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
 
-          {/* Actions rapides - visible uniquement dans l'onglet Utilisateurs */}
+              {/* Statistics tab */}
+              {activeTab === "statistics" && (
+                <AdminStatistics users={users} />
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+          {/* Quick actions - only visible in Users tab */}
           {activeTab === "users" && (
-            <div className="mt-8 flex justify-end">
+            <motion.div 
+              className="mt-8 flex justify-end"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.2 }}
+            >
               <button
                 onClick={() => setIsAddUserModalOpen(true)}
                 className="px-4 py-2 bg-lime-600 text-white rounded-md hover:bg-lime-700 transition-colors flex items-center"
@@ -494,9 +615,9 @@ function AdminDashboard() {
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                 </svg>
-                Ajouter un utilisateur
+                Add User
               </button>
-            </div>
+            </motion.div>
           )}
         </div>
       </div>
@@ -506,11 +627,11 @@ function AdminDashboard() {
         <div className="mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              © {new Date().getFullYear()} Blog AI - Tableau de bord administrateur
+              © {new Date().getFullYear()} Blog AI - Admin Dashboard
             </p>
             <div className="flex items-center space-x-4">
               <a href="#" className="text-sm text-gray-500 dark:text-gray-400 hover:text-lime-600 dark:hover:text-lime-500">
-                Aide
+                Help
               </a>
               <a href="#" className="text-sm text-gray-500 dark:text-gray-400 hover:text-lime-600 dark:hover:text-lime-500">
                 Documentation
@@ -520,7 +641,7 @@ function AdminDashboard() {
         </div>
       </footer>
 
-      {/* Modal d'ajout d'utilisateur */}
+      {/* Add user modal */}
       <AddUserModal
         isOpen={isAddUserModalOpen}
         onClose={() => setIsAddUserModalOpen(false)}
@@ -534,4 +655,3 @@ function AdminDashboard() {
 }
 
 export default AdminDashboard
-

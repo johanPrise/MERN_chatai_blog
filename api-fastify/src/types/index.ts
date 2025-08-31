@@ -6,3 +6,4 @@ export * from './category.types.js';
 export * from './auth.types.js';
 export * from './content.types.js';
 export * from './conversation.types.js';
+export * from './notification.types.js';

@@ -117,7 +117,14 @@ export class PostApiService {
    */
   async getPost(id: string): Promise<PostData> {
     try {
-      const response = await this.fetchWithAuth(API_ENDPOINTS.posts.detail(id));
+      // Add cache busting if id contains timestamp
+      const url = id.includes('?_t=') ? 
+        API_ENDPOINTS.posts.detail(id.split('?')[0]) + '?' + id.split('?')[1] :
+        API_ENDPOINTS.posts.detail(id);
+      
+      const response = await this.fetchWithAuth(url, {
+        cache: 'no-cache'
+      });
 
       if (!response.ok) {
         if (response.status === 404) {

@@ -4,8 +4,9 @@ import App from "./App"
 import "./css/index.css"
 import "./css/global.css"
 import { BrowserRouter } from "react-router-dom"
-import { DevSupport } from "@react-buddy/ide-toolbox"
-import { ComponentPreviews, useInitial } from "./dev"
+// React Buddy dev support removed with unused dev directory
+// import { DevSupport } from "@react-buddy/ide-toolbox"
+// import { ComponentPreviews, useInitial } from "./dev"
 import { UserContextProvider } from "./UserContext"
 import { ThemeProvider as MUIThemeProvider, createTheme } from "@mui/material/styles"
 import { ThemeProvider as CustomThemeProvider, useTheme } from "./components/contexts/ThemeContext"
@@ -14,10 +15,14 @@ import { Toaster } from "./components/ui/sonner"
 import ErrorBoundary from "./components/ErrorBoundary"
 import { initMobileOptimizations } from "./utils/mobileOptimizations"
 import { initPerformanceOptimizations } from "./utils/lazyComponents"
+import { filterExtensionErrors } from "./utils/errorFilter"
 
 // Initialize mobile and performance optimizations
 initMobileOptimizations();
 initPerformanceOptimizations();
+
+// Filter out browser extension errors
+filterExtensionErrors();
 
 // MUI Theme wrapper component that syncs with our app theme
 const MUIThemeWrapper = ({ children }) => {
@@ -79,12 +84,10 @@ ReactDOM.createRoot(rootElement).render(
         <MUIThemeWrapper>
           <UserContextProvider>
             <BrowserRouter>
-              <DevSupport ComponentPreviews={ComponentPreviews} useInitialHook={useInitial}>
-                <div>
-                  <App />
-                  <Toaster />
-                </div>
-              </DevSupport>
+              <div>
+                <App />
+                <Toaster />
+              </div>
             </BrowserRouter>
           </UserContextProvider>
         </MUIThemeWrapper>

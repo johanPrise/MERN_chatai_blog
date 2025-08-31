@@ -4,3 +4,4 @@ export * from './post.model.js';
 export * from './comment.model.js';
 export * from './category.model.js';
 export * from './content.model.js';
+export * from './notification.model.js';

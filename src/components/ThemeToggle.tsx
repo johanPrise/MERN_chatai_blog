@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Sun, Moon, Laptop } from 'lucide-react';
-import { ThemeMode, detectDarkMode, getThemeMode, setThemeMode } from '../lib/themeDetector';
+import { useTheme } from './contexts/ThemeContext';
+
+type ThemeMode = 'light' | 'dark' | 'system';
 
 interface ThemeToggleProps {
   className?: string;
@@ -11,59 +13,52 @@ interface ThemeToggleProps {
  * Composant pour basculer entre les thèmes (clair, sombre, système)
  */
 const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '', showLabel = false }) => {
-  const [themeMode, setThemeModeState] = useState<ThemeMode>(getThemeMode());
-  const [isDark, setIsDark] = useState<boolean>(detectDarkMode());
+  const { theme, toggleTheme } = useTheme();
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
+    // Initialize with localStorage value or default to 'system'
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('themeMode') as ThemeMode | null;
+      return stored || 'system';
+    }
+    return 'system';
+  });
 
-  // Mettre à jour l'état lorsque le thème change
-  useEffect(() => {
-    // Écouter les changements de thème
-    const handleThemeChange = (event: CustomEvent<{ theme: ThemeMode }>) => {
-      setThemeModeState(event.detail.theme);
-    };
-
-    // Vérifier l'état du mode sombre
-    const checkDarkMode = () => {
-      setIsDark(detectDarkMode());
-    };
-
-    // Ajouter les écouteurs d'événements
-    window.addEventListener('themechange', handleThemeChange as EventListener);
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', checkDarkMode);
-
-    // Observer les changements sur le document
-    const observer = new MutationObserver(checkDarkMode);
-    observer.observe(document.documentElement, { 
-      attributes: true,
-      attributeFilter: ['class', 'data-theme', 'data-mode']
-    });
-
-    // Écouter les changements dans localStorage
-    const handleStorageChange = (event: StorageEvent) => {
-      if (event.key === 'theme') {
-        setThemeModeState(event.newValue as ThemeMode || 'system');
-        checkDarkMode();
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-
-    // Nettoyage
-    return () => {
-      window.removeEventListener('themechange', handleThemeChange as EventListener);
-      window.matchMedia('(prefers-color-scheme: dark)').removeEventListener('change', checkDarkMode);
-      window.removeEventListener('storage', handleStorageChange);
-      observer.disconnect();
-    };
-  }, []);
+  // Determine if current theme is dark
+  const isDark = theme === 'dark';
 
   // Changer le thème lorsque l'utilisateur clique sur le bouton
   const cycleTheme = () => {
+    let nextTheme: ThemeMode;
+    
     // Cycle: system -> light -> dark -> system
-    const nextTheme: ThemeMode = 
-      themeMode === 'system' ? 'light' :
-      themeMode === 'light' ? 'dark' : 'system';
+    if (themeMode === 'system') {
+      nextTheme = 'light';
+    } else if (themeMode === 'light') {
+      nextTheme = 'dark';
+    } else {
+      nextTheme = 'system';
+    }
 
     setThemeMode(nextTheme);
-    setThemeModeState(nextTheme);
+    
+    // Save to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('themeMode', nextTheme);
+    }
+    
+    // For now, when not in system mode, just toggle between light and dark
+    if (nextTheme === 'light' || nextTheme === 'dark') {
+      // Force the theme by calling toggleTheme if needed
+      if ((nextTheme === 'dark' && theme === 'light') || (nextTheme === 'light' && theme === 'dark')) {
+        toggleTheme();
+      }
+    } else {
+      // System mode - let the system preference take over
+      const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if ((systemPrefersDark && theme === 'light') || (!systemPrefersDark && theme === 'dark')) {
+        toggleTheme();
+      }
+    }
   };
 
   // Déterminer l'icône à afficher en fonction du thème actuel

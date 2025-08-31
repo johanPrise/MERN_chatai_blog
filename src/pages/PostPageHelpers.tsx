@@ -52,7 +52,7 @@ export const renderCommentHeader = (
             e.preventDefault()
             scrollToComment(parentId)
           }}
-          className="text-primary hover:underline"
+          className="text-primary hover:text-primary/80 transition-colors no-underline"
         >
           {comments.find((c) => c._id === parentId)?.author.username}
         </button>

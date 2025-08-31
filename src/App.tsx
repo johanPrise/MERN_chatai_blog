@@ -1,15 +1,15 @@
-import React, { useEffect } from "react"
+import React from "react"
 import { Routes, Route, useLocation } from "react-router-dom"
 import "./css/App.css"
 import "./css/dark-mode.css"
-import { initializeTheme } from "./lib/themeDetector"
+// Theme initialization removed - now handled by ThemeProvider
 
 // Pages
 import Home from "./pages/Home"
 import CategoryPage from "./pages/Category"
 import PostPage from "./pages/Post"
 import CreatePost from "./pages/createPost"
-import EditPost from "./pages/EditPost"
+
 // New enhanced post management
 import { CreatePost as NewCreatePost } from "./features/posts/pages/CreatePost"
 import { EditPost as NewEditPost } from "./features/posts/pages/EditPost"
@@ -23,6 +23,7 @@ import EditUsername from "./pages/ChangeUsername"
 import CreateCategory from "./pages/createCategory"
 import DeleteCategories from "./pages/DelCategory"
 import Search from "./pages/Search"
+import ComingSoon from "./pages/ComingSoon"
 
 
 // Components
@@ -31,6 +32,7 @@ import Chatbot from "./components/Chatbot"
 import { ContentFilterAdmin } from "./components/admin/ContentFilterAdmin"
 import ErrorBoundary from "./components/ErrorBoundary"
 import { ErrorProvider } from "./contexts/ErrorContext"
+import { Toaster } from "./components/ui/toaster"
 
 /**
  * Renders the main application component with various routes and components.
@@ -41,10 +43,8 @@ function App(): React.ReactElement {
   // On masque le Header général sur la route /admin pour afficher uniquement AdminHeader dans AdminDashboard
   const isAdminRoute = location.pathname.startsWith("/admin")
 
-  // Initialiser le thème au chargement
-  useEffect(() => {
-    initializeTheme()
-  }, [])
+  // Theme initialization is now handled by ThemeProvider in main.tsx
+  // No need for duplicate initialization here
   
   return (
     <ErrorProvider>
@@ -56,7 +56,7 @@ function App(): React.ReactElement {
               <Header />
             </ErrorBoundary>
           )}
-          <div className="flex-grow w-full min-w-0 overflow-x-hidden">
+          <div className="flex-grow w-full min-w-0 overflow-x-hidden pt-16">
             <ErrorBoundary context={{ component: 'Routes', action: 'navigation' }}>
               <Routes>
                 <Route index element={<Home />} />
@@ -72,12 +72,13 @@ function App(): React.ReactElement {
                 <Route path="/edit-username" element={<EditUsername />} />
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/admin/content-filter" element={<ContentFilterAdmin />} />
-                <Route path="/edit_page/:id" element={<EditPost />} />
+
                 <Route path="/search" element={<Search />} />
                 {/* New enhanced post management routes */}
                 <Route path="/posts/create" element={<NewCreatePost />} />
                 <Route path="/posts/edit/:id" element={<NewEditPost />} />
                 <Route path="/posts/drafts" element={<Drafts />} />
+                <Route path="/coming-soon" element={<ComingSoon />} />
 
               </Routes>
             </ErrorBoundary>
@@ -85,6 +86,7 @@ function App(): React.ReactElement {
           <ErrorBoundary context={{ component: 'Chatbot', action: 'render' }}>
             <Chatbot />
           </ErrorBoundary>
+          <Toaster />
         </div>
       </ErrorBoundary>
     </ErrorProvider>

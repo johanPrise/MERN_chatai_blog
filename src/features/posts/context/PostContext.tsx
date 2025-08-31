@@ -1,10 +1,12 @@
 /**
  * Post Context - Centralized state management for posts
+ * Enhanced with global state synchronization
  */
 
 import React, { createContext, useContext, useReducer, useCallback, ReactNode } from 'react';
 import { PostData, CreatePostInput, UpdatePostInput, PostFilters, LoadingState, PostErrorState, PostError } from '../types/post.types';
 import { PostApiService } from '../services/postApi';
+import { globalStateManager } from '../../../services/globalStateManager';
 
 // State interface
 interface PostState {
@@ -266,6 +268,13 @@ export function PostProvider({ children }: PostProviderProps) {
       
       if (result.success && result.data) {
         dispatch({ type: 'ADD_POST', payload: result.data });
+        
+        // Notify global state manager about the creation
+        globalStateManager.notifyPostCreation(result.data);
+        
+        // Force immediate cache invalidation
+        globalStateManager.notifyCacheInvalidation('all', 'post-created');
+        
         return result.data;
       } else {
         setError({
@@ -324,6 +333,12 @@ export function PostProvider({ children }: PostProviderProps) {
           dispatch({ type: 'SET_CURRENT_POST', payload: result.data });
         }
         
+        // Notify global state manager about the update
+        globalStateManager.notifyPostUpdate(id, result.data, 'edit');
+        
+        // Force immediate cache invalidation
+        globalStateManager.notifyCacheInvalidation('all', 'post-updated');
+        
         console.log('[PostContext] Post updated successfully in context', {
           id: result.data.id,
           title: result.data.title,
@@ -365,6 +380,13 @@ export function PostProvider({ children }: PostProviderProps) {
       
       if (result.success) {
         dispatch({ type: 'REMOVE_POST', payload: id });
+        
+        // Notify global state manager about the deletion
+        globalStateManager.notifyPostDeletion(id, 'delete');
+        
+        // Force immediate cache invalidation
+        globalStateManager.notifyCacheInvalidation('all', 'post-deleted');
+        
         return true;
       } else {
         setError({
@@ -423,6 +445,13 @@ export function PostProvider({ children }: PostProviderProps) {
       
       if (result.success && result.data) {
         dispatch({ type: 'UPDATE_POST', payload: result.data });
+        
+        // Notify global state manager about the publication
+        globalStateManager.notifyPostUpdate(id, result.data, 'publish');
+        
+        // Force immediate cache invalidation
+        globalStateManager.notifyCacheInvalidation('all', 'post-published');
+        
         return result.data;
       } else {
         setError({

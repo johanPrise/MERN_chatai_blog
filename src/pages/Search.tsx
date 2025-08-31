@@ -10,11 +10,28 @@ import { Link } from "react-router-dom"
 import { Search as SearchIcon } from "lucide-react"
 import AnimateOnView from "../components/AnimateOnView"
 
+// Helper function to extract cover image URL with backward compatibility
+const getCoverImageUrl = (post: Post): string => {
+  // Try new coverImage field first
+  if (post.coverImage) {
+    if (typeof post.coverImage === 'string') {
+      return post.coverImage
+    }
+    if (typeof post.coverImage === 'object' && post.coverImage.url) {
+      return post.coverImage.url
+    }
+  }
+  
+  // Fallback to legacy cover field
+  return post.cover || '/placeholder.svg'
+}
+
 interface Post {
   _id: string
   title: string
   summary: string
-  cover: string
+  cover?: string // Legacy field
+  coverImage?: string | { url: string; alt?: string } // New field with backward compatibility
   createdAt: string
   author: {
     username: string
@@ -118,7 +135,7 @@ const Search: React.FC = () => {
                 >
                   <div className="aspect-video w-full overflow-hidden">
                     <SafeImage
-                      src={post.cover}
+                      src={getCoverImageUrl(post)}
                       alt={post.title}
                       className="h-full w-full object-cover transition-transform hover:scale-105"
                       loading="lazy"

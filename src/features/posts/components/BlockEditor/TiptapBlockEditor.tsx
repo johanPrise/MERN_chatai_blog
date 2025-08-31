@@ -61,10 +61,34 @@ export default function TiptapBlockEditor({ value, onChange, placeholder = 'Writ
   useEffect(() => {
     if (!editor) return;
     if (!value) return;
+    
     const jb = value.find(b => b.type === 'tiptap');
     const next = (jb && (jb.data?.doc ?? jb.data)) as any;
+    
     if (next) {
-      editor.commands.setContent(next, { emitUpdate: false });
+      // Only update content if it's actually different to prevent cursor jumping
+      const currentContent = editor.getJSON();
+      const currentContentStr = JSON.stringify(currentContent);
+      const nextContentStr = JSON.stringify(next);
+      
+      if (currentContentStr !== nextContentStr) {
+        // Store current selection to restore after update
+        const { from, to } = editor.state.selection;
+        
+        editor.commands.setContent(next, { emitUpdate: false });
+        
+        // Try to restore cursor position
+        setTimeout(() => {
+          try {
+            if (editor.state.doc.content.size >= from) {
+              editor.commands.setTextSelection({ from: Math.min(from, editor.state.doc.content.size), to: Math.min(to, editor.state.doc.content.size) });
+            }
+          } catch (e) {
+            // Fallback to end of document if position is invalid
+            console.warn('Could not restore cursor position:', e);
+          }
+        }, 0);
+      }
     }
   }, [editor, value]);
 
@@ -80,8 +104,23 @@ export default function TiptapBlockEditor({ value, onChange, placeholder = 'Writ
     try {
       setIsUploading(true);
       const res = await api.uploadFile(file);
-      const url = (res.urls && (res.urls.optimized || res.urls.original)) || res.url || res.data?.url;
-      if (!url) return;
+      console.log('[TiptapEditor] Upload response:', res);
+      
+      let url = (res.urls && (res.urls.optimized || res.urls.original)) || res.url || res.data?.url;
+      
+      // Ensure URL is absolute
+      if (url && !url.startsWith('http')) {
+        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        url = url.startsWith('/') ? `${baseUrl}${url}` : `${baseUrl}/${url}`;
+      }
+      
+      console.log('[TiptapEditor] Final image URL:', url);
+      
+      if (!url) {
+        console.error('[TiptapEditor] No valid URL found in upload response');
+        return;
+      }
+      
       editor?.chain().focus().setImage({ src: url }).run();
     } finally {
       setIsUploading(false);

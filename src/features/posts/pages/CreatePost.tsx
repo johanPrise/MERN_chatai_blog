@@ -8,7 +8,7 @@ import { PostForm } from '../components/PostForm';
 import { PostProvider, usePostContext } from '../context/PostContext';
 import { CreatePostInput, UpdatePostInput } from '../types/post.types';
 import { useNavigation } from '../hooks/useNavigation';
-import { toast } from 'sonner';
+import { showError, showSuccess, showInfo } from '../../../lib/toast-helpers';
 
 export function CreatePost() {
   return (
@@ -32,20 +32,20 @@ function CreatePostContent() {
       if (result && result.id) {
         // Validate the post ID before navigation
         if (validatePostId(result.id)) {
-          toast.success('Post created successfully!');
+          showSuccess('Article créé avec succès!');
           navigateToPost(result.id, { fallbackRoute: '/' });
         } else {
           console.error('Invalid post ID returned from API:', result.id);
-          toast.success('Post created successfully!');
+          showSuccess('Article créé avec succès!');
           navigateToHome({ replace: true });
         }
       } else {
-        toast.error('Failed to create post. Please try again.');
+        showError('Échec de la création de l\'article. Veuillez réessayer.');
         console.error('Post creation failed - no result or ID:', result);
       }
     } catch (error) {
       console.error('Create post error:', error);
-      toast.error('An unexpected error occurred.');
+      showError('Une erreur inattendue s\'est produite.');
     }
   };
 

@@ -10,6 +10,8 @@ import { initEmailTransporter } from './services/email.service.js';
 import { logger } from './services/logger.service.js';
 import { errorLoggerMiddleware } from './middlewares/error-logger.middleware.js';
 import { cache } from './services/cache.service.js';
+import { onSystemError } from './services/notification-hooks.service.js';
+import { startNotificationCleanup } from './services/notification-cleanup.service.js';
 
 /**
  * Construit et configure le serveur Fastify
@@ -118,6 +120,9 @@ export async function buildServer(): Promise<FastifyInstance> {
   // Initialiser le transporteur d'emails
   initEmailTransporter();
 
+  // Démarrer le nettoyage automatique des notifications (toutes les 24h)
+  startNotificationCleanup(24);
+
   // Middleware de logging des erreurs
   server.addHook('onRequest', errorLoggerMiddleware);
 
@@ -145,6 +150,24 @@ export async function buildServer(): Promise<FastifyInstance> {
         ip: request.ip
       }
     );
+    
+    // Créer une notification d'erreur système pour les erreurs 500
+    if (reply.statusCode >= 500 || !reply.statusCode) {
+      const errorCode = `HTTP_${reply.statusCode || 500}`;
+      const errorMessage = `Erreur serveur sur ${request.method} ${request.url}: ${error.message}`;
+      
+      // Créer la notification de manière asynchrone pour ne pas bloquer la réponse
+      onSystemError(errorCode, errorMessage, {
+        method: request.method,
+        url: request.url,
+        userAgent: request.headers['user-agent'],
+        ip: request.ip,
+        userId: (request as any).user?._id,
+        stack: error.stack,
+      }).catch(notifError => {
+        logger.error('Failed to create error notification:', notifError);
+      });
+    }
     
     server.log.error(error);
     reply.status(500).send({

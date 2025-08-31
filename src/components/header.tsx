@@ -176,7 +176,7 @@ const Header = () => {
   return (
     <header
       className={cn(
-        "sticky top-0 z-50 w-full border-b transition-all duration-300",
+        "fixed top-0 left-0 right-0 z-50 w-full border-b transition-all duration-300",
         "bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60",
         "max-w-[100vw] ",
         isScrolled 
@@ -320,15 +320,11 @@ const Header = () => {
                         <DropdownMenuSeparator />
                         <DropdownMenuLabel>Content</DropdownMenuLabel>
                         <DropdownMenuItem asChild>
-                          <Link to="/create_post" className="flex items-center">
-                            <PenSquare className="mr-2 h-4 w-4" />
-                            Create Post (Legacy)
-                          </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
                           <Link to="/posts/create" className="flex items-center">
                             <PenSquare className="mr-2 h-4 w-4" />
-                            Create Post (New)
+                            Create Post
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
@@ -502,17 +498,6 @@ const Header = () => {
                         <div className="mb-2 text-sm font-medium">Content Management</div>
                         <div className="grid grid-cols-1 gap-1 pl-2">
                           <Link
-                            to="/create_post"
-                            className={cn(
-                              "flex items-center rounded-md px-3 py-2 text-sm transition-colors group",
-                              location.pathname === "/create_post" ? "bg-accent/50 font-medium" : "hover:bg-accent"
-                            )}
-                            onClick={() => setMenuOpen(false)}
-                          >
-                            <PenSquare className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
-                            Create Post (Legacy)
-                          </Link>
-                          <Link
                             to="/posts/create"
                             className={cn(
                               "flex items-center rounded-md px-3 py-2 text-sm transition-colors group",
@@ -521,7 +506,7 @@ const Header = () => {
                             onClick={() => setMenuOpen(false)}
                           >
                             <PenSquare className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
-                            Create Post (New)
+                            Create Post 
                           </Link>
                           <Link
                             to="/posts/drafts"

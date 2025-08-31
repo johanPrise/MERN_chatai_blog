@@ -145,22 +145,28 @@ export function getImageUrl(imagePath?: string | null): string {
  */
 export function validateImageUrl(imageUrl: string): Promise<boolean> {
   return new Promise((resolve) => {
+    console.log('🔎 validateImageUrl - Testing:', imageUrl);
+    
     if (!imageUrl || imageUrl === '/placeholder.svg') {
+      console.log('⚠️ Invalid or placeholder URL, skipping validation');
       resolve(false);
       return;
     }
     
     const img = new Image();
     const timeout = setTimeout(() => {
+      console.log('⏱️ Image validation timeout for:', imageUrl);
       resolve(false);
     }, 5000); // 5 secondes de timeout
     
     img.onload = () => {
+      console.log('✅ Image loaded successfully:', imageUrl);
       clearTimeout(timeout);
       resolve(true);
     };
     
-    img.onerror = () => {
+    img.onerror = (error) => {
+      console.log('❌ Image failed to load:', imageUrl, error);
       clearTimeout(timeout);
       resolve(false);
     };
@@ -219,9 +225,9 @@ export function getOptimizedImageUrl(imagePath?: string | null, options?: ImageO
  */
 export const IMAGE_FALLBACKS = {
   primary: '/placeholder.svg',
-  secondary: '/placeholder.jpg',
+  secondary: '/placeholder.svg',      // Fixed: use existing file
   error: '/placeholder-logo.svg',
-  user: '/placeholder-user.jpg',
+  user: '/placeholder.svg',           // Fixed: use existing file
 } as const;
 
 /**
@@ -239,17 +245,28 @@ export function getFallbackImageUrl(type: keyof typeof IMAGE_FALLBACKS = 'primar
  * @returns Promise<string> Première URL valide ou fallback final
  */
 export async function getValidImageUrl(imageUrls: (string | null | undefined)[]): Promise<string> {
+  console.log('🔍 getValidImageUrl - Testing URLs:', imageUrls);
+  
   for (const url of imageUrls) {
-    if (!url) continue;
+    if (!url) {
+      console.log('⚠️ Skipping empty/null URL');
+      continue;
+    }
     
     const imageUrl = getImageUrl(url);
+    console.log('🌍 Testing image URL:', imageUrl);
+    
     const isValid = await validateImageUrl(imageUrl);
+    console.log(`${isValid ? '✅' : '❌'} URL validation result for ${imageUrl}:`, isValid);
     
     if (isValid) {
+      console.log('✨ Found valid image URL:', imageUrl);
       return imageUrl;
     }
   }
   
   // Si aucune image n'est valide, retourner le fallback principal
-  return getFallbackImageUrl('primary');
+  const fallback = getFallbackImageUrl('primary');
+  console.log('🔄 All URLs failed, using primary fallback:', fallback);
+  return fallback;
 }

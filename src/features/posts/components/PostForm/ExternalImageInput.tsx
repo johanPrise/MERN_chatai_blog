@@ -80,7 +80,7 @@ export function ExternalImageInput({
         setValidationError('Impossible de charger l\'image (timeout)');
         setIsValid(false);
         resolve(false);
-      }, 10000); // 10 second timeout
+      }, 5000); // 5 second timeout
 
       img.onload = () => {
         clearTimeout(timeout);
@@ -96,6 +96,8 @@ export function ExternalImageInput({
         resolve(false);
       };
 
+      // Add crossOrigin to handle CORS
+      img.crossOrigin = 'anonymous';
       img.src = url;
     });
   }, []);

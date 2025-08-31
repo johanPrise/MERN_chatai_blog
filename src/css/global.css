@@ -112,6 +112,11 @@
     transition: background-color 0.3s ease, color 0.3s ease;
   }
 
+  /* Fixed header support */
+  .header-spacing {
+    padding-top: 4rem; /* 64px for header height */
+  }
+
   /* Mobile-first responsive fixes */
   * {
     box-sizing: border-box;
@@ -731,8 +736,6 @@
   }
 
   .btn-link {
-    text-decoration-line: underline;
-    text-underline-offset: 4px;
     color: hsl(var(--primary));
   }
 

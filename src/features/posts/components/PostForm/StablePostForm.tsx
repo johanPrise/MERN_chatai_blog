@@ -81,10 +81,30 @@ const StablePostForm = memo(function StablePostForm({
     }
   }
   
-  // Compare arrays by length and content
-  if (JSON.stringify(prevData.tags) !== JSON.stringify(nextData.tags)) return false;
-  if (JSON.stringify(prevData.categories) !== JSON.stringify(nextData.categories)) return false;
-  if (JSON.stringify(prevData.contentBlocks) !== JSON.stringify(nextData.contentBlocks)) return false;
+  // Compare arrays by length and content - optimized version
+  const arraysEqual = (a: any[] | undefined, b: any[] | undefined): boolean => {
+    if (!a && !b) return true;
+    if (!a || !b) return false;
+    if (a.length !== b.length) return false;
+    
+    // For small arrays, compare directly
+    if (a.length <= 5) {
+      return JSON.stringify(a) === JSON.stringify(b);
+    }
+    
+    // For larger arrays, do a shallow comparison first
+    for (let i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) {
+        // If shallow comparison fails, fall back to JSON comparison
+        return JSON.stringify(a) === JSON.stringify(b);
+      }
+    }
+    return true;
+  };
+  
+  if (!arraysEqual(prevData.tags, nextData.tags)) return false;
+  if (!arraysEqual(prevData.categories, nextData.categories)) return false;
+  if (!arraysEqual(prevData.contentBlocks, nextData.contentBlocks)) return false;
   
   return true;
 });

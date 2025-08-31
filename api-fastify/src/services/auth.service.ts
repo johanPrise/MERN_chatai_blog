@@ -9,6 +9,7 @@ import {
 } from '../types/auth.types.js';
 import { IUser } from '../types/user.types.js';
 import * as EmailService from './email.service.js';
+import { onUserRegistered } from './notification-hooks.service.js';
 
 /**
  * Service pour l'inscription d'un nouvel utilisateur
@@ -44,6 +45,14 @@ export const registerUser = async (userData: RegisterInput) => {
 
   // Sauvegarder l'utilisateur
   await newUser.save();
+
+  // Déclencher le hook de notification pour nouvel utilisateur
+  try {
+    await onUserRegistered(newUser._id.toString(), username, email);
+  } catch (error) {
+    // Log l'erreur mais ne pas faire échouer l'inscription
+    console.error('Failed to create user registration notification:', error);
+  }
 
   // Envoyer un email de vérification
   const appUrl = process.env.APP_URL || 'http://localhost:3000';

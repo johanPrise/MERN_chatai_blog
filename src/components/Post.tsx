@@ -10,8 +10,9 @@ import React, { useState } from "react"
 import { API_ENDPOINTS } from "../config/api.config"
 import { UserContext } from "../UserContext"
 import { AspectRatio } from "@radix-ui/react-aspect-ratio"
-import { useCoverImage, normalizeCoverImage } from '../hooks/useImageUrl'
+import { useImageUrl } from '../hooks/useImageUrl'
 import { useLikes } from '../hooks/useLikes'
+import SafeImage from './SafeImage'
 
 // Helper functions
 const extractSummaryFromTiptap = (post: any): string => {
@@ -43,7 +44,7 @@ const getCategory = (post: PostType) => {
 const renderCategoryBadge = (category: any) => {
   if (category?._id && category.name) {
     return (
-      <Link to={`/category/${category._id}`}>
+      <Link to={`/category/${category._id}`} className="no-underline">
         <Badge variant="outline" className="hover:bg-primary-50 hover:text-primary-700 transition-colors">
           {category.name}
         </Badge>
@@ -73,22 +74,7 @@ const getCommentCount = (commentsData: any): number => {
   return 0
 }
 
-const PostImage = ({ title, alt, src, className, onError }: { 
-  title: string
-  alt?: string
-  src: string
-  className: string
-  onError: () => void
-}) => (
-  <img
-    alt={alt || title}
-    src={src}
-    className={className}
-    loading="lazy"
-    decoding="async"
-    onError={onError}
-  />
-)
+
 
 const ActionButtons = ({ 
   showActions, 
@@ -195,7 +181,7 @@ const StatsDisplay = ({ showStats, stats, likeCount, dislikeCount }: {
 
 export interface PostProps {
   post: PostType
-  variant?: "default" | "featured" | "compact" | "list"
+  variant?: "default" | "enhanced-text" // Enhanced text-only design is now default
   showActions?: boolean
   showStats?: boolean
   className?: string
@@ -228,18 +214,13 @@ export default function Post({
   const userId = userInfo?.id
   const [isBookmarked, setIsBookmarked] = useState(false)
   
-  // Utiliser le hook pour l'image de couverture avec fallback
-  const { url: postImageWithFallback, alt: postImageAlt, onError: onPostImageError } = useCoverImage(
-    coverImage,
-    "/placeholder.svg"
-  )
-
-  console.log('Post data:', { 
-    id: _id, 
-    likes: post.likes, 
-    dislikes: post.dislikes,
-    userId 
-  })
+  // Utiliser le hook pour l'image de couverture avec fallback et support du champ legacy
+  const { getImageUrl } = useImageUrl()
+  const postImageWithFallback = getImageUrl(coverImage?.url || (post as any).cover)
+  const postImageAlt = coverImage?.alt || title
+  const onPostImageError = () => {
+    // Handle image error if needed
+  }
 
   const {
     isLiked,
@@ -309,293 +290,178 @@ export default function Post({
     onShare?.(post)
   }
 
-  if (variant === "list") {
-    return (
-      <Card className={cn("overflow-hidden w-full max-w-full", fixedHeight && "h-[250px]", className)}>
-        <div className="flex flex-col sm:flex-row gap-4 p-4 w-full min-w-0">
-          <Link to={`/Post/${_id}`} className="relative block w-full sm:w-48 flex-shrink-0 overflow-hidden rounded-lg min-w-0">
-            {isFavorite && <FavoriteIndicator />}
-            <AspectRatio ratio={16/10} className="w-full">
-              <PostImage 
-                title={title}
-                alt={postImageAlt}
-                src={postImageWithFallback}
-                className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
-                onError={onPostImageError}
-              />
-            </AspectRatio>
-          </Link>
-          <div className="flex-1 flex flex-col min-w-0">
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mb-2">
-              <time dateTime={formatISO9075(new Date(createdAt))}>
-                <CalendarIcon className="h-3 w-3 inline mr-1" />
-                {formatDate(createdAt)}
-              </time>
-              <span className="inline-flex items-center">
-                <User2 className="h-3 w-3 inline mr-1" />
-                {author.username}
-              </span>
-              <StatsDisplay 
-                showStats={showStats}
-                stats={stats}
-                likeCount={likeCount}
-                dislikeCount={dislikeCount}
-              />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">
-              <Link
-                to={`/Post/${_id}`}
-                className="hover:text-primary transition-colors line-clamp-2"
-                aria-label={`Read full post: ${title}`}
-              >
-                {title}
-              </Link>
-            </h3>
-            <p className="line-clamp-2 text-sm text-muted-foreground mb-3 flex-grow">{displaySummary}</p>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                {renderCategoryBadge(category)}
-                <Link to={`/Post/${_id}`} className="text-primary text-sm font-medium hover:underline">
-                  Read more →
-                </Link>
-              </div>
-              <ActionButtons 
-                showActions={showActions}
-                handleLikeClick={handleLikeClick}
-                handleDislikeClick={handleDislikeClick}
-                handleBookmark={handleBookmark}
-                handleShare={handleShare}
-                isLiked={isLiked}
-                isDisliked={isDisliked}
-                isBookmarked={isBookmarked}
-                isFavorite={isFavorite}
-                likeCount={likeCount}
-                dislikeCount={dislikeCount}
-                userId={userId}
-                likesLoading={likesLoading}
-              />
-            </div>
-          </div>
-        </div>
-      </Card>
-    )
-  }
-
-  if (variant === "compact") {
-    return (
-      <Card className={cn("overflow-hidden flex flex-col w-full max-w-full", fixedHeight && "h-[450px]", className)}>
-        <Link to={`/Post/${_id}`} className="relative block overflow-hidden min-w-0">
-          {isFavorite && <FavoriteIndicator />}
-          <AspectRatio ratio={16/10} className="w-full">
-            <PostImage 
-              title={title}
-              alt={postImageAlt}
-              src={postImageWithFallback}
-              className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
-              onError={onPostImageError}
-            />
-          </AspectRatio>
-        </Link>
-        <CardHeader className="p-4 pb-2">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-            <time dateTime={formatISO9075(new Date(createdAt))}>
-              <CalendarIcon className="h-3 w-3 inline mr-1" />
-              {formatDate(createdAt)}
-            </time>
-            <span className="inline-flex items-center">
-              <User2 className="h-3 w-3 inline mr-1" />
-              {author.username}
-            </span>
-            <StatsDisplay 
-              showStats={showStats}
-              stats={stats}
-              likeCount={likeCount}
-              dislikeCount={dislikeCount}
-            />
-          </div>
-          <CardTitle className="text-lg">
-            <Link
-              to={`/Post/${_id}`}
-              className="hover:text-primary transition-colors"
-              aria-label={`Read full post: ${title}`}
-            >
-              {title}
-            </Link>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 pt-0 flex-grow">
-          <p className="line-clamp-2 text-sm text-muted-foreground">{displaySummary}</p>
-          <ActionButtons 
-            showActions={showActions}
-            handleLikeClick={handleLikeClick}
-            handleDislikeClick={handleDislikeClick}
-            handleBookmark={handleBookmark}
-            handleShare={handleShare}
-            isLiked={isLiked}
-            isDisliked={isDisliked}
-            isBookmarked={isBookmarked}
-            isFavorite={isFavorite}
-            likeCount={likeCount}
-            dislikeCount={dislikeCount}
-            userId={userId}
-            likesLoading={likesLoading}
-          />
-        </CardContent>
-        <CardFooter className="p-4 pt-0">
-          {renderCategoryBadge(category)}
-        </CardFooter>
-      </Card>
-    )
-  }
-
-  if (variant === "featured") {
-    return (
-      <Card className={cn("overflow-hidden border-0 shadow-none bg-transparent w-full max-w-full", fixedHeight && "h-[350px]", className)}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center w-full min-w-0">          
-          <Link to={`/Post/${_id}`} className="relative block overflow-hidden rounded-xl min-w-0">
-            {isFavorite && <FavoriteIndicator />}
-            <AspectRatio ratio={16/10} className="w-full">
-              <PostImage 
-                title={title}
-                src={postImageWithFallback}
-                className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
-                onError={onPostImageError}
-              />
-            </AspectRatio>
-          </Link>
-          <div className="flex flex-col min-w-0 w-full">
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              <Badge variant="outline" className="bg-primary-50 text-primary-700 border-primary-200">
-                Featured
-              </Badge>
-              {category?._id && category.name && renderCategoryBadge(category)}
-            </div>
-            <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-3">
-              <Link
-                to={`/Post/${_id}`}
-                className="hover:text-primary transition-colors line-clamp-2"
-                aria-label={`Read full post: ${title}`}
-              >
-                {title}
-              </Link>
-            </h2>
-            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground mb-3">
-              <time dateTime={formatISO9075(new Date(createdAt))}>
-                <CalendarIcon className="h-4 w-4 inline mr-1" />
-                {formatDate(createdAt)}
-              </time>
-              <span className="inline-flex items-center">
-                <User2 className="h-4 w-4 inline mr-1" />
-                {author.username}
-              </span>
-              <StatsDisplay 
-                showStats={showStats}
-                stats={stats}
-                likeCount={likeCount}
-                dislikeCount={dislikeCount}
-              />
-            </div>
-            <p className="text-muted-foreground mb-4 line-clamp-3">{displaySummary}</p>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <Link to={`/Post/${_id}`} className="text-primary font-medium hover:underline">
-                Read more →
-              </Link>
-              <ActionButtons 
-                showActions={showActions}
-                handleLikeClick={handleLikeClick}
-                handleDislikeClick={handleDislikeClick}
-                handleBookmark={handleBookmark}
-                handleShare={handleShare}
-                isLiked={isLiked}
-                isDisliked={isDisliked}
-                isBookmarked={isBookmarked}
-                isFavorite={isFavorite}
-                likeCount={likeCount}
-                dislikeCount={dislikeCount}
-                userId={userId}
-                likesLoading={likesLoading}
-              />
-            </div>
-          </div>
-        </div>
-      </Card>
-    )
-  }
-
+  // Enhanced text-only variant - now the default for all cards
   return (
-    <Card className={cn("overflow-hidden flex flex-col group relative w-full max-w-full", fixedHeight && "h-[450px]", className)}>
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10 pointer-events-none" />
+    <Card className={cn(
+      "group relative overflow-hidden transition-all duration-500 hover:shadow-2xl hover:-translate-y-1",
+      "bg-gradient-to-br from-card via-card/95 to-card/90",
+      "border border-border/50 hover:border-primary/20",
+      "backdrop-blur-sm w-full max-w-full",
+      fixedHeight && "h-[380px]",
+      className
+    )}>
+      {/* Animated background gradients */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+      <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-bl from-primary/8 to-transparent rounded-full blur-3xl opacity-60 group-hover:opacity-80 transition-opacity duration-500" />
+      <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-emerald-500/8 to-transparent rounded-full blur-2xl opacity-40 group-hover:opacity-60 transition-opacity duration-500" />
       
-      <Link to={`/Post/${_id}`} className="relative block overflow-hidden min-w-0">
-        {isFavorite && (
-          <div className="absolute top-2 right-2 z-20">
-            <span className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-white flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium shadow-lg backdrop-blur-sm">
-              <Star className="h-3 w-3 fill-current" />
-              Favori
-            </span>
-          </div>
-        )}
-        <div className="relative overflow-hidden">
-          <PostImage 
-            title={title}
-            alt={postImageAlt}
-            src={postImageWithFallback}
-            className="h-56 w-full object-cover transition-all duration-500 group-hover:scale-110 group-hover:brightness-110"
-            onError={onPostImageError}
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-        </div>
-      </Link>
-      <CardHeader className="p-4 pb-2">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-          <time dateTime={formatISO9075(new Date(createdAt))}>
-            <CalendarIcon className="h-3 w-3 inline mr-1" />
-            {formatDate(createdAt)}
-          </time>
-          <span className="inline-flex items-center">
-            <User2 className="h-3 w-3 inline mr-1" />
-            {author.username}
+      {/* Featured badge */}
+      {isFavorite && (
+        <div className="absolute top-4 right-4 z-20">
+          <span className="bg-gradient-to-r from-yellow-500 to-amber-500 text-white flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold shadow-lg backdrop-blur-sm animate-pulse">
+            <Star className="h-3.5 w-3.5 fill-current" />
+            Featured
           </span>
-          <StatsDisplay 
-            showStats={showStats}
-            stats={stats}
-            likeCount={likeCount}
-            dislikeCount={dislikeCount}
-          />
         </div>
-        <CardTitle className="text-xl">
-          <Link
-            to={`/Post/${_id}`}
-            className="hover:text-primary transition-colors"
+      )}
+
+      <CardHeader className="p-6 pb-4 relative z-10">
+        {/* Category and meta info */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="transform group-hover:scale-105 transition-transform duration-300">
+              {renderCategoryBadge(category)}
+            </div>
+            <div className="flex items-center gap-1 text-xs text-muted-foreground/80 font-medium">
+              <CalendarIcon className="h-3 w-3" />
+              <time dateTime={formatISO9075(new Date(createdAt))}>
+                {formatDate(createdAt)}
+              </time>
+            </div>
+          </div>
+          
+          {showStats && (
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1 hover:text-primary transition-colors">
+                <Eye className="h-3 w-3" />
+                {stats.views || 0}
+              </span>
+              <span className="flex items-center gap-1 hover:text-emerald-500 transition-colors">
+                <MessageCircle className="h-3 w-3" />
+                {stats.comments || 0}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Enhanced title with better typography */}
+        <CardTitle className="text-xl font-bold leading-tight mb-4 group-hover:text-primary transition-colors duration-300">
+          <Link 
+            to={`/Post/${_id}`} 
+            className="hover:text-primary transition-colors line-clamp-2 no-underline"
             aria-label={`Read full post: ${title}`}
           >
             {title}
           </Link>
         </CardTitle>
+
+        {/* Enhanced author section */}
+        <div className="flex items-center gap-3 mb-4">
+          <div className="relative">
+            <div className="w-10 h-10 bg-gradient-to-br from-primary/20 via-primary/10 to-emerald-500/10 rounded-full flex items-center justify-center ring-2 ring-primary/10 group-hover:ring-primary/20 transition-all duration-300">
+              <User2 className="h-4 w-4 text-primary" />
+            </div>
+            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-card opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{author.username}</span>
+            <span className="text-xs text-muted-foreground">Author</span>
+          </div>
+        </div>
       </CardHeader>
-      <CardContent className="p-4 pt-0 flex-grow">
-        <p className="line-clamp-3 text-muted-foreground mb-3">{displaySummary}</p>
-        <ActionButtons 
-          showActions={showActions}
-          handleLikeClick={handleLikeClick}
-          handleDislikeClick={handleDislikeClick}
-          handleBookmark={handleBookmark}
-          handleShare={handleShare}
-          isLiked={isLiked}
-          isDisliked={isDisliked}
-          isBookmarked={isBookmarked}
-          isFavorite={isFavorite}
-          likeCount={likeCount}
-          dislikeCount={dislikeCount}
-          userId={userId}
-          likesLoading={likesLoading}
-        />
-      </CardContent>
-      <CardFooter className="p-4 pt-0 flex justify-between items-center">
-        {renderCategoryBadge(category)}
-        <Link to={`/Post/${_id}`} className="text-primary text-sm font-medium hover:underline">
-          Read more →
+
+      <CardContent className="px-6 pb-4 relative z-10 flex-grow">
+        {/* Enhanced summary with better readability */}
+        <div className="relative mb-6">
+          <p className="text-muted-foreground leading-relaxed line-clamp-3 text-sm">
+            {displaySummary}
+          </p>
+          <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-card to-transparent opacity-50"></div>
+        </div>
+        
+        {/* Enhanced read more button */}
+        <Link 
+          to={`/Post/${_id}`} 
+          className="inline-flex items-center gap-2 text-primary font-semibold text-sm px-4 py-2 rounded-lg bg-primary/5 hover:bg-primary/10 transition-all duration-300 group/button border border-primary/20 hover:border-primary/30 no-underline"
+        >
+          <span>Continue reading</span>
+          <svg 
+            className="w-4 h-4 group-hover/button:translate-x-1 transition-transform duration-300" 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+          </svg>
         </Link>
+      </CardContent>
+
+      <CardFooter className="px-6 pb-6 pt-2 relative z-10">
+        <div className="flex items-center justify-between w-full">
+          {/* Enhanced stats section */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted/50 hover:bg-muted transition-colors">
+                <Eye className="h-3 w-3" />
+                <span className="font-medium">{stats.views || 0}</span>
+              </span>
+              {likeCount > 0 && (
+                <span className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors">
+                  <Heart className="h-3 w-3" />
+                  <span className="font-medium">{likeCount}</span>
+                </span>
+              )}
+            </div>
+          </div>
+          
+          {/* Enhanced action buttons */}
+          {showActions && (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLikeClick}
+                className={cn(
+                  "h-8 px-3 rounded-lg hover:bg-green-50 hover:text-green-600 transition-all duration-300", 
+                  isLiked && "text-green-600 bg-green-50 shadow-sm"
+                )}
+                title={userId ? "Like this post" : "Sign in to like"}
+                disabled={!userId || likesLoading}
+              >
+                <Heart className={cn("h-3.5 w-3.5", isLiked && "fill-current")} />
+                {likeCount > 0 && <span className="ml-1.5 text-xs font-medium">{likeCount}</span>}
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleBookmark}
+                className={cn(
+                  "h-8 px-3 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition-all duration-300", 
+                  (isBookmarked || isFavorite) && "text-blue-600 bg-blue-50 shadow-sm"
+                )}
+                title={getBookmarkTitle(userId, isFavorite)}
+                disabled={!userId}
+              >
+                {isFavorite ? (
+                  <Star className="h-3.5 w-3.5 fill-current" />
+                ) : (
+                  <BookmarkPlus className={cn("h-3.5 w-3.5", isBookmarked && "fill-current")} />
+                )}
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleShare}
+                className="h-8 px-3 rounded-lg hover:bg-purple-50 hover:text-purple-600 transition-all duration-300"
+                title="Share this post"
+              >
+                <Share2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
+        </div>
       </CardFooter>
     </Card>
   )
@@ -609,7 +475,6 @@ export {
   FavoriteIndicator,
   getBookmarkTitle,
   getCommentCount,
-  PostImage,
   ActionButtons,
   StatsDisplay
 }

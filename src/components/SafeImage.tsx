@@ -110,50 +110,35 @@ export function SafeImage({
     }
   }, [src, preload, priority, getOptimizedSrc]);
 
-  // Initialize image source with mobile optimizations
+  // Simple initialization with direct fallback on error
   useEffect(() => {
-    const initializeImage = async () => {
+    const initializeImage = () => {
+      console.log('🖼️ SafeImage - Simple initialization:', {
+        originalSrc: src,
+        fallbackSrc,
+        component: 'SafeImage'
+      });
+      
       setIsLoading(true);
       setHasError(false);
       setRetryAttempts(0);
 
       if (!src) {
-        setCurrentSrc(fallbackSrc || getFallbackImageUrl('primary'));
+        const fallbackUrl = fallbackSrc || getFallbackImageUrl('primary');
+        console.log('🖼️ No src provided, using fallback:', fallbackUrl);
+        setCurrentSrc(fallbackUrl);
         setIsLoading(false);
         return;
       }
 
-      // Optimize the source URL for mobile performance
+      // Use optimized source directly without complex validation
       const optimizedSrc = getOptimizedSrc(src);
-      const optimizedFallback = fallbackSrc ? getOptimizedSrc(fallbackSrc) : undefined;
-
-      // Try to find a valid image URL from multiple sources
-      const imageUrls = [
-        optimizedSrc,
-        optimizedFallback,
-        getFallbackImageUrl('primary'),
-        getFallbackImageUrl('secondary'),
-      ].filter(Boolean) as string[];
-
-      try {
-        const validUrl = await getValidImageUrl(imageUrls);
-        setCurrentSrc(validUrl);
-      } catch (error) {
-        setCurrentSrc(getFallbackImageUrl('error'));
-        setHasError(true);
-        
-        // Use global error handler for centralized error management
-        handleImageError(src || 'unknown', {
-          context: { component: 'SafeImage', action: 'initialize_image' },
-          showToUser: false // Don't show notification for image errors by default
-        });
-        
-        onError?.('Failed to load any image source');
-      }
+      console.log('🖼️ Using optimized source directly:', optimizedSrc);
+      setCurrentSrc(optimizedSrc);
     };
 
     initializeImage();
-  }, [src, fallbackSrc, onError, getOptimizedSrc]);
+  }, [src, fallbackSrc, getOptimizedSrc]);
 
   // Handle image load success
   const handleLoad = () => {
@@ -166,44 +151,46 @@ export function SafeImage({
     }
   };
 
-  // Handle image load error with retry logic
+  // Handle image load error with simple fallback
   const handleError = () => {
+    console.log('❌ Image failed to load, using fallback for:', currentSrc);
+    
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
 
-    if (retryAttempts < retryCount) {
-      // Retry with a delay
-      setTimeout(() => {
-        setRetryAttempts(prev => prev + 1);
-        if (imgRef.current) {
-          imgRef.current.src = currentSrc + '?retry=' + (retryAttempts + 1);
-        }
-      }, 1000 * (retryAttempts + 1)); // Exponential backoff
+    // Try fallback sources in order
+    const fallbacks = [
+      fallbackSrc ? getOptimizedSrc(fallbackSrc) : null,
+      getFallbackImageUrl('primary'),
+      getFallbackImageUrl('error')
+    ].filter(Boolean) as string[];
+
+    // Find the next fallback that hasn't been tried
+    const nextFallback = fallbacks.find(fallback => fallback !== currentSrc);
+    
+    if (nextFallback) {
+      console.log('🔄 Trying fallback:', nextFallback);
+      setCurrentSrc(nextFallback);
       return;
     }
 
-    // All retries failed, use fallback
+    // All fallbacks exhausted
+    console.log('⚠️ All fallbacks exhausted');
     setIsLoading(false);
     setHasError(true);
     
-    const fallbackUrl = fallbackSrc || getFallbackImageUrl('error');
-    if (currentSrc !== fallbackUrl) {
-      setCurrentSrc(fallbackUrl);
-      return;
-    }
-
-    // Use global error handler for retry failures
+    // Use global error handler
     handleImageError(currentSrc, {
       context: { 
         component: 'SafeImage', 
         action: 'image_load_failed',
-        userId: undefined // Could be populated if user context is available
+        userId: undefined
       },
-      showToUser: false // Don't show notification for image errors by default
+      showToUser: false
     });
 
-    onError?.(`Failed to load image after ${retryCount} retries`);
+    onError?.(`Failed to load image: ${currentSrc}`);
   };
 
   // Set up timeout for image loading
@@ -265,8 +252,8 @@ export function SafeImage({
     }
   };
 
-  // Show placeholder while loading
-  if (isLoading && !currentSrc) {
+  // Show placeholder only if no src at all
+  if (!currentSrc) {
     return renderPlaceholder();
   }
 

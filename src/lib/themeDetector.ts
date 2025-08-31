@@ -109,7 +109,7 @@ export const setThemeMode = (mode: ThemeMode): void => {
   }
 
   // Déclencher un événement personnalisé pour notifier le changement de thème
-  window.dispatchEvent(new CustomEvent('themechange', { detail: { theme: mode } }));
+  window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: mode } }));
 };
 
 /**

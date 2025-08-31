@@ -33,6 +33,31 @@ export function PostForm({
 }: PostFormProps) {
   const { state, actions } = usePostContext();
 
+  // Helper function to extract category ID from post data
+  const extractCategoryId = useCallback((categories: any): string => {
+    if (!categories) return '';
+    
+    // Handle array of categories
+    if (Array.isArray(categories) && categories.length > 0) {
+      const category = categories[0];
+      // Support both object with id/_id and string ID
+      if (typeof category === 'string') return category;
+      if (typeof category === 'object') {
+        return category.id || category._id || '';
+      }
+    }
+    
+    // Handle single category object
+    if (typeof categories === 'object' && !Array.isArray(categories)) {
+      return categories.id || categories._id || '';
+    }
+    
+    // Handle string ID
+    if (typeof categories === 'string') return categories;
+    
+    return '';
+  }, []);
+
   // Normalize cover image that may come as string or object { url, alt }
   const normalizeCover = (ci: any): string => {
     if (!ci) return '';
@@ -46,7 +71,7 @@ export function PostForm({
     summary: initialData?.summary || '',
     content: initialData?.content || '',
     coverImage: normalizeCover(initialData?.coverImage),
-    category: initialData?.categories?.[0]?.id || '', // Use single category
+    category: extractCategoryId(initialData?.categories), // Use helper function
     tags: initialData?.tags || [],
     status: initialData?.status || PostStatus.DRAFT,
     visibility: initialData?.visibility || PostVisibility.PUBLIC,
@@ -72,12 +97,19 @@ export function PostForm({
   
   useEffect(() => {
     if (initialData && initialData.id && !isInitialized) {
+      console.log('Initializing form with data:', {
+        id: initialData.id,
+        title: initialData.title,
+        categories: initialData.categories,
+        extractedCategoryId: extractCategoryId(initialData.categories)
+      });
+      
       const newFormData = {
         title: initialData.title || '',
         summary: initialData.summary || '',
         content: initialData.content || '',
         coverImage: normalizeCover(initialData.coverImage),
-        category: initialData.categories?.[0]?.id || '',
+        category: extractCategoryId(initialData.categories), // Use helper function
         tags: initialData.tags || [],
         status: initialData.status || PostStatus.DRAFT,
         visibility: initialData.visibility || PostVisibility.PUBLIC,
@@ -94,7 +126,7 @@ export function PostForm({
       setErrors({});
       setIsInitialized(true);
     }
-  }, [initialData?.id, isInitialized]);
+  }, [initialData?.id, isInitialized, extractCategoryId, normalizeCover]);
 
   // Auto-save for edit mode
   const {
@@ -221,11 +253,27 @@ export function PostForm({
       delete submitData.content;
     }
 
-    if (typeof submitData.coverImage === 'string') {
-      if (submitData.coverImage.trim().length > 0) {
-        submitData.coverImage = { url: submitData.coverImage, alt: '' };
-      } else {
-        delete submitData.coverImage;
+    // Process coverImage: convert string URL to object format expected by backend
+    if (submitData.coverImage) {
+      if (typeof submitData.coverImage === 'string') {
+        if (submitData.coverImage.trim().length > 0) {
+          submitData.coverImage = { 
+            url: submitData.coverImage.trim(), 
+            alt: titleResult.filteredContent || 'Cover image' // Use post title as default alt text
+          };
+        } else {
+          delete submitData.coverImage;
+        }
+      } else if (typeof submitData.coverImage === 'object') {
+        // Ensure object has proper structure
+        if (!submitData.coverImage.url || submitData.coverImage.url.trim().length === 0) {
+          delete submitData.coverImage;
+        } else {
+          submitData.coverImage = {
+            url: submitData.coverImage.url.trim(),
+            alt: submitData.coverImage.alt || titleResult.filteredContent || 'Cover image'
+          };
+        }
       }
     }
 
@@ -385,11 +433,10 @@ export function PostForm({
               <div className="border border-gray-300 dark:border-gray-600 rounded-md overflow-hidden">
                 <div className="p-3">
                   <TiptapBlockEditor
-                    key={`editor-${initialData?.id || 'new'}`} // Stable key to prevent re-mounting
                     value={contentBlocks}
-                    onChange={useCallback((blocks: ContentBlock[]) => {
+                    onChange={(blocks: ContentBlock[]) => {
                       setContentBlocks(blocks);
-                    }, [])}
+                    }}
                     placeholder="Write your post with formatting, images, and links..."
                   />
                 </div>

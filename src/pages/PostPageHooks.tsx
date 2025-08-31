@@ -73,7 +73,11 @@ export const useCommentManagement = (
       const responseData = await response.json()
 
       if (!response.ok) {
-        throw new Error(responseData.message || "Failed to post comment")
+        const errorMsg = responseData.message || "Failed to post comment"
+        // Import toast helper
+        const { showError } = await import('../lib/toast-helpers')
+        showError(errorMsg)
+        throw new Error(errorMsg)
       }
 
       await fetchComments()
@@ -166,7 +170,11 @@ export const useCommentManagement = (
       setTimeout(() => setSuccessMessage(null), 3000)
     } catch (error) {
       console.error("Error posting reply:", error)
-      setErrorMessage(error instanceof Error ? error.message : "Failed to post reply")
+      const errorMsg = error instanceof Error ? error.message : "Failed to post reply"
+      // Import toast helper
+      const { showError } = await import('../lib/toast-helpers')
+      showError(errorMsg)
+      setErrorMessage(errorMsg)
     } finally {
       setIsSubmittingComment(false)
     }

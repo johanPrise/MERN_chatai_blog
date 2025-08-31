@@ -1,5 +1,6 @@
 import { Post } from '../models/post.model.js';
 import { Category } from '../models/category.model.js';
+import { User } from '../models/user.model.js';
 import { isValidObjectId, generateSlug, extractExcerpt } from '../utils/index.js';
 import {
   CreatePostInput,
@@ -8,6 +9,7 @@ import {
   IPost,
   PostResponse,
 } from '../types/post.types.js';
+import { onPostPublished } from './notification-hooks.service.js';
 
 // Helper: convert block-based content to plain text for excerpt/search
 const blocksToPlainText = (blocks: any[] | undefined | null): string => {
@@ -163,14 +165,23 @@ export const getAllPosts = async (
 
     // Alias frontend: summary = excerpt
     (postObj as any).summary = postObj.excerpt ?? null;
+    
+    // Alias frontend: views = viewCount
+    (postObj as any).views = postObj.viewCount ?? 0;
 
-    // Normalize coverImage to string for frontend compatibility
-    if (postObj && (postObj as any).coverImage && typeof (postObj as any).coverImage === 'object') {
-      const ci: any = (postObj as any).coverImage;
-      if (ci && typeof ci.url === 'string') {
-        (postObj as any).coverImage = ci.url;
-        // Optionally expose original object for new UI if needed
-        (postObj as any).coverImageObj = ci;
+    // Keep coverImage as object structure for consistent frontend handling
+    if (postObj && (postObj as any).coverImage) {
+      // Ensure coverImage is always an object with url and alt
+      if (typeof (postObj as any).coverImage === 'string') {
+        // Handle legacy string data by converting to object
+        (postObj as any).coverImage = {
+          url: (postObj as any).coverImage,
+          alt: ''
+        };
+      }
+      // Ensure object has required properties
+      if (typeof (postObj as any).coverImage === 'object' && !(postObj as any).coverImage.alt) {
+        (postObj as any).coverImage.alt = '';
       }
     }
 
@@ -236,9 +247,19 @@ export const getPostByIdOrSlug = async (
 
   // Incrémenter le compteur de vues
   // Ne pas incrémenter si c'est l'auteur qui consulte son propre article
-  if (currentUserId !== post.author._id.toString()) {
+  console.log('[getPostByIdOrSlug] View count logic:', {
+    currentUserId,
+    authorId: post.author._id.toString(),
+    isAuthor: currentUserId === post.author._id.toString(),
+    currentViewCount: post.viewCount
+  });
+  
+  if (!currentUserId || currentUserId !== post.author._id.toString()) {
     post.viewCount += 1;
     await post.save();
+    console.log('[getPostByIdOrSlug] View count incremented to:', post.viewCount);
+  } else {
+    console.log('[getPostByIdOrSlug] View count not incremented (author viewing own post)');
   }
 
   // Convertir en objet pour pouvoir ajouter des propriétés
@@ -265,13 +286,23 @@ export const getPostByIdOrSlug = async (
 
   // Alias frontend: summary = excerpt
   (postObj as any).summary = postObj.excerpt ?? null;
+  
+  // Alias frontend: views = viewCount
+  (postObj as any).views = postObj.viewCount ?? 0;
 
-  // Normalize coverImage to string for frontend compatibility
-  if (postObj && (postObj as any).coverImage && typeof (postObj as any).coverImage === 'object') {
-    const ci: any = (postObj as any).coverImage;
-    if (ci && typeof ci.url === 'string') {
-      (postObj as any).coverImage = ci.url;
-      (postObj as any).coverImageObj = ci;
+  // Keep coverImage as object structure for consistent frontend handling
+  if (postObj && (postObj as any).coverImage) {
+    // Ensure coverImage is always an object with url and alt
+    if (typeof (postObj as any).coverImage === 'string') {
+      // Handle legacy string data by converting to object
+      (postObj as any).coverImage = {
+        url: (postObj as any).coverImage,
+        alt: ''
+      };
+    }
+    // Ensure object has required properties
+    if (typeof (postObj as any).coverImage === 'object' && !(postObj as any).coverImage.alt) {
+      (postObj as any).coverImage.alt = '';
     }
   }
 
@@ -352,6 +383,31 @@ export const createPost = async (postData: CreatePostInput, authorId: string) =>
   // Sauvegarder l'article
   await newPost.save();
 
+  // Créer une notification pour tout nouveau post (brouillon ou publié)
+  try {
+    const author = await User.findById(authorId).select('username');
+    if (author) {
+      const { createNotification } = await import('./notification.service.js');
+      await createNotification({
+        type: newPost.status === PostStatus.PUBLISHED ? 'post_published' : 'user_activity',
+        title: newPost.status === PostStatus.PUBLISHED ? 'Nouveau post publié' : 'Nouveau post créé',
+        message: newPost.status === PostStatus.PUBLISHED 
+          ? `${author.username} a publié un nouveau post: "${newPost.title}".`
+          : `${author.username} a créé un nouveau brouillon: "${newPost.title}".`,
+        priority: newPost.status === PostStatus.PUBLISHED ? 'low' : 'medium',
+        actionUrl: `/admin/posts/${newPost._id}`,
+        metadata: {
+          postId: String(newPost._id),
+          postTitle: newPost.title,
+          username: author.username,
+          status: newPost.status
+        },
+      });
+    }
+  } catch (error) {
+    console.error('Failed to create post notification:', error);
+  }
+
   // Retourner l'article complet peuplé pour inclure contentBlocks et autres champs
   const populated = await Post.findById(newPost._id)
     .populate('author', '_id username profilePicture')
@@ -383,13 +439,23 @@ export const createPost = async (postData: CreatePostInput, authorId: string) =>
 
   // Alias frontend: summary = excerpt
   (postObj as any).summary = postObj.excerpt ?? null;
+  
+  // Alias frontend: views = viewCount
+  (postObj as any).views = postObj.viewCount ?? 0;
 
-  // Normalize coverImage to string for frontend compatibility
-  if (postObj && (postObj as any).coverImage && typeof (postObj as any).coverImage === 'object') {
-    const ci: any = (postObj as any).coverImage;
-    if (ci && typeof ci.url === 'string') {
-      (postObj as any).coverImage = ci.url;
-      (postObj as any).coverImageObj = ci;
+  // Keep coverImage as object structure for consistent frontend handling
+  if (postObj && (postObj as any).coverImage) {
+    // Ensure coverImage is always an object with url and alt
+    if (typeof (postObj as any).coverImage === 'string') {
+      // Handle legacy string data by converting to object
+      (postObj as any).coverImage = {
+        url: (postObj as any).coverImage,
+        alt: ''
+      };
+    }
+    // Ensure object has required properties
+    if (typeof (postObj as any).coverImage === 'object' && !(postObj as any).coverImage.alt) {
+      (postObj as any).coverImage.alt = '';
     }
   }
 
@@ -578,6 +644,8 @@ export const updatePost = async (
     status: updatedPost.status,
   });
 
+
+
   // Retourner l'article complet peuplé pour inclure contentBlocks et autres champs
   const populated = await Post.findById(updatedPost._id)
     .populate('author', '_id username profilePicture role')
@@ -618,13 +686,23 @@ export const updatePost = async (
 
   // Alias frontend: summary = excerpt
   (postObj as any).summary = postObj.excerpt ?? null;
+  
+  // Alias frontend: views = viewCount
+  (postObj as any).views = postObj.viewCount ?? 0;
 
-  // Normalize coverImage to string for frontend compatibility
-  if (postObj && (postObj as any).coverImage && typeof (postObj as any).coverImage === 'object') {
-    const ci: any = (postObj as any).coverImage;
-    if (ci && typeof ci.url === 'string') {
-      (postObj as any).coverImage = ci.url;
-      (postObj as any).coverImageObj = ci;
+  // Keep coverImage as object structure for consistent frontend handling
+  if (postObj && (postObj as any).coverImage) {
+    // Ensure coverImage is always an object with url and alt
+    if (typeof (postObj as any).coverImage === 'string') {
+      // Handle legacy string data by converting to object
+      (postObj as any).coverImage = {
+        url: (postObj as any).coverImage,
+        alt: ''
+      };
+    }
+    // Ensure object has required properties
+    if (typeof (postObj as any).coverImage === 'object' && !(postObj as any).coverImage.alt) {
+      (postObj as any).coverImage.alt = '';
     }
   }
 

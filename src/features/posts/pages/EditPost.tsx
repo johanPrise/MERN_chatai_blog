@@ -1,6 +1,6 @@
 /**
  * Enhanced Edit Post Page
- * Uses the new post management system with safe navigation
+ * Uses the new post management system with smart navigation and global state sync
  */
 
 import React, { useEffect, useState } from 'react';
@@ -9,30 +9,37 @@ import { StablePostForm } from '../components/PostForm/StablePostForm';
 import { PostProvider, usePostContext } from '../context/PostContext';
 import { UpdatePostInput, CreatePostInput } from '../types/post.types';
 import { useNavigation } from '../hooks/useNavigation';
-import { toast } from 'sonner';
+import { enhancedNavigationService } from '../../../services/enhancedNavigationService';
+import { showError, showSuccess, showInfo } from '../../../lib/toast-helpers';
 import { Loader2, AlertCircle } from 'lucide-react';
 
 function EditPostContent() {
   const { id } = useParams<{ id: string }>();
-  const { navigateToPost, navigateToHome, validatePostId } = useNavigation();
+  const { navigateToPost, navigateToHome, validatePostId, navigate } = useNavigation();
   const { state, actions } = usePostContext();
   const { fetchPost } = actions;
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+  // Initialize enhanced navigation service
+  useEffect(() => {
+    enhancedNavigationService.initialize(navigate);
+  }, [navigate]);
 
   // Load post data on mount
   useEffect(() => {
     const loadPost = async () => {
       if (!id || !validatePostId(id)) {
-        toast.error('Post ID is required');
+        showError('ID de l\'article requis');
         navigateToHome();
         return;
       }
 
       try {
-        await fetchPost(id);
+        // Force fresh data with cache busting
+        await fetchPost(`${id}?_t=${Date.now()}`);
       } catch (error) {
         console.error('Failed to load post:', error);
-        toast.error('Failed to load post data');
+        showError('Échec du chargement des données de l\'article');
       } finally {
         setIsInitialLoading(false);
       }
@@ -41,7 +48,7 @@ function EditPostContent() {
     loadPost();
   }, [id, fetchPost, navigateToHome, validatePostId]);
 
-  // Handle form submission
+  // Handle form submission with enhanced navigation
   const handleSubmit = async (data: UpdatePostInput | CreatePostInput) => {
     if (!id) return;
 
@@ -57,20 +64,38 @@ function EditPostContent() {
       if (result && result.id) {
         // Validate the post ID before navigation
         if (validatePostId(result.id)) {
-          toast.success('Post updated successfully!');
-          navigateToPost(result.id, { fallbackRoute: '/' });
+          showSuccess('Article mis à jour avec succès!');
+          
+          // Use enhanced navigation service for smart state synchronization
+          const navigationSuccess = enhancedNavigationService.handlePostUpdateNavigation(
+            result.id, 
+            result, 
+            { source: 'edit' }
+          );
+          
+          if (!navigationSuccess) {
+            // Fallback to home if navigation fails
+            showInfo('Article mis à jour mais échec de la navigation. Redirection vers l\'accueil...');
+            enhancedNavigationService.navigateToHome({ 
+              replaceState: true,
+              refreshPostList: true 
+            });
+          }
         } else {
           console.error('Invalid post ID returned from API:', result.id);
-          toast.success('Post updated successfully!');
-          navigateToHome({ replace: true });
+          showSuccess('Article mis à jour avec succès!');
+          enhancedNavigationService.navigateToHome({ 
+            replaceState: true,
+            refreshPostList: true 
+          });
         }
       } else {
-        toast.error('Failed to update post. Please try again.');
+        showError('Échec de la mise à jour de l\'article. Veuillez réessayer.');
         console.error('Post update failed - no result or ID:', result);
       }
     } catch (error) {
       console.error('Update post error:', error);
-      toast.error('An unexpected error occurred.');
+      showError('Une erreur inattendue s\'est produite.');
     }
   };
 

@@ -183,7 +183,7 @@ export function ContentFilterAdmin({ className = '' }: ContentFilterAdminProps) 
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label htmlFor="enable-filtering" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Enable Content Filtering
               </label>
               <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -191,6 +191,7 @@ export function ContentFilterAdmin({ className = '' }: ContentFilterAdminProps) 
               </p>
             </div>
             <button
+              id="enable-filtering"
               onClick={() => handleConfigUpdate('enabled', !config.enabled)}
               className={cn(
                 'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
@@ -208,7 +209,7 @@ export function ContentFilterAdmin({ className = '' }: ContentFilterAdminProps) 
 
           <div className="flex items-center justify-between">
             <div>
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label htmlFor="strict-mode" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Strict Mode
               </label>
               <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -216,6 +217,7 @@ export function ContentFilterAdmin({ className = '' }: ContentFilterAdminProps) 
               </p>
             </div>
             <button
+              id="strict-mode"
               onClick={() => handleConfigUpdate('strictMode', !config.strictMode)}
               className={cn(
                 'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
@@ -240,10 +242,11 @@ export function ContentFilterAdmin({ className = '' }: ContentFilterAdminProps) 
 
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label htmlFor="test-content" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Test Content
             </label>
             <textarea
+              id="test-content"
               value={testContent}
               onChange={e => setTestContent(e.target.value)}
               placeholder="Enter content to test filtering..."
@@ -320,18 +323,22 @@ export function ContentFilterAdmin({ className = '' }: ContentFilterAdminProps) 
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
+                id="search-words"
                 type="text"
                 placeholder="Search words..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                aria-label="Search words"
               />
             </div>
 
             <select
+              id="category-filter"
               value={selectedCategory}
               onChange={e => setSelectedCategory(e.target.value)}
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              aria-label="Filter by category"
             >
               <option value="all">All Categories</option>
               {config.categories.map(category => (
@@ -342,9 +349,11 @@ export function ContentFilterAdmin({ className = '' }: ContentFilterAdminProps) 
             </select>
 
             <select
+              id="severity-filter"
               value={selectedSeverity}
               onChange={e => setSelectedSeverity(e.target.value)}
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              aria-label="Filter by severity"
             >
               <option value="all">All Severities</option>
               <option value="mild">Mild</option>
@@ -372,10 +381,11 @@ export function ContentFilterAdmin({ className = '' }: ContentFilterAdminProps) 
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="word-input" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Word
               </label>
               <input
+                id="word-input"
                 type="text"
                 value={wordForm.word}
                 onChange={e => setWordForm(prev => ({ ...prev, word: e.target.value }))}
@@ -385,10 +395,11 @@ export function ContentFilterAdmin({ className = '' }: ContentFilterAdminProps) 
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="replacement-input" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Replacement
               </label>
               <input
+                id="replacement-input"
                 type="text"
                 value={wordForm.replacement}
                 onChange={e => setWordForm(prev => ({ ...prev, replacement: e.target.value }))}
@@ -398,10 +409,11 @@ export function ContentFilterAdmin({ className = '' }: ContentFilterAdminProps) 
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="category-input" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Category
               </label>
               <select
+                id="category-input"
                 value={wordForm.category}
                 onChange={e => setWordForm(prev => ({ ...prev, category: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
@@ -415,10 +427,11 @@ export function ContentFilterAdmin({ className = '' }: ContentFilterAdminProps) 
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="severity-input" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Severity
               </label>
               <select
+                id="severity-input"
                 value={wordForm.severity}
                 onChange={e => setWordForm(prev => ({ ...prev, severity: e.target.value as any }))}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"

@@ -7,6 +7,7 @@ import { UserContext } from "../UserContext"
 import { AlertCircle, CheckCircle, ArrowLeft, Trash2 } from "lucide-react"
 import { CategoryFormData } from "../types/CategoryFormData"
 import { API_ENDPOINTS } from "../config/api.config"
+import { showError, showSuccess } from "../lib/toast-helpers"
 
 // Description will use a simple textarea to remove legacy editor dependency
 
@@ -109,6 +110,7 @@ const CreateCategory: React.FC = () => {
       // Success
       setStatus("success")
       setSuccessMessage("Category created successfully!")
+      showSuccess("Catégorie créée avec succès!")
 
       // Reset form
       setFormData({
@@ -122,8 +124,10 @@ const CreateCategory: React.FC = () => {
       }, 2000)
     } catch (error) {
       console.error("Error creating category:", error)
+      const errorMsg = error instanceof Error ? error.message : "An error occurred while creating the category"
       setStatus("error")
-      setErrorMessage(error instanceof Error ? error.message : "An error occurred while creating the category")
+      setErrorMessage(errorMsg)
+      showError(errorMsg, "Erreur de création")
     } finally {
       setIsLoading(false)
     }

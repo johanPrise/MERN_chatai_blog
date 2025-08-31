@@ -1,6 +1,6 @@
 /**
  * Drafts Page
- * Displays all draft posts for the current user with access control
+ * Enhanced with global state synchronization for real-time updates
  */
 
 import React, { useEffect, useState } from 'react';
@@ -11,6 +11,9 @@ import { PostStatus } from '../types/post.types';
 import { UserContext } from '../../../UserContext';
 import { cn } from '../../../lib/utils';
 import { Plus, RefreshCw, FileText, Edit3 } from 'lucide-react';
+import { useGlobalStateEvents, globalStateManager } from '../../../services/globalStateManager';
+import { enhancedNavigationService } from '../../../services/enhancedNavigationService';
+import { toast } from 'sonner';
 
 interface DraftsProps {
   className?: string;
@@ -26,14 +29,7 @@ function DraftsContent({ className = '' }: DraftsProps) {
   // Check access control - only admins and authors can access drafts
   const hasAccess = userInfo && (userInfo.role === 'admin' || userInfo.role === 'author');
 
-  // Load draft posts on mount
-  useEffect(() => {
-    if (hasAccess) {
-      loadDrafts();
-    }
-  }, [currentPage, hasAccess]);
-
-  const loadDrafts = async () => {
+  const loadDrafts = React.useCallback(async (page = currentPage) => {
     setIsLoading(true);
     try {
       // Set filters to only show draft posts
@@ -41,11 +37,54 @@ function DraftsContent({ className = '' }: DraftsProps) {
         status: PostStatus.DRAFT
       };
       
-      await actions.fetchPosts(draftFilters, currentPage);
+      await actions.fetchPosts(draftFilters, page);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [actions]);
+
+  // Load draft posts on mount
+  useEffect(() => {
+    if (hasAccess) {
+      loadDrafts(currentPage);
+    }
+  }, [hasAccess, currentPage]);
+
+  // Subscribe to global state changes for real-time draft updates
+  useGlobalStateEvents([
+    {
+      type: 'POST_UPDATED',
+      handler: React.useCallback(({ postId, postData, source }) => {
+        console.log('[Drafts] Received post update:', { postId, source, hasData: !!postData });
+        
+        // If a draft was published (status changed from draft to published)
+        if (source === 'publish' && postData.status !== PostStatus.DRAFT) {
+          // Refresh drafts list to remove the published post
+          loadDrafts();
+        }
+      }, [loadDrafts])
+    },
+    {
+      type: 'POST_DELETED',
+      handler: React.useCallback(({ postId, source }) => {
+        console.log('[Drafts] Received post deletion:', { postId, source });
+        
+        if (source === 'draft-delete') {
+          // Refresh drafts list
+          loadDrafts();
+        }
+      }, [loadDrafts])
+    },
+    {
+      type: 'DRAFT_UPDATED',
+      handler: React.useCallback(({ postId, postData }) => {
+        console.log('[Drafts] Received draft update:', { postId, hasData: !!postData });
+        
+        // Refresh drafts to show updated content
+        loadDrafts();
+      }, [loadDrafts])
+    }
+  ], [loadDrafts, hasAccess])
 
   // Handle refresh
   const handleRefresh = () => {
@@ -57,22 +96,55 @@ function DraftsContent({ className = '' }: DraftsProps) {
     setCurrentPage(page);
   };
 
-  // Handle publish draft
-  const handlePublish = async (postId: string) => {
-    if (publishingId) return; // Prevent multiple simultaneous publishes
-    
-    setPublishingId(postId);
-    try {
-      const result = await actions.publishPost(postId);
-      
-      if (result) {
-        // Refresh the drafts list to remove the published post
-        loadDrafts();
+  // Enhanced delete function with global state synchronization
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this draft? This action cannot be undone.')) {
+      try {
+        const success = await actions.deletePost(id, true); // Soft delete
+        if (success) {
+          toast.success('Draft deleted successfully');
+          
+          // Global state manager will automatically handle notifications
+          // Local state will be updated via PostContext
+          
+          // Refresh local drafts list to ensure consistency
+          await loadDrafts();
+        } else {
+          toast.error('Failed to delete draft. Please try again.');
+        }
+      } catch (error) {
+        console.error('Delete draft error:', error);
+        toast.error('An unexpected error occurred.');
       }
-    } catch (error) {
-      console.error('Failed to publish post:', error);
-    } finally {
-      setPublishingId(null);
+    }
+  };
+
+  // Enhanced publish function with global state synchronization
+  const handlePublish = async (id: string) => {
+    if (window.confirm('Are you sure you want to publish this draft? It will be visible to all users.')) {
+      if (publishingId) return; // Prevent multiple simultaneous publishes
+      
+      setPublishingId(id);
+      try {
+        const result = await actions.publishPost(id);
+        
+        if (result) {
+          toast.success('Draft published successfully!');
+          
+          // Global state manager will handle the publication notification
+          // This will update Home page and other components automatically
+          
+          // Refresh the drafts list to remove the published post
+          await loadDrafts();
+        } else {
+          toast.error('Failed to publish draft. Please try again.');
+        }
+      } catch (error) {
+        console.error('Publish draft error:', error);
+        toast.error('An unexpected error occurred while publishing.');
+      } finally {
+        setPublishingId(null);
+      }
     }
   };
 
@@ -227,22 +299,10 @@ function DraftsContent({ className = '' }: DraftsProps) {
                   linkBase="/posts/edit"
                   linkLabel="Edit Post"
                   onEdit={(id) => {
-                    window.location.href = `/posts/edit/${id}`;
+                    enhancedNavigationService.navigateToEditPost(id);
                   }}
-                  onDelete={async (id) => {
-                    if (window.confirm('Are you sure you want to delete this draft? This action cannot be undone.')) {
-                      const success = await actions.deletePost(id, true); // Soft delete
-                      if (success) {
-                        // Refresh the drafts list
-                        loadDrafts();
-                      }
-                    }
-                  }}
-                  onPublish={async (id) => {
-                    if (window.confirm('Are you sure you want to publish this draft? It will be visible to all users.')) {
-                      await handlePublish(id);
-                    }
-                  }}
+                  onDelete={handleDelete}
+                  onPublish={handlePublish}
                   showActions={true}
                   isPublishing={publishingId === post.id}
                   className="pt-8" // Add padding top to accommodate the draft badge

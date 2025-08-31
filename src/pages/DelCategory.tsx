@@ -7,10 +7,13 @@ import { CategoryProps } from "../types/CategoryProps"
 import { Trash2, AlertCircle, Search, X, ArrowLeft, Loader2 } from "lucide-react"
 import { FetchStatus } from "../types/FetchStatus"
 import { API_ENDPOINTS } from "../config/api.config"
+import { showError, showSuccess } from "../lib/toast-helpers"
+import { UserContext } from "../UserContext"
 
 // Component states
 
 const DeleteCategories: React.FC = () => {
+  const { userInfo } = UserContext()
 
   // State for categories and selection
   const [categories, setCategories] = useState<CategoryProps[]>([])
@@ -18,7 +21,6 @@ const DeleteCategories: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>("")
 
   // State for UI
-  const [isAuthorOrAdmin, setIsAuthorOrAdmin] = useState<boolean>(false)
   const [isDeleting, setIsDeleting] = useState<boolean>(false)
   const [showConfirmation, setShowConfirmation] = useState<boolean>(false)
   const [fetchStatus, setFetchStatus] = useState<FetchStatus>("idle")
@@ -28,32 +30,9 @@ const DeleteCategories: React.FC = () => {
     failed: string[];
   }>({ success: [], failed: [] })
 
-  // Check if user has author or admin privileges
-  useEffect(() => {
-    const checkAuthorAdminStatus = async () => {
-      setFetchStatus("loading")
-      try {
-        const response = await fetch(API_ENDPOINTS.users.profile, {
-          credentials: "include",
-        })
+  const isAuthorOrAdmin = userInfo?.role === 'admin' || userInfo?.role === 'author' || userInfo?.role === 'editor'
 
-        if (!response.ok) {
-          throw new Error("Failed to verify permissions")
-        }
 
-        const data = await response.json()
-        setIsAuthorOrAdmin(data.isAuthorOrAdmin)
-        setFetchStatus("success")
-      } catch (error) {
-        console.error("Error checking author/admin status:", error)
-        setIsAuthorOrAdmin(false)
-        setErrorMessage("Failed to verify your permissions")
-        setFetchStatus("error")
-      }
-    }
-
-    checkAuthorAdminStatus()
-  }, [])
 
   // Fetch categories
   useEffect(() => {
@@ -160,6 +139,14 @@ const DeleteCategories: React.FC = () => {
         failed: failedIds
       })
 
+      // Show toast notifications
+      if (successIds.length > 0) {
+        showSuccess(`${successIds.length} catégorie(s) supprimée(s) avec succès`)
+      }
+      if (failedIds.length > 0) {
+        showError(`Échec de la suppression de ${failedIds.length} catégorie(s)`, "Erreur de suppression")
+      }
+
       // Remove successfully deleted categories from the list
       if (successIds.length > 0) {
         setCategories(prevCategories =>
@@ -178,14 +165,16 @@ const DeleteCategories: React.FC = () => {
       }
     } catch (error) {
       console.error("Error during category deletion:", error)
-      setErrorMessage("Failed to delete categories")
+      const errorMsg = "Failed to delete categories"
+      setErrorMessage(errorMsg)
+      showError(errorMsg, "Erreur de suppression")
     } finally {
       setIsDeleting(false)
     }
   }
 
   // Access denied view
-  if (!isAuthorOrAdmin) {
+  if (!userInfo || !isAuthorOrAdmin) {
     return (
       <div className="mx-auto max-w-screen-xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-lg">
@@ -199,12 +188,25 @@ const DeleteCategories: React.FC = () => {
   }
 
   // Loading state
-  if (fetchStatus === "loading" && categories.length === 0) {
+  if (fetchStatus === "loading") {
     return (
       <div className="mx-auto max-w-screen-xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-lg text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto text-lime-600" />
-          <p className="mt-4 text-gray-500">Loading categories...</p>
+          <p className="mt-4 text-gray-500">Vérification des permissions...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Error state
+  if (fetchStatus === "error" && errorMessage) {
+    return (
+      <div className="mx-auto max-w-screen-xl px-4 py-16 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-lg text-center">
+          <AlertCircle className="h-8 w-8 mx-auto text-red-600 mb-4" />
+          <h1 className="text-2xl font-bold text-red-600 mb-2">Erreur</h1>
+          <p className="text-gray-500">{errorMessage}</p>
         </div>
       </div>
     )

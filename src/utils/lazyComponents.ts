@@ -91,10 +91,11 @@ export const Components = {
     undefined
   ),
 
-  ErrorHandlingDemo: createLazyComponent(
-    () => import('../components/ErrorHandlingDemo'),
-    undefined
-  ),
+  // ErrorHandlingDemo removed as it was unused
+  // ErrorHandlingDemo: createLazyComponent(
+  //   () => import('../components/ErrorHandlingDemo'),
+  //   undefined
+  // ),
 };
 
 // Preload critical components for mobile

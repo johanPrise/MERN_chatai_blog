@@ -41,7 +41,7 @@ export function usePosts(options: UsePostsOptions = {}) {
     initialFilters = {},
     pageSize = 12,
     autoFetch = true,
-    enableCache = true
+    enableCache = false
   } = options
 
   const [state, setState] = useState<PostsState>({
@@ -58,8 +58,8 @@ export function usePosts(options: UsePostsOptions = {}) {
   const [filters, setFilters] = useState<PostFilters>(initialFilters)
   const [cache, setCache] = useState<Map<string, { data: PostType[], timestamp: number }>>(new Map())
 
-  // Cache duration: 5 minutes
-  const CACHE_DURATION = 5 * 60 * 1000
+  // Cache duration: 30 seconds (reduced for better UX)
+  const CACHE_DURATION = 30 * 1000
 
   // Generate cache key from filters and page
   const getCacheKey = useCallback((filters: PostFilters, page: number) => {
@@ -79,8 +79,8 @@ export function usePosts(options: UsePostsOptions = {}) {
   ) => {
     const cacheKey = getCacheKey(currentFilters, page)
     
-    // Check cache first
-    if (useCache && cache.has(cacheKey)) {
+    // Check cache first (only if explicitly enabled)
+    if (useCache && enableCache && cache.has(cacheKey)) {
       const cached = cache.get(cacheKey)!
       if (isCacheValid(cached.timestamp)) {
         setState(prev => ({
@@ -205,10 +205,25 @@ export function usePosts(options: UsePostsOptions = {}) {
     fetchPosts(filters, state.currentPage, false) // Skip cache
   }, [filters, state.currentPage, fetchPosts])
 
+  // Force refresh - clears cache and refetches
+  const forceRefresh = useCallback(() => {
+    console.log('[usePosts] Force refresh triggered - clearing cache and refetching')
+    setCache(new Map()) // Clear cache first
+    return fetchPosts(filters, state.currentPage, false) // Then fetch without cache
+  }, [filters, state.currentPage, fetchPosts])
+
   // Clear cache
   const clearCache = useCallback(() => {
     setCache(new Map())
   }, [])
+
+  // Invalidate cache for specific operations
+  const invalidateCache = useCallback(() => {
+    console.log('[usePosts] Cache invalidated - clearing all cached data')
+    setCache(new Map())
+    // Force immediate refresh after cache invalidation
+    return fetchPosts(filters, state.currentPage, false)
+  }, [filters, state.currentPage, fetchPosts])
 
   // Auto-fetch on mount
   useEffect(() => {
@@ -249,7 +264,9 @@ export function usePosts(options: UsePostsOptions = {}) {
     nextPage,
     prevPage,
     refresh,
+    forceRefresh,
     clearCache,
+    invalidateCache,
     
     // Utils
     setFilters

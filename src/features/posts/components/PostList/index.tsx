@@ -165,7 +165,7 @@ export function PostList({
               layout={layout}
               onEdit={(id) => {
                 // Handle edit - could navigate to edit page or open modal
-                window.location.href = `/posts/${id}/edit`;
+                window.location.href = `/posts/edit/${id}`;
               }}
               onDelete={async (id) => {
                 if (window.confirm('Are you sure you want to delete this post?')) {

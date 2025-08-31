@@ -8,7 +8,8 @@ import { contentRoutes } from './content.routes.js';
 import { uploadRoutes } from './upload.routes.js';
 import { aiRoutes } from './ai.routes.js';
 import { healthRoutes } from './health.routes.js';
-import settingsRoutes from './settings.routes.js';
+import { notificationRoutes } from './notification.routes.js';
+
 
 /**
  * Enregistre toutes les routes de l'application
@@ -45,6 +46,7 @@ export function registerRoutes(server: FastifyInstance): void {
   // Enregistrer les routes de santé
   server.register(healthRoutes, { prefix: `${API_PREFIX}/health` });
 
-  // Enregistrer les routes des paramètres
-  server.register(settingsRoutes, { prefix: `${API_PREFIX}/settings` });
+  // Enregistrer les routes des notifications admin
+  server.register(notificationRoutes, { prefix: `${API_PREFIX}/admin/notifications` });
+
 }

@@ -136,7 +136,6 @@ const TiptapRenderer: React.FC<TiptapRendererProps> = ({ doc, className = '' }) 
             alt={alt}
             title={title}
             className="max-w-full h-auto rounded-lg my-4"
-            loading="lazy"
           />
         )
       }
