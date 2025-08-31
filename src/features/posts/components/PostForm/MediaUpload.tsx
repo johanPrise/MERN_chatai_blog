@@ -13,6 +13,7 @@ import { Upload, X, Image, AlertCircle, CheckCircle, Check, Eye, Edit, Link } fr
 import { getImageUrl } from '../../../../config/api.config';
 import SafeImage from '../../../../components/SafeImage';
 import { ExternalImageInput } from './ExternalImageInput';
+import { showError } from '../../../../lib/toast-helpers';
 
 // Helper function to extract URL from various response formats
 const getUrlFromResponse = (response: UploadResponse): string | null => {
@@ -95,6 +96,7 @@ interface MediaUploadProps {
   maxSize?: number; // in bytes
   className?: string;
   isCoverImage?: boolean; // Indique si c'est une image de couverture
+  hasError?: boolean; // Indique s'il y a une erreur de validation
 }
 
 export function MediaUpload({
@@ -104,6 +106,7 @@ export function MediaUpload({
   maxSize = 5 * 1024 * 1024, // 5MB default
   className = '',
   isCoverImage = false,
+  hasError = false,
 }: MediaUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -133,6 +136,13 @@ export function MediaUpload({
       setSelectedFile(null);
     }
   }, [value, selectedFile]);
+
+  // Show toast when validation error occurs
+  useEffect(() => {
+    if (hasError && isCoverImage && (!value || !value.trim())) {
+      showError('Veuillez ajouter une image de couverture avant de publier l\'article', 'Image de couverture requise');
+    }
+  }, [hasError, isCoverImage, value]);
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -374,6 +384,8 @@ export function MediaUpload({
             'border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-300 w-full',
             isDragging
               ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20 scale-105'
+              : hasError
+              ? 'border-red-300 dark:border-red-600 hover:border-red-400 dark:hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
               : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-gray-50 dark:hover:bg-gray-800/50',
             'flex flex-col items-center justify-center gap-4 min-h-[250px]'
           )}

@@ -15,6 +15,7 @@ import { cn } from '../../../../lib/utils';
 import { useSimpleContentFilter } from '../../../../hooks/useContentFilter';
 import { Save, Eye, Globe, AlertTriangle } from 'lucide-react';
 import TiptapBlockEditor from '../BlockEditor/TiptapBlockEditor';
+import { showError } from '../../../../lib/toast-helpers';
 
 interface PostFormProps {
   mode: 'create' | 'edit';
@@ -195,28 +196,33 @@ export function PostForm({
     const newErrors: Record<string, string> = {};
 
     if (!formData.title.trim()) {
-      newErrors.title = 'Title is required';
+      newErrors.title = 'Le titre est requis';
     } else if (formData.title.length < 3) {
-      newErrors.title = 'Title must be at least 3 characters';
+      newErrors.title = 'Le titre doit contenir au moins 3 caractères';
     } else if (formData.title.length > 200) {
-      newErrors.title = 'Title must be less than 200 characters';
+      newErrors.title = 'Le titre doit contenir moins de 200 caractères';
     }
 
     if (!formData.summary.trim()) {
-      newErrors.summary = 'Summary is required';
+      newErrors.summary = 'Le résumé est requis';
     } else if (formData.summary.length < 10) {
-      newErrors.summary = 'Summary must be at least 10 characters';
+      newErrors.summary = 'Le résumé doit contenir au moins 10 caractères';
     } else if (formData.summary.length > 500) {
-      newErrors.summary = 'Summary must be less than 500 characters';
+      newErrors.summary = 'Le résumé doit contenir moins de 500 caractères';
     }
 
     // Require Tiptap content blocks
     if (!contentBlocks || contentBlocks.length === 0) {
-      newErrors.content = 'Content is required';
+      newErrors.content = 'Le contenu est requis';
     }
 
     if (!formData.category) {
-      newErrors.category = 'Category is required';
+      newErrors.category = 'La catégorie est requise';
+    }
+
+    // Require cover image
+    if (!formData.coverImage || !formData.coverImage.trim()) {
+      newErrors.coverImage = 'L\'image de couverture est requise';
     }
 
     setErrors(newErrors);
@@ -294,7 +300,56 @@ export function PostForm({
 
   // Handle form submission
   const handleSubmit = useCallback(async (status?: PostStatus) => {
-    if (!validateForm()) return;
+    const validationErrors: Record<string, string> = {};
+
+    // Validate and collect errors
+    if (!formData.title.trim()) {
+      validationErrors.title = 'Le titre est requis';
+    } else if (formData.title.length < 3) {
+      validationErrors.title = 'Le titre doit contenir au moins 3 caractères';
+    } else if (formData.title.length > 200) {
+      validationErrors.title = 'Le titre doit contenir moins de 200 caractères';
+    }
+
+    if (!formData.summary.trim()) {
+      validationErrors.summary = 'Le résumé est requis';
+    } else if (formData.summary.length < 10) {
+      validationErrors.summary = 'Le résumé doit contenir au moins 10 caractères';
+    } else if (formData.summary.length > 500) {
+      validationErrors.summary = 'Le résumé doit contenir moins de 500 caractères';
+    }
+
+    if (!contentBlocks || contentBlocks.length === 0) {
+      validationErrors.content = 'Le contenu est requis';
+    }
+
+    if (!formData.category) {
+      validationErrors.category = 'La catégorie est requise';
+    }
+
+    if (!formData.coverImage || !formData.coverImage.trim()) {
+      validationErrors.coverImage = 'L\'image de couverture est requise';
+    }
+
+    // Update errors state
+    setErrors(validationErrors);
+
+    // If there are validation errors, show toast and return
+    if (Object.keys(validationErrors).length > 0) {
+      // Show specific error toast for the first error found
+      if (validationErrors.coverImage) {
+        showError(validationErrors.coverImage, 'Image de couverture manquante');
+      } else if (validationErrors.title) {
+        showError(validationErrors.title, 'Titre invalide');
+      } else if (validationErrors.summary) {
+        showError(validationErrors.summary, 'Résumé invalide');
+      } else if (validationErrors.content) {
+        showError(validationErrors.content, 'Contenu manquant');
+      } else if (validationErrors.category) {
+        showError(validationErrors.category, 'Catégorie manquante');
+      }
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -305,7 +360,7 @@ export function PostForm({
     } finally {
       setIsSubmitting(false);
     }
-  }, [validateForm, prepareSubmitData, submitFormData]);
+  }, [formData, contentBlocks, prepareSubmitData, submitFormData]);
 
   // Handle save as draft
   const handleSaveDraft = useCallback(() => {
@@ -514,14 +569,18 @@ export function PostForm({
 
             {/* Cover Image */}
             <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Cover Image</h3>
+              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Cover Image *</h3>
               <MediaUpload
                 value={formData.coverImage}
                 onChange={(url) => updateFormData('coverImage', url)}
                 accept="image/*"
                 maxSize={5 * 1024 * 1024} // 5MB
                 isCoverImage={true}
+                hasError={!!errors.coverImage}
               />
+              {errors.coverImage && (
+                <p className="mt-2 text-sm text-red-600 dark:text-red-400">{errors.coverImage}</p>
+              )}
             </div>
 
             {/* Category */}
