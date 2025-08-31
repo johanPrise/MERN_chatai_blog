@@ -143,7 +143,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   server.setErrorHandler((error, request, reply) => {
     logger.error(
       `Unhandled error: ${error.message}`,
-      error,
+      error instanceof Error ? error : undefined,
       {
         userId: (request as any).user?.id,
         endpoint: `${request.method} ${request.url}`,
@@ -157,15 +157,8 @@ export async function buildServer(): Promise<FastifyInstance> {
       const errorMessage = `Erreur serveur sur ${request.method} ${request.url}: ${error.message}`;
       
       // Créer la notification de manière asynchrone pour ne pas bloquer la réponse
-      onSystemError(errorCode, errorMessage, {
-        method: request.method,
-        url: request.url,
-        userAgent: request.headers['user-agent'],
-        ip: request.ip,
-        userId: (request as any).user?._id,
-        stack: error.stack,
-      }).catch(notifError => {
-        logger.error('Failed to create error notification:', notifError);
+      onSystemError(errorCode, errorMessage).catch(notifError => {
+        logger.error('Failed to create error notification:', notifError instanceof Error ? notifError : undefined);
       });
     }
     

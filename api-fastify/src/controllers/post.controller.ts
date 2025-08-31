@@ -3,6 +3,29 @@ import { isValidObjectId } from '../utils/index.js';
 import { CreatePostInput, UpdatePostInput, PostStatus } from '../types/post.types.js';
 import * as PostService from '../services/post.service.js';
 
+// Helper pour gérer les erreurs communes
+const handleCommonErrors = (error: Error, reply: FastifyReply) => {
+  if (error.message === 'ID article invalide') {
+    return reply.status(400).send({ success: false, message: error.message });
+  }
+  if (error.message === 'Article non trouvé') {
+    return reply.status(404).send({ success: false, message: error.message });
+  }
+  if (error.message === "Vous n'êtes pas autorisé à mettre à jour cet article") {
+    return reply.status(403).send({ success: false, message: error.message });
+  }
+  if (error.message === "Une ou plusieurs catégories n'existent pas") {
+    return reply.status(400).send({ success: false, message: error.message });
+  }
+  return null;
+};
+
+// Helper pour extraire le message d'erreur en mode développement
+const getErrorMessage = (error: unknown) => {
+  if (process.env.NODE_ENV !== 'development') return undefined;
+  return error instanceof Error ? error.message : String(error);
+};
+
 /**
  * Contrôleur pour récupérer tous les articles (avec pagination et filtres)
  */
@@ -32,7 +55,7 @@ export const getPosts = async (
     const currentUserRole = request.user?.role;
 
     // Utiliser le service pour récupérer les articles
-    const result = await PostService.getAllPosts(
+    const result = await PostService.getAllPosts({
       page,
       limit,
       search,
@@ -42,7 +65,7 @@ export const getPosts = async (
       status,
       currentUserId,
       currentUserRole
-    );
+    });
 
     // Retourner la réponse
     return reply.status(200).send(result);
@@ -214,27 +237,8 @@ export const updatePost = async (
       });
 
       if (error instanceof Error) {
-        if (error.message === 'ID article invalide') {
-          return reply.status(400).send({
-            success: false,
-            message: error.message,
-          });
-        } else if (error.message === 'Article non trouvé') {
-          return reply.status(404).send({
-            success: false,
-            message: error.message,
-          });
-        } else if (error.message === "Vous n'êtes pas autorisé à mettre à jour cet article") {
-          return reply.status(403).send({
-            success: false,
-            message: error.message,
-          });
-        } else if (error.message === "Une ou plusieurs catégories n'existent pas") {
-          return reply.status(400).send({
-            success: false,
-            message: error.message,
-          });
-        }
+        const commonErrorResponse = handleCommonErrors(error, reply);
+        if (commonErrorResponse) return commonErrorResponse;
       }
       throw error;
     }
@@ -243,12 +247,7 @@ export const updatePost = async (
     return reply.status(500).send({
       success: false,
       message: "Une erreur est survenue lors de la mise à jour de l'article",
-      error:
-        process.env.NODE_ENV === 'development'
-          ? error instanceof Error
-            ? error.message
-            : String(error)
-          : undefined,
+      error: getErrorMessage(error),
     });
   }
 };
@@ -284,25 +283,15 @@ export const deletePost = async (
       });
     } catch (error) {
       if (error instanceof Error) {
-        if (error.message === 'ID article invalide') {
-          return reply.status(400).send({
-            message: error.message,
-          });
-        } else if (error.message === 'Article non trouvé') {
-          return reply.status(404).send({
-            message: error.message,
-          });
-        } else if (error.message === 'Article déjà supprimé') {
-          return reply.status(409).send({
-            message: error.message,
-          });
-        } else if (
-          error.message === "Vous n'êtes pas autorisé à supprimer cet article" ||
-          error.message === 'Seuls les administrateurs peuvent supprimer définitivement un article'
-        ) {
-          return reply.status(403).send({
-            message: error.message,
-          });
+        const commonErrorResponse = handleCommonErrors(error, reply);
+        if (commonErrorResponse) return commonErrorResponse;
+        
+        if (error.message === 'Article déjà supprimé') {
+          return reply.status(409).send({ message: error.message });
+        }
+        if (error.message === "Vous n'êtes pas autorisé à supprimer cet article" ||
+            error.message === 'Seuls les administrateurs peuvent supprimer définitivement un article') {
+          return reply.status(403).send({ message: error.message });
         }
       }
       throw error;
@@ -357,18 +346,11 @@ export const likePost = async (
       });
     } catch (error) {
       if (error instanceof Error) {
-        if (error.message === 'ID article invalide') {
-          return reply.status(400).send({
-            message: error.message,
-          });
-        } else if (error.message === 'Article non trouvé') {
-          return reply.status(404).send({
-            message: error.message,
-          });
-        } else if (error.message === 'Vous avez déjà liké cet article') {
-          return reply.status(400).send({
-            message: error.message,
-          });
+        const commonErrorResponse = handleCommonErrors(error, reply);
+        if (commonErrorResponse) return commonErrorResponse;
+        
+        if (error.message === 'Vous avez déjà liké cet article') {
+          return reply.status(400).send({ message: error.message });
         }
       }
       throw error;
@@ -423,18 +405,11 @@ export const unlikePost = async (
       });
     } catch (error) {
       if (error instanceof Error) {
-        if (error.message === 'ID article invalide') {
-          return reply.status(400).send({
-            message: error.message,
-          });
-        } else if (error.message === 'Article non trouvé') {
-          return reply.status(404).send({
-            message: error.message,
-          });
-        } else if (error.message === "Vous n'avez pas liké cet article") {
-          return reply.status(400).send({
-            message: error.message,
-          });
+        const commonErrorResponse = handleCommonErrors(error, reply);
+        if (commonErrorResponse) return commonErrorResponse;
+        
+        if (error.message === "Vous n'avez pas liké cet article") {
+          return reply.status(400).send({ message: error.message });
         }
       }
       throw error;
@@ -489,18 +464,11 @@ export const dislikePost = async (
       });
     } catch (error) {
       if (error instanceof Error) {
-        if (error.message === 'ID article invalide') {
-          return reply.status(400).send({
-            message: error.message,
-          });
-        } else if (error.message === 'Article non trouvé') {
-          return reply.status(404).send({
-            message: error.message,
-          });
-        } else if (error.message === 'Vous avez déjà disliké cet article') {
-          return reply.status(400).send({
-            message: error.message,
-          });
+        const commonErrorResponse = handleCommonErrors(error, reply);
+        if (commonErrorResponse) return commonErrorResponse;
+        
+        if (error.message === 'Vous avez déjà disliké cet article') {
+          return reply.status(400).send({ message: error.message });
         }
       }
       throw error;
