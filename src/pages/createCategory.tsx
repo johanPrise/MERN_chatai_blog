@@ -2,44 +2,14 @@
 
 import React, { useState, useEffect, useCallback } from "react"
 import { Link, useNavigate } from "react-router-dom"
-import ReactQuill from "react-quill"
-import "react-quill/dist/quill.snow.css"
 import "../css/App.css"
 import { UserContext } from "../UserContext"
 import { AlertCircle, CheckCircle, ArrowLeft, Trash2 } from "lucide-react"
 import { CategoryFormData } from "../types/CategoryFormData"
+import { API_ENDPOINTS } from "../config/api.config"
+import { showError, showSuccess } from "../lib/toast-helpers"
 
-
-// API URLs
-const API_BASE_URL = "https://mern-backend-neon.vercel.app"
-const API_ENDPOINTS = {
-  checkAuthorAdmin: `${API_BASE_URL}/check-author-admin`,
-  categories: `${API_BASE_URL}/categories`
-}
-
-// Quill editor configuration
-const QUILL_MODULES = {
-  toolbar: [
-    [{ header: [1, 2, false] }],
-    ["bold", "italic", "underline", "strike", "blockquote"],
-    [{ list: "ordered" }, { list: "bullet" }, { indent: "-1" }, { indent: "+1" }],
-    ["link"],
-    ["clean"],
-  ],
-}
-
-const QUILL_FORMATS = [
-  "header",
-  "bold",
-  "italic",
-  "underline",
-  "strike",
-  "blockquote",
-  "list",
-  "bullet",
-  "indent",
-  "link",
-]
+// Description will use a simple textarea to remove legacy editor dependency
 
 const CreateCategory: React.FC = () => {
   // State management
@@ -63,7 +33,8 @@ const CreateCategory: React.FC = () => {
     setIsChecking(true)
 
     try {
-      const response = await fetch(API_ENDPOINTS.checkAuthorAdmin, {
+      // Utiliser la route dédiée pour vérifier les permissions d'auteur/éditeur/admin
+      const response = await fetch(API_ENDPOINTS.auth.checkAuthor, {
         credentials: "include",
       })
 
@@ -72,6 +43,7 @@ const CreateCategory: React.FC = () => {
       }
 
       const data = await response.json()
+      console.log("Author check response:", data)
       setIsAuthorOrAdmin(data.isAuthorOrAdmin)
     } catch (error) {
       console.error("Error checking author/admin status:", error)
@@ -87,7 +59,7 @@ const CreateCategory: React.FC = () => {
   }, [checkAuthorAdminStatus])
 
   // Handle form input changes
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
 
@@ -99,17 +71,7 @@ const CreateCategory: React.FC = () => {
     }
   }
 
-  // Handle rich text editor changes
-  const handleEditorChange = (content: string) => {
-    setFormData(prev => ({ ...prev, description: content }))
-
-    // Reset status when user starts typing
-    if (status !== "idle") {
-      setStatus("idle")
-      setErrorMessage(null)
-      setSuccessMessage(null)
-    }
-  }
+  // Description is handled via standard input change on textarea (name="description")
 
   // Create new category
   const handleSubmit = async (e: React.FormEvent) => {
@@ -127,7 +89,7 @@ const CreateCategory: React.FC = () => {
     setErrorMessage(null)
 
     try {
-      const response = await fetch(API_ENDPOINTS.categories, {
+      const response = await fetch(API_ENDPOINTS.categories.list, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -148,6 +110,7 @@ const CreateCategory: React.FC = () => {
       // Success
       setStatus("success")
       setSuccessMessage("Category created successfully!")
+      showSuccess("Catégorie créée avec succès!")
 
       // Reset form
       setFormData({
@@ -161,8 +124,10 @@ const CreateCategory: React.FC = () => {
       }, 2000)
     } catch (error) {
       console.error("Error creating category:", error)
+      const errorMsg = error instanceof Error ? error.message : "An error occurred while creating the category"
       setStatus("error")
-      setErrorMessage(error instanceof Error ? error.message : "An error occurred while creating the category")
+      setErrorMessage(errorMsg)
+      showError(errorMsg, "Erreur de création")
     } finally {
       setIsLoading(false)
     }
@@ -260,17 +225,14 @@ const CreateCategory: React.FC = () => {
             <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Description
             </label>
-            <div className="quill-container">
-              <ReactQuill
-                value={formData.description}
-                modules={QUILL_MODULES}
-                formats={QUILL_FORMATS}
-                onChange={handleEditorChange}
-                placeholder="Entrez une description pour la catégorie..."
-                theme="snow"
-                className="rounded-lg dark:text-white"
-              />
-            </div>
+            <textarea
+              id="description"
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              placeholder="Entrez une description pour la catégorie..."
+              className="w-full rounded-lg border-gray-200 p-4 text-sm shadow-sm focus:border-lime-500 focus:ring-lime-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white min-h-[140px]"
+            />
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               La description apparaîtra sur la page de la catégorie et aidera les utilisateurs à comprendre son contenu.
             </p>

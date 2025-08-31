@@ -1,23 +1,15 @@
-import { defineConfig, loadEnv } from "vite";
-import react from "@vitejs/plugin-react";
-import svgr from "vite-plugin-svgr";
-import { env } from 'node:process';
+import { defineConfig, loadEnv } from 'vite';
+import react from '@vitejs/plugin-react';
+import svgr from 'vite-plugin-svgr';
 import path from 'path';
 
-
 export default defineConfig(({ command, mode }) => {
-  // Charger le fichier env basé sur le `mode` dans le répertoire de travail actuel.
-  // Définir le troisième paramètre à '' pour charger toutes les variables d'env indépendamment du préfixe `VITE_`.
-  const env = loadEnv(mode, process.cwd(), '')
+  const env = loadEnv(mode, process.cwd(), '');
 
   return {
     plugins: [
       react(),
-      svgr({
-        svgrOptions: {
-          // svgr options
-        },
-      }),
+      svgr()
     ],
     resolve: {
       alias: {
@@ -34,15 +26,16 @@ export default defineConfig(({ command, mode }) => {
     server: {
       proxy: {
         '/api': {
-          target: 'https://mern-backend-neon.vercel.app/',
+          target: 'http://localhost:4200',
           changeOrigin: true,
-          secure: false
+          secure: false,
+          rewrite: (path) => path
         }
       }
     },
     define: {
-        __APP_ENV__: JSON.stringify(env.APP_ENV),
-        __MONGO_URI__: JSON.stringify(env.VITE_MONGO_URI),
+      __APP_ENV__: JSON.stringify(env.APP_ENV),
+      __MONGO_URI__: JSON.stringify(env.VITE_MONGO_URI),
     },
-  }
+  };
 });

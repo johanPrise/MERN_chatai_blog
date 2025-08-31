@@ -5,12 +5,7 @@ import { Link, useNavigate } from "react-router-dom"
 import "../css/App.css"
 import { AlertCircle, CheckCircle, Loader2, UserPlus } from "lucide-react"
 import { ValidationErrors } from "../types/ValidationErrors"
-
-// API configuration
-const API_BASE_URL = "https://mern-backend-neon.vercel.app"
-const API_ENDPOINTS = {
-  register: `${API_BASE_URL}/auth/register/`
-}
+import { API_ENDPOINTS } from "../config/api.config"
 
 
 function Register() {
@@ -98,7 +93,7 @@ function Register() {
     setIsSubmitting(true)
 
     try {
-      const response = await fetch(API_ENDPOINTS.register, {
+      const response = await fetch(API_ENDPOINTS.auth.register, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

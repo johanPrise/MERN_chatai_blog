@@ -1,7 +1,7 @@
 {
   "rewrites": [
-    { "source": "/api/health", "destination": "https://mern-backend-neon.vercel.app/health" },
-    { "source": "/api/(.*)", "destination": "https://mern-backend-neon.vercel.app/$1" },
+    { "source": "/api/health", "destination": "http://localhost:4200/health" },
+    { "source": "/api/(.*)", "destination": "http://localhost:4200/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

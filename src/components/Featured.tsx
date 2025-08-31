@@ -3,33 +3,54 @@ import { Link } from "react-router-dom"
 import { Button } from "./ui/button"
 import type { PostType } from "./Post"
 import AnimateOnView from "./AnimateOnView"
-import { formatDate, getImageUrl, getOptimizedImageUrl } from "../lib/utils"
+import { formatDate, getOptimizedImageUrl } from "../lib/utils"
+import { getImageUrl } from "../config/api.config"
+import SafeImage from "./SafeImage"
 import { CalendarIcon, User2 } from "lucide-react"
 import { Badge } from "./ui/badge"
 import { FeaturedProps } from "../types/FeaturedProps"
+
+// Helper function to extract cover image URL with backward compatibility
+const getCoverImageUrl = (post: any): string => {
+  // Try new coverImage field first
+  if (post.coverImage) {
+    if (typeof post.coverImage === 'string') {
+      return post.coverImage
+    }
+    if (typeof post.coverImage === 'object' && post.coverImage.url) {
+      return post.coverImage.url
+    }
+  }
+  
+  // Fallback to legacy cover field
+  return post.cover || '/placeholder.svg'
+}
 
 
 
 const Featured: React.FC<FeaturedProps> = ({ featured }) => {
   if (!featured) return null
 
-  const { _id, title, summary, cover, author, createdAt } = featured
+  const { _id, title, summary, author, createdAt } = featured
+  const coverImageUrl = getCoverImageUrl(featured)
 
   return (
-    <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-950 dark:to-primary-900">
+    <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-950 dark:to-primary-900 w-full max-w-full">
       <div className="absolute inset-0 bg-[url('/patterns/grid.svg')] opacity-10"></div>
-      <div className="relative flex flex-col md:flex-row md:items-center p-6 md:p-10 gap-8">
-        <AnimateOnView animation="slide-right" className="md:w-1/2" delay={100}>
+      <div className="relative flex flex-col md:flex-row md:items-center p-6 md:p-10 gap-8 w-full min-w-0">
+        <AnimateOnView animation="slide-right" className="md:w-1/2 min-w-0" delay={100}>
           <div className="relative">
             <div className="absolute -inset-1 rounded-xl bg-gradient-to-r from-primary-300 to-primary-500 opacity-70 blur-sm"></div>
-            <img
-              src={getOptimizedImageUrl(getImageUrl(cover)) || "/placeholder.svg"}
+            <SafeImage
+              src={coverImageUrl}
               alt={title}
               className="relative w-full md:h-[350px] object-cover rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300"
+              height={350}
+              loading="eager"
             />
           </div>
         </AnimateOnView>
-        <div className="mt-4 md:mt-0 md:w-1/2">
+        <div className="mt-4 md:mt-0 md:w-1/2 min-w-0 w-full">
           <AnimateOnView animation="fade" delay={200}>
             <Badge
               variant="outline"
@@ -50,7 +71,7 @@ const Featured: React.FC<FeaturedProps> = ({ featured }) => {
             </div>
             <p className="text-muted-foreground mb-6">{summary}</p>
             <AnimateOnView animation="slide-up" delay={300}>
-              <Link to={`/Post/${_id}`}>
+              <Link to={`/Post/${_id}`} className="no-underline">
                 <Button>
                   Read Full Article
                   <svg

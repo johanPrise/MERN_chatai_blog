@@ -1,11 +1,24 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { Link, useNavigate, useLocation } from "react-router-dom"
 import { UserContext } from "../UserContext"
-import { ThemeToggle } from "./ui/theme-toggle"
+import ThemeToggle from "./ThemeToggle"
 import { Button } from "./ui/button"
 import { Container } from "./ui/container"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "./ui/collapsible"
 import {
   Menu,
   X,
@@ -17,25 +30,60 @@ import {
   PenSquare,
   FolderPlus,
   LayoutDashboard,
+  Search,
+  ChevronRight,
+  FileText,
 } from "lucide-react"
 import AnimateOnView from "./AnimateOnView"
 import React from "react"
+import { API_ENDPOINTS } from "../config/api.config"
+import { cn } from "../lib/utils"
 
 const Header = () => {
   const { userInfo, setUserInfo } = UserContext()
   const [isMenuOpen, setMenuOpen] = useState(false)
-  const [isDropdownOpen, setDropdownOpen] = useState(false)
-  const [isAccountDropdownOpen, setAccountDropdownOpen] = useState(false)
-  const [categories, setCategories] = useState<{ _id: string; name: string }[]>([])
+  const [isSearchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [categories, setCategories] = useState<any[]>([])
   const [isScrolled, setIsScrolled] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
 
   const fetchUserInfo = useCallback(async () => {
     try {
-      const response = await fetch("https://mern-backend-neon.vercel.app/users/profile", { credentials: "include" })
-      if (!response.ok) throw new Error("Failed to fetch user info")
-      const userInfo = await response.json()
-      setUserInfo(userInfo)
+      console.log("Fetching user info...")
+      const response = await fetch(API_ENDPOINTS.users.profile, {
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        console.log("Failed to fetch user info, status:", response.status)
+        throw new Error("Failed to fetch user info")
+      }
+
+      const userData = await response.json()
+      console.log("User info fetched:", userData)
+
+      if (userData && userData.user) {
+        // Si la réponse contient un objet 'user'
+        setUserInfo({
+          id: userData.user._id,
+          username: userData.user.username,
+          role: userData.user.role,
+        })
+      } else if (userData && userData._id) {
+        // Si la réponse contient directement les données utilisateur
+        setUserInfo({
+          id: userData._id,
+          username: userData.username,
+          role: userData.role,
+        })
+      } else {
+        console.error("Invalid user data format:", userData)
+      }
     } catch (error) {
       console.error("Error fetching user info:", error)
     }
@@ -48,12 +96,13 @@ const Header = () => {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch("https://mern-backend-neon.vercel.app/categories")
+        const response = await fetch(API_ENDPOINTS.categories.list)
         if (!response.ok) throw new Error("Failed to fetch categories")
-        const categories = await response.json()
-        setCategories(categories)
+        const data = await response.json()
+        // Correction : s'assurer que c'est bien un tableau
+        setCategories(Array.isArray(data.categories) ? data.categories : Array.isArray(data) ? data : [])
       } catch (error) {
-        console.error("Error fetching categories:", error)
+        setCategories([])
       }
     }
     fetchCategories()
@@ -70,7 +119,7 @@ const Header = () => {
 
   const logout = async () => {
     try {
-      await fetch("https://mern-backend-neon.vercel.app/auth/logout", { credentials: "include", method: "POST" })
+      await fetch(API_ENDPOINTS.auth.logout, { credentials: "include", method: "POST" })
       setUserInfo(null)
     } catch (error) {
       console.error("Error logging out:", error)
@@ -80,7 +129,7 @@ const Header = () => {
   const deleteAccount = async () => {
     if (window.confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
       try {
-        const response = await fetch("https://mern-backend-neon.vercel.app/delete-account", {
+        const response = await fetch(API_ENDPOINTS.users.deleteAccount, {
           method: "DELETE",
           credentials: "include",
         })
@@ -100,12 +149,43 @@ const Header = () => {
   const username = userInfo?.username
   const role = userInfo?.role
 
+  // Fonction pour vérifier si un lien est actif
+  const isActive = useCallback(
+    (path: string) => {
+      if (path === "/" && location.pathname === "/") {
+        return true
+      }
+      if (path !== "/" && location.pathname.startsWith(path)) {
+        return true
+      }
+      return false
+    },
+    [location.pathname]
+  )
+
+  // Fonction pour gérer la recherche
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (searchQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`)
+      setSearchOpen(false)
+      setSearchQuery("")
+    }
+  }
+
   return (
     <header
-      className={`sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur transition-all ${isScrolled ? "shadow-sm" : ""}`}
+      className={cn(
+        "fixed top-0 left-0 right-0 z-50 w-full border-b transition-all duration-300",
+        "bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/60",
+        "max-w-[100vw] ",
+        isScrolled 
+          ? "shadow-lg shadow-black/5 border-border/50" 
+          : "shadow-none border-transparent"
+      )}
     >
       <Container>
-        <div className="flex h-16 items-center justify-between">
+        <div className="flex h-16 items-center justify-between w-full min-w-0">
           <div className="flex items-center gap-2">
             <Link to="/" className="flex items-center gap-2 font-bold text-xl text-primary-800 dark:text-primary-400">
               <svg
@@ -136,117 +216,169 @@ const Header = () => {
             <nav className="flex items-center gap-6">
               <Link
                 to="/"
-                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className={cn(
+                  "text-sm font-medium transition-all relative",
+                  isActive("/")
+                    ? "text-foreground after:absolute after:bottom-[-1.5px] after:left-0 after:h-[2px] after:w-full after:bg-primary after:content-['']"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
               >
                 Home
               </Link>
-              <div
-                className="relative"
-                onMouseEnter={() => setDropdownOpen(true)}
-                onMouseLeave={() => setDropdownOpen(false)}
-              >
-                <button className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-                  Categories
-                  <ChevronDown className="h-4 w-4" />
-                </button>
-                {isDropdownOpen && (
-                  <div className="absolute left-0 top-full mt-2 w-56 rounded-md border bg-card p-2 shadow-md">
-                    <div className="grid grid-cols-1 gap-1">
-                      {categories.map((category) => (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className={cn(
+                      "flex items-center gap-1 text-sm font-medium transition-all",
+                      location.pathname.includes("/category")
+                        ? "text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    Categories
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56">
+                  <DropdownMenuLabel>Post Categories</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {Array.isArray(categories) &&
+                    categories.map((category) => (
+                      <DropdownMenuItem key={category._id} asChild>
                         <Link
-                          key={category._id}
-                          className="flex items-center rounded-md px-3 py-2 text-sm hover:bg-accent"
+                          className="flex items-center"
                           to={`/category/${category._id}`}
                         >
                           {category.name}
                         </Link>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+                      </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </nav>
 
+            {/* Barre de recherche */}
+            <div className="relative">
+              <button
+                onClick={() => setSearchOpen(!isSearchOpen)}
+                className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+                aria-label="Search"
+              >
+                <Search className="h-5 w-5" />
+              </button>
+
+              {isSearchOpen && (
+                <div className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-md dropdown-menu p-2 animate-in fade-in slide-in-from-top-5 duration-200 z-50 search-dropdown">
+                  <form onSubmit={handleSearch} className="flex items-center gap-2">
+                    <div className="relative flex-1 min-w-0">
+                      <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search articles..."
+                        className="w-full rounded-md border border-input bg-background py-2 pl-8 pr-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        autoFocus
+                      />
+                    </div>
+                    <Button type="submit" size="sm" className="flex-shrink-0">
+                      Search
+                    </Button>
+                  </form>
+                </div>
+              )}
+            </div>
+
             <div className="flex items-center gap-2">
-              <ThemeToggle />
+              <ThemeToggle showLabel={false} />
 
               {username ? (
-                <div className="relative">
-                  <button
-                    onClick={() => setAccountDropdownOpen(!isAccountDropdownOpen)}
-                    className="flex items-center gap-2 rounded-full bg-primary-50 dark:bg-primary-900 px-3 py-1.5 text-sm font-medium text-primary-800 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-800 transition-colors"
-                  >
-                    <User className="h-4 w-4" />
-                    {username}
-                    <ChevronDown className="h-4 w-4" />
-                  </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="flex items-center gap-2 rounded-full bg-primary-50 dark:bg-primary-900 px-3 py-1.5 text-sm font-medium text-primary-800 dark:text-primary-300 hover:bg-primary-100 dark:hover:bg-primary-800 transition-all duration-200 hover:shadow-md">
+                      <User className="h-4 w-4" />
+                      {username}
+                      <ChevronDown className="h-4 w-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56">
+                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to="/edit-username" className="flex items-center">
+                        <Settings className="mr-2 h-4 w-4" />
+                        Edit Username
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={deleteAccount} className="text-destructive">
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete Account
+                    </DropdownMenuItem>
 
-                  {isAccountDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-56 rounded-md border bg-card p-2 shadow-md">
-                      <div className="grid grid-cols-1 gap-1">
-                        <Link
-                          to="/edit-username"
-                          className="flex items-center rounded-md px-3 py-2 text-sm hover:bg-accent"
-                        >
-                          <Settings className="mr-2 h-4 w-4" />
-                          Edit Username
-                        </Link>
-                        <button
-                          onClick={deleteAccount}
-                          className="flex w-full items-center rounded-md px-3 py-2 text-sm text-left hover:bg-accent"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4 text-destructive" />
-                          Delete Account
-                        </button>
+                    {(role === "admin" || role === "author") && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel>Content</DropdownMenuLabel>
+                        <DropdownMenuItem asChild>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/posts/create" className="flex items-center">
+                            <PenSquare className="mr-2 h-4 w-4" />
+                            Create Post
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/posts/drafts" className="flex items-center">
+                            <FileText className="mr-2 h-4 w-4" />
+                            My Drafts
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/create_category" className="flex items-center">
+                            <FolderPlus className="mr-2 h-4 w-4" />
+                            Create Category
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
 
-                        {(role === "admin" || role === "author") && (
-                          <>
-                            <div className="my-1 h-px bg-border" />
-                            <Link
-                              to="/create_post"
-                              className="flex items-center rounded-md px-3 py-2 text-sm hover:bg-accent"
-                            >
-                              <PenSquare className="mr-2 h-4 w-4" />
-                              Create Post
-                            </Link>
-                            <Link
-                              to="/create_category"
-                              className="flex items-center rounded-md px-3 py-2 text-sm hover:bg-accent"
-                            >
-                              <FolderPlus className="mr-2 h-4 w-4" />
-                              Create Category
-                            </Link>
-                          </>
-                        )}
-
-                        {role === "admin" && (
-                          <Link to="/admin" className="flex items-center rounded-md px-3 py-2 text-sm hover:bg-accent">
+                    {role === "admin" && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild>
+                          <Link to="/admin" className="flex items-center">
                             <LayoutDashboard className="mr-2 h-4 w-4" />
                             Admin Dashboard
                           </Link>
-                        )}
+                        </DropdownMenuItem>
+                      </>
+                    )}
 
-                        <div className="my-1 h-px bg-border" />
-                        <button
-                          onClick={logout}
-                          className="flex w-full items-center rounded-md px-3 py-2 text-sm text-left hover:bg-accent"
-                        >
-                          <LogOut className="mr-2 h-4 w-4" />
-                          Logout
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={logout}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Logout
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               ) : (
                 <div className="flex items-center gap-2">
                   <Link to="/login_page">
-                    <Button variant="outline" size="sm">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="transition-all duration-200 hover:shadow-md"
+                    >
                       Log in
                     </Button>
                   </Link>
                   <Link to="/register_page">
-                    <Button size="sm">Sign up</Button>
+                    <Button
+                      size="sm"
+                      className="transition-all duration-200 hover:shadow-md"
+                    >
+                      Sign up
+                    </Button>
                   </Link>
                 </div>
               )}
@@ -266,31 +398,71 @@ const Header = () => {
       {/* Mobile menu */}
       {isMenuOpen && (
         <AnimateOnView animation="slide-down" className="md:hidden">
-          <div className="border-t">
+          <div className="border-t w-full max-w-[100vw] overflow-x-hidden">
             <Container>
-              <div className="grid grid-cols-1 gap-4 py-4">
+              {/* Barre de recherche mobile */}
+              <div className="py-4 border-b w-full">
+                <form onSubmit={handleSearch} className="flex items-center gap-2 w-full">
+                  <div className="relative flex-1 min-w-0">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search articles..."
+                      className="w-full rounded-md border border-input bg-background py-2 pl-10 pr-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring min-w-0"
+                    />
+                  </div>
+                  <Button type="submit" size="sm" onClick={() => setMenuOpen(false)} className="flex-shrink-0">
+                    Search
+                  </Button>
+                </form>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 py-4 w-full overflow-x-hidden">
                 <Link
                   to="/"
-                  className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"
+                  className={cn(
+                    "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
+                    isActive("/") ? "bg-accent/50 font-medium" : "hover:bg-accent"
+                  )}
                   onClick={() => setMenuOpen(false)}
                 >
                   Home
                 </Link>
-                <div className="rounded-md px-3 py-2">
-                  <div className="mb-2 text-sm font-medium">Categories</div>
-                  <div className="grid grid-cols-1 gap-1 pl-2">
-                    {categories.map((category) => (
-                      <Link
-                        key={category._id}
-                        className="flex items-center rounded-md px-3 py-2 text-sm hover:bg-accent"
-                        to={`/category/${category._id}`}
-                        onClick={() => setMenuOpen(false)}
-                      >
-                        {category.name}
-                      </Link>
-                    ))}
-                  </div>
-                </div>
+                <Collapsible className="rounded-md px-3 py-2">
+                  <CollapsibleTrigger className="flex w-full items-center justify-between">
+                    <div
+                      className={cn(
+                        "text-sm font-medium",
+                        location.pathname.includes("/category") && "text-primary"
+                      )}
+                    >
+                      Categories
+                    </div>
+                    <ChevronRight className="h-4 w-4 transition-transform duration-200 ui-open:rotate-90" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pt-2">
+                    <div className="grid grid-cols-1 gap-1 pl-2">
+                      {Array.isArray(categories) &&
+                        categories.map((category) => (
+                          <Link
+                            key={category._id}
+                            className={cn(
+                              "flex items-center rounded-md px-3 py-2 text-sm transition-colors",
+                              location.pathname === `/category/${category._id}`
+                                ? "bg-accent/50 font-medium"
+                                : "hover:bg-accent"
+                            )}
+                            to={`/category/${category._id}`}
+                            onClick={() => setMenuOpen(false)}
+                          >
+                            {category.name}
+                          </Link>
+                        ))}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
 
                 {username ? (
                   <>
@@ -299,10 +471,13 @@ const Header = () => {
                       <div className="grid grid-cols-1 gap-1 pl-2">
                         <Link
                           to="/edit-username"
-                          className="flex items-center rounded-md px-3 py-2 text-sm hover:bg-accent"
+                          className={cn(
+                            "flex items-center rounded-md px-3 py-2 text-sm transition-colors group",
+                            location.pathname === "/edit-username" ? "bg-accent/50 font-medium" : "hover:bg-accent"
+                          )}
                           onClick={() => setMenuOpen(false)}
                         >
-                          <Settings className="mr-2 h-4 w-4" />
+                          <Settings className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:rotate-45" />
                           Edit Username
                         </Link>
                         <button
@@ -310,9 +485,9 @@ const Header = () => {
                             deleteAccount()
                             setMenuOpen(false)
                           }}
-                          className="flex w-full items-center rounded-md px-3 py-2 text-sm text-left hover:bg-accent"
+                          className="flex w-full items-center rounded-md px-3 py-2 text-sm text-left hover:bg-accent transition-colors group"
                         >
-                          <Trash2 className="mr-2 h-4 w-4 text-destructive" />
+                          <Trash2 className="mr-2 h-4 w-4 text-destructive transition-transform duration-200 group-hover:scale-110" />
                           Delete Account
                         </button>
                       </div>
@@ -323,19 +498,36 @@ const Header = () => {
                         <div className="mb-2 text-sm font-medium">Content Management</div>
                         <div className="grid grid-cols-1 gap-1 pl-2">
                           <Link
-                            to="/create_post"
-                            className="flex items-center rounded-md px-3 py-2 text-sm hover:bg-accent"
+                            to="/posts/create"
+                            className={cn(
+                              "flex items-center rounded-md px-3 py-2 text-sm transition-colors group",
+                              location.pathname === "/posts/create" ? "bg-accent/50 font-medium" : "hover:bg-accent"
+                            )}
                             onClick={() => setMenuOpen(false)}
                           >
-                            <PenSquare className="mr-2 h-4 w-4" />
-                            Create Post
+                            <PenSquare className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
+                            Create Post 
+                          </Link>
+                          <Link
+                            to="/posts/drafts"
+                            className={cn(
+                              "flex items-center rounded-md px-3 py-2 text-sm transition-colors group",
+                              location.pathname === "/posts/drafts" ? "bg-accent/50 font-medium" : "hover:bg-accent"
+                            )}
+                            onClick={() => setMenuOpen(false)}
+                          >
+                            <FileText className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
+                            My Drafts
                           </Link>
                           <Link
                             to="/create_category"
-                            className="flex items-center rounded-md px-3 py-2 text-sm hover:bg-accent"
+                            className={cn(
+                              "flex items-center rounded-md px-3 py-2 text-sm transition-colors group",
+                              location.pathname === "/create_category" ? "bg-accent/50 font-medium" : "hover:bg-accent"
+                            )}
                             onClick={() => setMenuOpen(false)}
                           >
-                            <FolderPlus className="mr-2 h-4 w-4" />
+                            <FolderPlus className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
                             Create Category
                           </Link>
                         </div>
@@ -345,10 +537,13 @@ const Header = () => {
                     {role === "admin" && (
                       <Link
                         to="/admin"
-                        className="flex items-center rounded-md px-3 py-2 text-sm hover:bg-accent"
+                        className={cn(
+                          "flex items-center rounded-md px-3 py-2 text-sm transition-colors group",
+                          location.pathname === "/admin" ? "bg-accent/50 font-medium" : "hover:bg-accent"
+                        )}
                         onClick={() => setMenuOpen(false)}
                       >
-                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                        <LayoutDashboard className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
                         Admin Dashboard
                       </Link>
                     )}
@@ -358,27 +553,27 @@ const Header = () => {
                         logout()
                         setMenuOpen(false)
                       }}
-                      className="flex w-full items-center rounded-md px-3 py-2 text-sm text-left hover:bg-accent"
+                      className="flex w-full items-center rounded-md px-3 py-2 text-sm text-left hover:bg-accent transition-colors group"
                     >
-                      <LogOut className="mr-2 h-4 w-4" />
+                      <LogOut className="mr-2 h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
                       Logout
                     </button>
                   </>
                 ) : (
                   <div className="flex flex-col gap-2 p-3">
                     <Link to="/login_page" onClick={() => setMenuOpen(false)}>
-                      <Button variant="outline" className="w-full">
+                      <Button variant="outline" className="w-full transition-all duration-200 hover:shadow-md">
                         Log in
                       </Button>
                     </Link>
                     <Link to="/register_page" onClick={() => setMenuOpen(false)}>
-                      <Button className="w-full">Sign up</Button>
+                      <Button className="w-full transition-all duration-200 hover:shadow-md">Sign up</Button>
                     </Link>
                   </div>
                 )}
 
-                <div className="flex justify-center p-3">
-                  <ThemeToggle />
+                <div className="flex justify-center gap-4 p-3 border-t">
+                  <ThemeToggle showLabel={true} />
                 </div>
               </div>
             </Container>

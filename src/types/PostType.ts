@@ -30,6 +30,14 @@ export interface Comment {
 }
 
 /**
+ * Interface pour une référence d'image
+ */
+export interface ImageRef {
+  url: string
+  alt?: string
+}
+
+/**
  * Interface complète pour un post
  */
 export interface Post {
@@ -37,15 +45,18 @@ export interface Post {
   title: string
   summary: string
   content: string
-  cover: string
+  // Image de couverture standardisée
+  coverImage: ImageRef
   author: Author
   category?: Category | null
+  categories?: Category[] // Ajout du champ categories pour compatibilité avec le backend
   createdAt: string
   updatedAt?: string
   likes: string[]
   dislikes: string[]
   featured?: boolean
   comments?: Comment[]
+  views?: number // Champ pour le compteur de vues (à implémenter côté API)
 }
 
 /**

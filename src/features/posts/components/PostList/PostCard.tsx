@@ -1,0 +1,431 @@
+/**
+ * PostCard Component
+ * Individual post card with CRUD operations
+ */
+
+import React, { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { PostData } from '../../types/post.types';
+import { cn } from '../../../../lib/utils';
+import SafeImage from '../../../../components/SafeImage';
+import { isMobileDevice } from '../../../../utils/mobileOptimizations';
+import { 
+  Calendar, 
+  User, 
+  Eye, 
+  Heart, 
+  Edit, 
+  Trash2, 
+  MoreVertical,
+  ExternalLink,
+  Globe
+} from 'lucide-react';
+
+// Helper function to extract cover image data
+const extractCoverImage = (coverImage: any) => {
+  let coverUrl: string | null = null;
+  let coverAlt: string = '';
+  
+  if (coverImage && typeof coverImage === 'object') {
+    if (typeof coverImage.url === 'string') {
+      coverUrl = coverImage.url;
+    }
+    if (typeof coverImage.alt === 'string') {
+      coverAlt = coverImage.alt;
+    }
+  }
+  
+  return { coverUrl, coverAlt };
+};
+
+// Extract text from Tiptap JSON document
+const extractTextFromTiptapDoc = (doc: any): string => {
+  if (!doc) return '';
+  const parts: string[] = [];
+  const visit = (node: any) => {
+    if (!node) return;
+    if (node.type === 'text' && typeof node.text === 'string') {
+      parts.push(node.text);
+    }
+    if (node.type === 'hardBreak') {
+      parts.push(' ');
+    }
+    const content = Array.isArray(node.content) ? node.content : [];
+    content.forEach(visit);
+  };
+  visit(doc);
+  return parts.join(' ').replace(/\s+/g, ' ').trim();
+};
+
+// Strip markdown to plain text
+const stripMarkdown = (md?: string): string => {
+  if (!md) return '';
+  return md
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`[^`]*`/g, ' ')
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+    .replace(/\[[^\]]*\]\([^)]*\)/g, ' ')
+    .replace(/^>\s?/gm, '')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/[*_~`>#-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+// Actions menu component
+interface ActionsMenuProps {
+  showMenu: boolean;
+  setShowMenu: (show: boolean) => void;
+  linkBase: string;
+  linkLabel: string;
+  postId: string;
+  onEdit?: () => void;
+  onPublish?: () => void;
+  onDelete?: () => void;
+  isPublishing: boolean;
+  isDeleting: boolean;
+  postStatus?: string;
+}
+
+function ActionsMenu({
+  showMenu,
+  setShowMenu,
+  linkBase,
+  linkLabel,
+  postId,
+  onEdit,
+  onPublish,
+  onDelete,
+  isPublishing,
+  isDeleting,
+  postStatus
+}: ActionsMenuProps) {
+  if (!showMenu) return null;
+
+  return (
+    <div className="absolute right-0 mt-2 min-w-[12rem] w-max whitespace-nowrap bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-50">
+      <div className="py-1">
+        <Link
+          to={`${linkBase}/${postId}`}
+          className="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+          onClick={() => setShowMenu(false)}
+        >
+          <ExternalLink className="h-4 w-4 mr-2" />
+          {linkLabel}
+        </Link>
+        
+        {onEdit && (
+          <button
+            onClick={onEdit}
+            className="flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            <Edit className="h-4 w-4 mr-2" />
+            Edit Post
+          </button>
+        )}
+        
+        {onPublish && postStatus === 'draft' && (
+          <button
+            onClick={onPublish}
+            disabled={isPublishing}
+            className="flex items-center w-full px-4 py-2 text-sm text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 disabled:opacity-50"
+          >
+            <Globe className="h-4 w-4 mr-2" />
+            {isPublishing ? 'Publishing...' : 'Publish Post'}
+          </button>
+        )}
+        
+        {onDelete && (
+          <button
+            onClick={onDelete}
+            disabled={isDeleting}
+            className="flex items-center w-full px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            {isDeleting ? 'Deleting...' : 'Delete Post'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface PostCardProps {
+  post: PostData;
+  layout?: 'grid' | 'list';
+  onEdit?: (id: string) => void;
+  onDelete?: (id: string) => void;
+  onPublish?: (id: string) => void;
+  showActions?: boolean;
+  isPublishing?: boolean;
+  className?: string;
+  // Base path used for primary links (cover + title). Defaults to view route
+  linkBase?: string; // e.g., '/posts' or '/posts/edit'
+  // Label for the primary menu link
+  linkLabel?: string; // e.g., 'View Post' or 'Edit Post'
+}
+
+export function PostCard({
+  post,
+  layout = 'grid',
+  onEdit,
+  onDelete,
+  onPublish,
+  showActions = true,
+  isPublishing = false,
+  className = '',
+  linkBase = '/posts',
+  linkLabel = 'View Post',
+}: PostCardProps) {
+  const [showMenu, setShowMenu] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const { coverUrl, coverAlt } = extractCoverImage(post.coverImage);
+  const finalCoverAlt = coverAlt || post.title;
+
+  const previewText = useMemo(() => {
+    if (post.summary && post.summary.trim().length > 0) return post.summary;
+    const block = post.contentBlocks?.find(b => b && b.type === 'tiptap');
+    const doc = block && (block.data?.doc ?? block.data);
+    if (doc) return extractTextFromTiptapDoc(doc);
+    return stripMarkdown(post.content);
+  }, [post]);
+
+  // Format date
+  const formatDate = (date: string | Date) => {
+    return new Date(date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  // Handle delete with confirmation
+  const handleDelete = async () => {
+    if (!onDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      await onDelete(post.id);
+    } finally {
+      setIsDeleting(false);
+      setShowMenu(false);
+    }
+  };
+
+  // Handle edit
+  const handleEdit = () => {
+    if (onEdit) {
+      onEdit(post.id);
+    }
+    setShowMenu(false);
+  };
+
+  // Handle publish
+  const handlePublish = async () => {
+    if (!onPublish) return;
+    
+    try {
+      await onPublish(post.id);
+    } finally {
+      setShowMenu(false);
+    }
+  };
+
+  if (layout === 'list') {
+    return (
+      <div className={cn(
+        'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 hover:shadow-md transition-shadow',
+        className
+      )}>
+        <div className="flex items-start space-x-4">
+          {/* Cover Image */}
+          {coverUrl && (
+            <Link to={`${linkBase}/${post.id}`} className="flex-shrink-0">
+              <SafeImage
+                src={coverUrl}
+                alt={finalCoverAlt}
+                className="w-24 h-24 object-cover rounded-lg"
+                width={96}
+                height={96}
+                loading="lazy"
+                quality={isMobileDevice() ? 70 : 80}
+                format="auto"
+                responsive={true}
+              />
+            </Link>
+          )}
+
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <Link to={`${linkBase}/${post.id}`}>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+                    {post.title}
+                  </h3>
+                </Link>
+                
+                {previewText && (
+                  <p className="text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
+                    {previewText}
+                  </p>
+                )}
+
+                {/* Meta information */}
+                <div className="flex items-center space-x-4 mt-3 text-sm text-gray-500 dark:text-gray-400">
+                  <div className="flex items-center">
+                    <Calendar className="h-4 w-4 mr-1" />
+                    {formatDate(post.createdAt)}
+                  </div>
+                  
+                  {post.author && (
+                    <div className="flex items-center">
+                      <User className="h-4 w-4 mr-1" />
+                      {post.author.username}
+                    </div>
+                  )}
+
+                  <div className="flex items-center">
+                    <Eye className="h-4 w-4 mr-1" />
+                    {post.stats?.viewCount || 0}
+                  </div>
+
+                  <div className="flex items-center">
+                    <Heart className="h-4 w-4 mr-1" />
+                    {post.stats?.likeCount || 0}
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions Menu */}
+              {showActions && (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowMenu(!showMenu)}
+                    className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </button>
+
+                  <ActionsMenu
+                    showMenu={showMenu}
+                    setShowMenu={setShowMenu}
+                    linkBase={linkBase}
+                    linkLabel={linkLabel}
+                    postId={post.id}
+                    onEdit={handleEdit}
+                    onPublish={handlePublish}
+                    onDelete={handleDelete}
+                    isPublishing={isPublishing}
+                    isDeleting={isDeleting}
+                    postStatus={post.status}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Grid layout
+  return (
+    <div className={cn(
+      'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition-shadow',
+      className
+    )}>
+      {/* Cover Image */}
+      {coverUrl && (
+        <Link to={`${linkBase}/${post.id}`}>
+          <div className="overflow-hidden rounded-t-lg">
+            <SafeImage
+              src={coverUrl}
+              alt={finalCoverAlt}
+              className="w-full h-48 object-cover"
+              height={192}
+              loading="lazy"
+              quality={isMobileDevice() ? 70 : 80}
+              format="auto"
+              responsive={true}
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            />
+          </div>
+        </Link>
+      )}
+
+      {/* Content */}
+      <div className="p-4">
+        <div className="flex items-start justify-between mb-2">
+          <Link to={`${linkBase}/${post.id}`} className="flex-1">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 hover:text-primary-600 dark:hover:text-primary-400 transition-colors line-clamp-2">
+              {post.title}
+            </h3>
+          </Link>
+
+          {/* Actions Menu */}
+          {showActions && (
+            <div className="relative ml-2">
+              <button
+                onClick={() => setShowMenu(!showMenu)}
+                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </button>
+
+              <ActionsMenu
+                showMenu={showMenu}
+                setShowMenu={setShowMenu}
+                linkBase={linkBase}
+                linkLabel={linkLabel}
+                postId={post.id}
+                onEdit={handleEdit}
+                onPublish={handlePublish}
+                onDelete={handleDelete}
+                isPublishing={isPublishing}
+                isDeleting={isDeleting}
+                postStatus={post.status}
+              />
+            </div>
+          )}
+        </div>
+
+        {previewText && (
+          <p className="text-gray-600 dark:text-gray-400 text-sm mb-3 line-clamp-3">
+            {previewText}
+          </p>
+        )}
+
+        {/* Meta information */}
+        <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center">
+              <Calendar className="h-3 w-3 mr-1" />
+              {formatDate(post.createdAt)}
+            </div>
+            
+            {post.author && (
+              <div className="flex items-center">
+                <User className="h-3 w-3 mr-1" />
+                {post.author.username}
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <div className="flex items-center">
+              <Eye className="h-3 w-3 mr-1" />
+              {post.stats?.viewCount || 0}
+            </div>
+            
+            <div className="flex items-center">
+              <Heart className="h-3 w-3 mr-1" />
+              {post.stats?.likeCount || 0}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

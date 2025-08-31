@@ -18,25 +18,22 @@ export function truncateText(text: string, maxLength: number): string {
   return text.slice(0, maxLength) + "..."
 }
 
-export function getImageUrl(path: string): string {
-  if (path.startsWith("http")) {
-    return path // Already a full URL
-  }
-  return `/uploads/${path}`
-}
-
 export function getOptimizedImageUrl(url: string, width = 800): string {
   return `${url}?width=${width}&quality=80&format=webp`
 }
 
 // Fonction utilitaire pour obtenir la couleur en fonction du rôle
-  export const getRoleColor = (role: string): string => {
-    switch (role) {
-      case "admin":
-        return "bg-red-100 text-red-800"
-      case "author":
-        return "bg-blue-100 text-blue-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
+export const getRoleColor = (role: string): string => {
+  switch (role) {
+    case "admin":
+      return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
+    case "author":
+      return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
+    case "editor":
+      return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300"
+    case "user":
+      return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
+    default:
+      return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
   }
+}

@@ -4,12 +4,7 @@ import React from "react"
 import { useState, type FormEvent } from "react"
 import { Link } from "react-router-dom"
 import { AlertCircle, ArrowLeft, Loader2, CheckCircle, Mail } from "lucide-react"
-
-// API configuration
-const API_BASE_URL = "https://mern-backend-neon.vercel.app"
-const API_ENDPOINTS = {
-  forgotPassword: `${API_BASE_URL}/auth/forgot-password`
-}
+import { API_ENDPOINTS } from "../config/api.config"
 
 // Email validation
 const isValidEmail = (email: string): boolean => {
@@ -49,7 +44,7 @@ const ForgotPassword: React.FC = () => {
     setIsSubmitting(true)
 
     try {
-      const response = await fetch(API_ENDPOINTS.forgotPassword, {
+      const response = await fetch(API_ENDPOINTS.auth.forgotPassword, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

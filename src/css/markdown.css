@@ -1,0 +1,695 @@
+/* Styles pour le contenu Markdown */
+/* Variables CSS pour le contenu Markdown avec spécificité accrue */
+html:root {
+  --md-text-heading: #111827 !important; /* Noir pour les titres en mode clair */
+  --md-text-body: #374151 !important;   /* Gris foncé pour le texte en mode clair */
+  --md-border: #e5e7eb !important;      /* Gris clair pour les bordures en mode clair */
+  --md-link: #16a34a;         /* Couleur des liens en mode clair */
+  --md-link-hover: #15803d;   /* Couleur des liens au survol en mode clair */
+  --md-blockquote-bg: #f9f9f9; /* Fond des citations en mode clair */
+  --md-blockquote-border: #22c55e; /* Bordure des citations en mode clair */
+  --md-blockquote-text: #555;  /* Texte des citations en mode clair */
+  --md-code-bg: rgba(27, 31, 35, 0.05); /* Fond du code inline en mode clair */
+  --md-code-block-bg: var(--syntax-background, #f0f0f0); /* Fond des blocs de code en mode clair */
+  --md-code-block-border: var(--syntax-border, #ddd); /* Bordure des blocs de code en mode clair */
+  --md-table-border: #e2e8f0; /* Bordure des tableaux en mode clair */
+  --md-table-header-bg: #f8fafc; /* Fond de l'en-tête des tableaux en mode clair */
+  --md-table-row-hover: #f1f5f9; /* Fond des lignes au survol en mode clair */
+  --md-copy-button-bg: rgba(255, 255, 255, 0.1); /* Fond du bouton de copie en mode clair */
+  --md-copy-button-color: #555; /* Couleur du bouton de copie en mode clair */
+  --md-copy-button-hover: rgba(0, 0, 0, 0.1); /* Fond du bouton de copie au survol en mode clair */
+}
+
+/* Mode sombre avec sélecteurs explicites et spécificité accrue */
+html.dark:root, 
+html[data-theme="dark"]:root, 
+html[data-mode="dark"]:root {
+  --md-text-heading: #f5f5f5 !important; /* Blanc pour les titres en mode sombre */
+  --md-text-body: #d4d4d4 !important;    /* Gris clair pour le texte en mode sombre */
+  --md-border: #333 !important;          /* Gris foncé pour les bordures en mode sombre */
+  --md-link: #4ade80;         /* Couleur des liens en mode sombre */
+  --md-link-hover: #86efac;   /* Couleur des liens au survol en mode sombre */
+  --md-blockquote-bg: #222;   /* Fond des citations en mode sombre */
+  --md-blockquote-border: #22c55e; /* Bordure des citations en mode sombre */
+  --md-blockquote-text: #b0b0b0; /* Texte des citations en mode sombre */
+  --md-code-bg: rgba(240, 246, 252, 0.1); /* Fond du code inline en mode sombre */
+  --md-code-block-bg: var(--syntax-background, #1a1a1a); /* Fond des blocs de code en mode sombre */
+  --md-code-block-border: var(--syntax-border, #333); /* Bordure des blocs de code en mode sombre */
+  --md-table-border: #333; /* Bordure des tableaux en mode sombre */
+  --md-table-header-bg: #222; /* Fond de l'en-tête des tableaux en mode sombre */
+  --md-table-row-hover: #2a2a2a; /* Fond des lignes au survol en mode sombre */
+  --md-copy-button-bg: rgba(0, 0, 0, 0.3); /* Fond du bouton de copie en mode sombre */
+  --md-copy-button-color: #aaa; /* Couleur du bouton de copie en mode sombre */
+  --md-copy-button-hover: rgba(255, 255, 255, 0.1); /* Fond du bouton de copie au survol en mode sombre */
+}
+
+/* Media query pour le mode sombre système */
+@media (prefers-color-scheme: dark) {
+  body:not(.light):not([data-theme="light"]):not([data-mode="light"]) {
+    --md-text-heading: #f5f5f5;
+    --md-text-body: #d4d4d4;
+    --md-border: #333;
+  }
+}
+
+.markdown-content {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.8;
+  color: var(--md-text-body);
+  font-weight: 400;
+  font-size: 1.125rem;
+  letter-spacing: -0.011em;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Animation pour les éléments interactifs */
+.markdown-body a,
+.markdown-body button {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Styles des titres */
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin-top: 2.5rem;
+  margin-bottom: 1.25rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--md-text-heading);
+  letter-spacing: -0.02em;
+}
+
+.markdown-body h1 {
+  font-size: 2.25em;
+  border-bottom: 2px solid var(--md-border);
+  padding-bottom: 0.5em;
+  margin-top: 0;
+}
+
+.markdown-body h2 {
+  font-size: 1.75em;
+  border-bottom: 1px solid var(--md-border);
+  padding-bottom: 0.4em;
+}
+
+.markdown-body h3 {
+  font-size: 1.4em;
+}
+
+.markdown-body h4 {
+  font-size: 1.2em;
+}
+
+.markdown-body h5 {
+  font-size: 1em;
+}
+
+.markdown-body h6 {
+  font-size: 0.9em;
+  color: var(--md-text-body);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Paragraphes */
+.markdown-body p {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: var(--md-text-body);
+  font-size: 1.125rem;
+  line-height: 1.8;
+}
+
+/* Citations */
+.markdown-body blockquote {
+  padding: 1.2rem 1.5rem;
+  color: var(--md-blockquote-text);
+  background-color: var(--md-blockquote-bg);
+  border-left: 4px solid var(--md-blockquote-border);
+  margin: 1.5rem 0;
+  border-radius: 0 0.25rem 0.25rem 0;
+  font-style: italic;
+  position: relative;
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+.markdown-body blockquote::before {
+  content: '"';
+  font-size: 3rem;
+  position: absolute;
+  left: 0.5rem;
+  top: -0.5rem;
+  color: var(--md-blockquote-border, rgba(34, 197, 94, 0.2));
+  opacity: 0.2;
+  font-family: Georgia, serif;
+  transition: color 0.3s ease;
+}
+
+.markdown-body blockquote p {
+  margin-bottom: 0.5rem;
+}
+
+.markdown-body blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* Listes */
+.markdown-body ul,
+.markdown-body ol {
+  padding-left: 1.75rem;
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+}
+
+.markdown-body li {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  position: relative;
+}
+
+.markdown-body ul li::marker {
+  color: #22c55e;
+}
+
+/* Blocs de code */
+.markdown-body pre {
+  margin: 1.5rem 0;
+  padding: 1.25rem 1.25rem 1.25rem 0; /* Padding réduit à gauche pour les numéros de ligne */
+  overflow: auto;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  background-color: var(--md-code-block-bg);
+  border-radius: 0.5rem;
+  border: 1px solid var(--md-code-block-border);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  position: relative; /* Pour le positionnement du bouton de copie */
+}
+
+/* Bouton de copie du code */
+.markdown-body .code-copy-button {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background-color: var(--md-copy-button-bg);
+  color: var(--md-copy-button-color);
+  border: none;
+  border-radius: 0.25rem;
+  padding: 0.3rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease, background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.markdown-body pre:hover .code-copy-button {
+  opacity: 1;
+}
+
+.markdown-body .code-copy-button:hover {
+  background-color: var(--md-copy-button-hover);
+}
+
+.markdown-body code {
+  padding: 0.2em 0.4em;
+  margin: 0;
+  font-size: 0.9rem;
+  background-color: rgba(27, 31, 35, 0.05);
+  border-radius: 0.25rem;
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  color: var(--syntax-foreground, #333);
+}
+
+.markdown-body pre code {
+  padding: 0;
+  margin: 0;
+  font-size: 0.9rem;
+  word-break: normal;
+  white-space: pre;
+  background: transparent;
+  border: 0;
+  display: inline;
+  overflow: visible;
+  line-height: inherit;
+  color: var(--syntax-foreground, #333);
+}
+
+/* Images */
+.markdown-body img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 2.5rem auto;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.markdown-body img:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+/* Liens */
+.markdown-body a {
+  color: var(--md-link);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(22, 163, 74, 0.2);
+  padding-bottom: 1px;
+  transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.markdown-body a:hover {
+  color: var(--md-link-hover);
+  border-bottom-color: currentColor;
+  text-decoration: none;
+  background-color: rgba(22, 163, 74, 0.05);
+}
+
+/* Animation subtile pour les liens */
+.markdown-body a::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background-color: currentColor;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.3s ease;
+  z-index: -1;
+}
+
+.markdown-body a:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+html.dark .markdown-body a,
+[data-theme="dark"] .markdown-body a,
+[data-mode="dark"] .markdown-body a {
+  color: var(--primary, #4ade80);
+  border-bottom-color: rgba(74, 222, 128, 0.2);
+}
+
+html.dark .markdown-body a:hover,
+[data-theme="dark"] .markdown-body a:hover,
+[data-mode="dark"] .markdown-body a:hover {
+  color: var(--primary-hover, #86efac);
+  border-bottom-color: rgba(134, 239, 172, 0.4);
+}
+
+/* Séparateurs */
+.markdown-body hr {
+  height: 1px;
+  padding: 0;
+  margin: 3rem 0;
+  background-color: #eaeaea;
+  border: 0;
+  position: relative;
+  overflow: visible;
+}
+
+.markdown-body hr::after {
+  content: "•";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #fff;
+  color: #ccc;
+  padding: 0 1rem;
+  font-size: 1.2rem;
+}
+
+  /* Styles pour le mode sombre avec media query */
+  @media (prefers-color-scheme: dark) {
+  body:not(.light):not([data-theme="light"]):not([data-mode="light"]) .markdown-body blockquote {
+    color: #b0b0b0;
+    background-color: #222;
+    border-left-color: #22c55e;
+  }
+
+  body:not(.light):not([data-theme="light"]):not([data-mode="light"]) .markdown-body blockquote::before {
+    color: rgba(34, 197, 94, 0.15);
+  }
+
+  body:not(.light):not([data-theme="light"]):not([data-mode="light"]) .markdown-body pre {
+    background-color: #1a1a1a;
+    border-color: #333;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  body:not(.light):not([data-theme="light"]):not([data-mode="light"]) .markdown-body code {
+    background-color: rgba(240, 246, 252, 0.1);
+    color: #e0e0e0;
+  }
+
+  body:not(.light):not([data-theme="light"]):not([data-mode="light"]) .markdown-body pre code {
+    color: #e0e0e0;
+  }
+
+  body:not(.light):not([data-theme="light"]):not([data-mode="light"]) .markdown-body img {
+    background-color: #1a1a1a;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  body:not(.light):not([data-theme="light"]):not([data-mode="light"]) .markdown-body img:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  }
+
+  body:not(.light):not([data-theme="light"]):not([data-mode="light"]) .markdown-body hr {
+    background-color: #333;
+  }
+
+  body:not(.light):not([data-theme="light"]):not([data-mode="light"]) .markdown-body hr::after {
+    background-color: #1a1a1a;
+  }
+
+  body:not(.light):not([data-theme="light"]):not([data-mode="light"]) .markdown-body a {
+    color: #4ade80;
+    border-bottom-color: rgba(74, 222, 128, 0.2);
+  }
+
+  body:not(.light):not([data-theme="light"]):not([data-mode="light"]) .markdown-body a:hover {
+    color: #86efac;
+    border-bottom-color: rgba(134, 239, 172, 0.4);
+  }
+
+  body:not(.light):not([data-theme="light"]):not([data-mode="light"]) .markdown-body ul li::marker {
+    color: #4ade80;
+  }
+  }
+
+/* Styles spécifiques pour les éléments avec des classes pour une meilleure réactivité au thème */
+.md-heading {
+  color: var(--md-text-heading) !important;
+}
+
+.md-paragraph {
+  color: var(--md-text-body) !important;
+}
+
+/* Classe pour forcer le rafraîchissement des styles */
+.theme-refresh {
+  animation: refresh-theme 0.1s ease;
+}
+
+@keyframes refresh-theme {
+  0% { opacity: 0.99; }
+  100% { opacity: 1; }
+}
+
+html.dark .markdown-body blockquote,
+[data-theme="dark"] .markdown-body blockquote,
+[data-mode="dark"] .markdown-body blockquote {
+  color: #b0b0b0;
+  background-color: #222;
+  border-left-color: #22c55e;
+}
+
+html.dark .markdown-body blockquote::before,
+[data-theme="dark"] .markdown-body blockquote::before,
+[data-mode="dark"] .markdown-body blockquote::before {
+  color: rgba(34, 197, 94, 0.15);
+}
+
+html.dark .markdown-body pre,
+[data-theme="dark"] .markdown-body pre,
+[data-mode="dark"] .markdown-body pre {
+  background-color: #1a1a1a;
+  border-color: #333;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+html.dark .markdown-body code,
+[data-theme="dark"] .markdown-body code,
+[data-mode="dark"] .markdown-body code {
+  background-color: rgba(240, 246, 252, 0.1);
+  color: #e0e0e0;
+}
+
+html.dark .markdown-body pre code,
+[data-theme="dark"] .markdown-body pre code,
+[data-mode="dark"] .markdown-body pre code {
+  color: #e0e0e0;
+}
+
+html.dark .markdown-body img,
+[data-theme="dark"] .markdown-body img,
+[data-mode="dark"] .markdown-body img {
+  background-color: #1a1a1a;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .markdown-body img:hover,
+[data-theme="dark"] .markdown-body img:hover,
+[data-mode="dark"] .markdown-body img:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+html.dark .markdown-body hr,
+[data-theme="dark"] .markdown-body hr,
+[data-mode="dark"] .markdown-body hr {
+  background-color: #333;
+}
+
+html.dark .markdown-body hr::after,
+[data-theme="dark"] .markdown-body hr::after,
+[data-mode="dark"] .markdown-body hr::after {
+  background-color: #1a1a1a;
+}
+
+html.dark .markdown-body a,
+[data-theme="dark"] .markdown-body a,
+[data-mode="dark"] .markdown-body a {
+  color: #4ade80;
+  border-bottom-color: rgba(74, 222, 128, 0.2);
+}
+
+html.dark .markdown-body a:hover,
+[data-theme="dark"] .markdown-body a:hover,
+[data-mode="dark"] .markdown-body a:hover {
+  color: #86efac;
+  border-bottom-color: rgba(134, 239, 172, 0.4);
+}
+
+html.dark .markdown-body ul li::marker,
+[data-theme="dark"] .markdown-body ul li::marker,
+[data-mode="dark"] .markdown-body ul li::marker {
+  color: #4ade80;
+}
+
+/* Styles pour les numéros de ligne dans les blocs de code */
+.markdown-body pre {
+  position: relative;
+  counter-reset: line;
+}
+
+.markdown-body .code-line {
+  display: block;
+  position: relative;
+  padding-left: 3.5rem;
+  min-height: 1.5em;
+  line-height: 1.5;
+}
+
+.markdown-body .line-number {
+  position: absolute;
+  left: 0;
+  width: 3rem;
+  text-align: right;
+  color: #777;
+  font-size: 0.85em;
+  user-select: none;
+  opacity: 0.8;
+  padding-right: 0.5rem;
+  border-right: 1px solid #ccc;
+  margin-right: 0.5rem;
+}
+
+/* Coloration syntaxique utilisant des variables CSS */
+.markdown-body pre code .hljs-keyword,
+.markdown-body pre code .hljs-selector-tag,
+.markdown-body pre code .hljs-built_in,
+.markdown-body pre code .hljs-name,
+.markdown-body pre code .hljs-tag {
+  color: var(--syntax-keyword, #0000ff);
+}
+
+.markdown-body pre code .hljs-string,
+.markdown-body pre code .hljs-title,
+.markdown-body pre code .hljs-section,
+.markdown-body pre code .hljs-attribute,
+.markdown-body pre code .hljs-literal,
+.markdown-body pre code .hljs-template-tag,
+.markdown-body pre code .hljs-template-variable,
+.markdown-body pre code .hljs-type {
+  color: var(--syntax-string, #a31515);
+}
+
+.markdown-body pre code .hljs-comment,
+.markdown-body pre code .hljs-quote,
+.markdown-body pre code .hljs-deletion {
+  color: var(--syntax-comment, #008000);
+}
+
+.markdown-body pre code .hljs-number,
+.markdown-body pre code .hljs-regexp,
+.markdown-body pre code .hljs-literal {
+  color: var(--syntax-number, #098658);
+}
+
+.markdown-body pre code .hljs-function,
+.markdown-body pre code .hljs-params {
+  color: var(--syntax-function, #444);
+}
+
+/* Styles pour les liens de titres */
+.markdown-body .heading-link {
+  opacity: 0;
+  margin-left: 0.5rem;
+  font-size: 0.8em;
+  color: #22c55e;
+  transition: opacity 0.2s ease;
+  text-decoration: none;
+}
+
+.markdown-body h1:hover .heading-link,
+.markdown-body h2:hover .heading-link,
+.markdown-body h3:hover .heading-link,
+.markdown-body h4:hover .heading-link,
+.markdown-body h5:hover .heading-link,
+.markdown-body h6:hover .heading-link {
+  opacity: 1;
+}
+
+/* Styles pour les images zoomables */
+.markdown-body .zoomable {
+  cursor: zoom-in;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.markdown-body .zoomable.zoomed {
+  transform: scale(1.5);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  cursor: zoom-out;
+  z-index: 100;
+  position: relative;
+}
+
+/* Styles pour les tableaux */
+.markdown-body .markdown-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 2rem 0;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--md-table-border);
+}
+
+.markdown-body .markdown-table th,
+.markdown-body .markdown-table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--md-table-border);
+}
+
+.markdown-body .markdown-table th {
+  background-color: var(--md-table-header-bg);
+  font-weight: 600;
+  color: var(--md-text-heading);
+}
+
+.markdown-body .markdown-table tr:last-child td {
+  border-bottom: none;
+}
+
+.markdown-body .markdown-table tr:hover td {
+  background-color: var(--md-table-row-hover);
+  transition: background-color 0.2s ease;
+}
+
+/* Styles pour le texte barré */
+.markdown-body del {
+  text-decoration: line-through;
+  color: #888;
+}
+
+/* Mode sombre */
+[data-theme="dark"] {
+  .markdown-body .line-number {
+    color: #666;
+    border-right-color: #444;
+  }
+
+  .markdown-body .heading-link {
+    color: #4ade80;
+  }
+
+  /* Amélioration des couleurs de code pour le mode sombre */
+  .markdown-body pre code .hljs-keyword,
+  .markdown-body pre code .hljs-selector-tag,
+  .markdown-body pre code .hljs-built_in,
+  .markdown-body pre code .hljs-name,
+  .markdown-body pre code .hljs-tag {
+    color: #569CD6;
+  }
+
+  .markdown-body pre code .hljs-string,
+  .markdown-body pre code .hljs-title,
+  .markdown-body pre code .hljs-section,
+  .markdown-body pre code .hljs-attribute,
+  .markdown-body pre code .hljs-literal,
+  .markdown-body pre code .hljs-template-tag,
+  .markdown-body pre code .hljs-template-variable,
+  .markdown-body pre code .hljs-type {
+    color: #CE9178;
+  }
+
+  .markdown-body pre code .hljs-comment,
+  .markdown-body pre code .hljs-quote,
+  .markdown-body pre code .hljs-deletion {
+    color: #6A9955;
+  }
+
+  .markdown-body pre code .hljs-number,
+  .markdown-body pre code .hljs-regexp,
+  .markdown-body pre code .hljs-literal {
+    color: #b5cea8;
+  }
+
+  .markdown-body pre code .hljs-function,
+  .markdown-body pre code .hljs-params {
+    color: #9cdcfe;
+  }
+
+  .markdown-body .markdown-table th {
+    background-color: #222;
+    color: #e0e0e0;
+  }
+
+  .markdown-body .markdown-table th,
+  .markdown-body .markdown-table td {
+    border-bottom-color: #333;
+  }
+
+  .markdown-body .markdown-table tr:hover td {
+    background-color: #2a2a2a;
+  }
+
+  .markdown-body del {
+    color: #777;
+  }
+}

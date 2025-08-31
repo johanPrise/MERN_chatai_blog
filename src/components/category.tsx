@@ -5,7 +5,7 @@ import { Badge } from "./ui/badge"
 import { Folder } from "lucide-react"
 import React from "react"
 import { CategoryProps } from "../types/CategoryProps"
-
+import { API_ENDPOINTS } from "../config/api.config"
 
 
 const CategoryCard = ({ categoryId }: { categoryId: string }) => {
@@ -13,9 +13,20 @@ const CategoryCard = ({ categoryId }: { categoryId: string }) => {
 
   useEffect(() => {
     const fetchCategory = async () => {
-      const res = await fetch(`https://mern-backend-neon.vercel.app/category/${categoryId}`)
-      const data = await res.json()
-      setCategoryData(data)
+      try {
+        const res = await fetch(API_ENDPOINTS.categories.detail(categoryId))
+
+        if (!res.ok) {
+          throw new Error(`Failed to fetch category: ${res.status}`)
+        }
+
+        const data = await res.json()
+        // Handle the response structure (data or data.category)
+        const categoryData = data.category || data
+        setCategoryData(categoryData)
+      } catch (error) {
+        console.error("Error fetching category:", error)
+      }
     }
 
     fetchCategory()
@@ -36,7 +47,7 @@ const CategoryCard = ({ categoryId }: { categoryId: string }) => {
 
 const CategoryCard2 = ({ category }: { category: CategoryProps }) => {
   return (
-    <Link to={`/Category/${category._id}`}>
+    <Link to={`/category/${category._id}`}>
       <Badge
         variant="outline"
         className="px-3 py-1 text-sm bg-background hover:bg-primary-50 hover:text-primary-700 transition-colors"

@@ -1,35 +1,48 @@
 #root {
+  width: 100%;
   max-width: 1600px;
   margin: 0 auto;
   display: grid;
+  overflow-x: hidden; /* Prevent horizontal scrolling */
 }
+
+/* Ensure all direct children respect container bounds */
+#root > * {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 a {
   cursor: pointer;
-  color: #4b4b4b,;
+  color: hsl(var(--foreground));
 }
+
 .blog-header {
-  background-color: #f4f0f8;
+  background-color: hsl(var(--accent));
   padding: 5em;
   border-radius: 1em;
   img {
     border-radius: 1em;
   }
 }
+
 .post_title {
-  font-family: Sen;
-  color: #232536;
+  font-family: Sen, sans-serif;
+  color: hsl(var(--foreground));
 }
+
 .post_description {
-  color: #6d6e76;
+  color: hsl(var(--muted-foreground));
 }
 
 .post_img {
   img {
-    background: white;
+    background: hsl(var(--card));
     padding: 1px;
     border-radius: 1em;
   }
 }
+
 .posts-container h1 {
   margin: 0em;
 }
@@ -41,12 +54,14 @@ a {
     font-size: xx-large;
   }
 }
+
 .post_id {
-  color: #6d6e76;
+  color: hsl(var(--muted-foreground));
   span {
-    color: #232536;
+    color: hsl(var(--foreground));
   }
 }
+
 .posts-container {
   display: grid;
   row-gap: 3em;
@@ -59,6 +74,20 @@ a {
       box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.4);
     }
   }
+}
+
+/* Dark mode specific overrides */
+.dark .blog-header {
+  background-color: hsl(var(--accent));
+}
+
+.dark .post_img img {
+  background: hsl(var(--card));
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5);
+}
+
+.dark .posts-container img:hover {
+  box-shadow: 0px 0px 15px rgba(255, 255, 255, 0.1);
 }
 
 @keyframes dominos {
@@ -76,7 +105,7 @@ a {
 .newtons-cradle {
   --uib-size: 50px;
   --uib-speed: 1.2s;
-  --uib-color: #22c55e; /* Green color */
+  --uib-color: hsl(var(--primary)); /* Use theme primary color */
   position: relative;
   display: flex;
   align-items: center;

@@ -1,0 +1,6 @@
+onlyBuiltDependencies:
+  - bcrypt
+  - bufferutil
+  - esbuild
+  - msw
+  - sharp
