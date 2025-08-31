@@ -48,7 +48,7 @@ export const registerUser = async (userData: RegisterInput) => {
 
   // Déclencher le hook de notification pour nouvel utilisateur
   try {
-    await onUserRegistered(newUser._id.toString(), username, email);
+    await onUserRegistered(String(newUser._id), username);
   } catch (error) {
     // Log l'erreur mais ne pas faire échouer l'inscription
     console.error('Failed to create user registration notification:', error);
@@ -137,7 +137,7 @@ export const requestPasswordReset = async (data: ForgotPasswordInput) => {
   const { email } = data;
 
   // Trouver l'utilisateur par email
-  const user = await User.findOne({ email }) as IUser | null;
+  const user = await User.findOne({ email });
 
   // Si l'utilisateur n'existe pas, ne pas révéler cette information
   if (!user) {
@@ -169,7 +169,7 @@ export const resetUserPassword = async (data: ResetPasswordInput) => {
   const user = await User.findOne({
     resetPasswordToken: token,
     resetPasswordExpires: { $gt: Date.now() },
-  }) as IUser | null;
+  });
 
   // Vérifier si l'utilisateur existe
   if (!user) {
@@ -192,7 +192,7 @@ export const changeUserPassword = async (userId: string, data: ChangePasswordInp
   const { currentPassword, newPassword } = data;
 
   // Trouver l'utilisateur par ID
-  const user = await User.findById(userId) as IUser | null;
+  const user = await User.findById(userId) as IUser;
 
   // Vérifier si l'utilisateur existe
   if (!user) {
@@ -218,7 +218,7 @@ export const changeUserPassword = async (userId: string, data: ChangePasswordInp
  */
 export const getCurrentUser = async (userId: string) => {
   // Trouver l'utilisateur par ID
-  const user = await User.findById(userId) as IUser | null;
+  const user = await User.findById(userId);
 
   // Vérifier si l'utilisateur existe
   if (!user) {

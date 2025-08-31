@@ -45,7 +45,7 @@ export const getNotifications = async (
       errorMessage
     );
 
-    logger.error('Erreur lors de la récupération des notifications', error, {
+    logger.error('Erreur lors de la récupération des notifications', error instanceof Error ? error : new Error(String(error)), {
       userId: request.user?._id,
       ip: request.ip,
     });
@@ -104,8 +104,7 @@ export const markNotificationAsRead = async (
       errorMessage
     );
 
-    logger.error('Erreur lors du marquage de la notification', error, {
-      notificationId: request.params.id,
+    logger.error('Erreur lors du marquage de la notification', error instanceof Error ? error : new Error(String(error)), {
       userId: request.user?._id,
       ip: request.ip,
     });
@@ -147,7 +146,7 @@ export const markAllNotificationsAsRead = async (
       errorMessage
     );
 
-    logger.error('Erreur lors du marquage de toutes les notifications', error, {
+    logger.error('Erreur lors du marquage de toutes les notifications', error instanceof Error ? error : new Error(String(error)), {
       userId: request.user?._id,
       ip: request.ip,
     });
@@ -172,7 +171,6 @@ export const cleanupOldNotifications = async (
 
     logger.info('Nettoyage manuel des notifications déclenché', {
       userId,
-      deletedCount: result.deletedCount,
       ip: request.ip,
     });
 

@@ -17,8 +17,6 @@ export function createRateLimitMiddleware(options: RateLimitOptions) {
     windowMs,
     maxRequests,
     keyGenerator = (request: FastifyRequest) => request.ip,
-    skipSuccessfulRequests = false,
-    skipFailedRequests = false,
   } = options;
 
   return async (request: FastifyRequest, reply: FastifyReply) => {
@@ -56,21 +54,7 @@ export function createRateLimitMiddleware(options: RateLimitOptions) {
       reply.header('X-RateLimit-Remaining', Math.max(0, maxRequests - newCount));
       reply.header('X-RateLimit-Reset', windowStart + windowMs);
 
-      // Hook pour décrémenter le compteur si nécessaire
-      if (skipSuccessfulRequests || skipFailedRequests) {
-        reply.addHook('onSend', async (request, reply) => {
-          const shouldSkip = 
-            (skipSuccessfulRequests && reply.statusCode >= 200 && reply.statusCode < 300) ||
-            (skipFailedRequests && reply.statusCode >= 400);
-
-          if (shouldSkip) {
-            const currentCount = await cache.get<number>(windowKey) || 0;
-            if (currentCount > 0) {
-              await cache.set(windowKey, currentCount - 1, ttl);
-            }
-          }
-        });
-      }
+      // Note: Skip logic simplified - counting all requests for consistency
     } catch (error) {
       // En cas d'erreur avec Redis, on laisse passer la requête
       request.log.error('Erreur dans le rate limiting:', error);

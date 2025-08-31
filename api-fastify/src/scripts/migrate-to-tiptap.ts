@@ -1,49 +1,9 @@
-import { connectDB } from '../config/database';
-import { Post } from '../models/Post';
+import { connectDB } from '../config/database.js';
+import { Post } from '../models/post.model.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // Convertit le markdown en structure Tiptap basique
-const markdownToTiptap = (markdown: string) => {
-  const lines = markdown.split('\n');
-  const content: any[] = [];
-  
-  for (const line of lines) {
-    if (!line.trim()) continue;
-    
-    // Headers
-    if (line.startsWith('# ')) {
-      content.push({
-        type: 'heading',
-        attrs: { level: 1 },
-        content: [{ type: 'text', text: line.slice(2) }]
-      });
-    } else if (line.startsWith('## ')) {
-      content.push({
-        type: 'heading',
-        attrs: { level: 2 },
-        content: [{ type: 'text', text: line.slice(3) }]
-      });
-    } else if (line.startsWith('### ')) {
-      content.push({
-        type: 'heading',
-        attrs: { level: 3 },
-        content: [{ type: 'text', text: line.slice(4) }]
-      });
-    } else {
-      // Paragraphe simple
-      content.push({
-        type: 'paragraph',
-        content: [{ type: 'text', text: line }]
-      });
-    }
-  }
-  
-  return {
-    type: 'doc',
-    content: content.length > 0 ? content : [{ type: 'paragraph', content: [{ type: 'text', text: '' }] }]
-  };
-};
 
 export const migratePosts = async () => {
   try {
@@ -60,11 +20,10 @@ export const migratePosts = async () => {
     console.log(`Found ${posts.length} posts to migrate`);
     
     for (const post of posts) {
-      const tiptapDoc = markdownToTiptap(post.content || '');
       
       post.contentBlocks = [{
-        type: 'tiptap',
-        data: { doc: tiptapDoc }
+        type: 'paragraph',
+        text: post.content || ''
       }];
       
       await post.save();

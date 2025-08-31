@@ -17,7 +17,7 @@ export async function notificationRoutes(server: FastifyInstance) {
    * Récupérer les notifications avec pagination
    */
   server.get('/', {
-    preHandler: [notificationRateLimit, validateNotificationQuery],
+    preHandler: [notificationRateLimit as any, validateNotificationQuery as any],
     schema: {
       description: 'Récupérer les notifications admin avec pagination',
       tags: ['Admin', 'Notifications'],
@@ -110,14 +110,14 @@ export async function notificationRoutes(server: FastifyInstance) {
         }
       }
     }
-  }, NotificationController.getNotifications);
+  }, NotificationController.getNotifications as any);
 
   /**
    * PATCH /api/admin/notifications/:id/read
    * Marquer une notification comme lue
    */
   server.patch('/:id/read', {
-    preHandler: [notificationModifyRateLimit, validateNotificationId],
+    preHandler: [notificationModifyRateLimit as any, validateNotificationId as any],
     schema: {
       description: 'Marquer une notification comme lue',
       tags: ['Admin', 'Notifications'],
