@@ -7,6 +7,7 @@ import { Link, useNavigate } from "react-router-dom"
 import { UserContext } from "../UserContext"
 import { AlertCircle, Loader2, CheckCircle, LogIn } from "lucide-react"
 import { ValidationErrors } from "../types/ValidationErrors"
+import { API_ENDPOINTS } from "../config/api.config"
 
 
 /**
@@ -75,7 +76,7 @@ function Login(): JSX.Element {
 
     try {
       // Test direct API call
-      const response = await fetch("/api/auth/login", {
+      const response = await fetch(API_ENDPOINTS.auth.login, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

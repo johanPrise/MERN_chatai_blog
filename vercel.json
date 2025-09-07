@@ -1,7 +1,0 @@
-{
-  "rewrites": [
-    { "source": "/api/health", "destination": "http://localhost:4200/health" },
-    { "source": "/api/(.*)", "destination": "http://localhost:4200/$1" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
-}
