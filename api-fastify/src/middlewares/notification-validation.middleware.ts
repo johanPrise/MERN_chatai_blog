@@ -25,7 +25,8 @@ export const validateNotificationId = async (
   }
 
   // Vérifier que l'ID est un ObjectId MongoDB valide
-  if (!Types.ObjectId.isValid(id)) {
+  const ObjectId = Types.ObjectId;
+  if (!ObjectId.isValid(id)) {
     return reply.status(400).send({
       message: 'Format d\'ID de notification invalide',
     });

@@ -51,7 +51,7 @@ export const login = async (
     const user = await AuthService.loginUser(request.body);
 
     // Générer un token JWT
-    const token = await reply.jwtSign(
+    const token: string = await reply.jwtSign(
       {
         _id: user._id.toString(),
         email: user.email,
@@ -327,6 +327,7 @@ export const logout = async (
   reply: FastifyReply
 ) => {
   try {
+    // Call logout service (returns true for success)
     await AuthService.logoutUser();
 
     // Supprimer le cookie de token

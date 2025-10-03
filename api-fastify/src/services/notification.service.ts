@@ -77,7 +77,8 @@ export async function getNotifications(
 export async function markNotificationAsRead(notificationId: string): Promise<AdminNotification> {
   try {
     // Valider l'ID MongoDB
-    if (!Types.ObjectId.isValid(notificationId)) {
+    const ObjectId = Types.ObjectId;
+    if (!ObjectId.isValid(notificationId)) {
       throw new Error('ID de notification invalide');
     }
 
