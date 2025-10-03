@@ -27,15 +27,12 @@ function Login(): JSX.Element {
   const navigate = useNavigate()
   const { login: contextLogin } = UserContext()
 
-  // Clear error when input changes
+  // Clear only general errors when input changes, keep field-specific errors visible
   useEffect(() => {
-    if (email && errors.email) {
-      setErrors(prev => ({ ...prev, email: undefined }))
+    if ((email || password) && errors.general) {
+      setErrors(prev => ({ ...prev, general: undefined }))
     }
-    if (password && errors.password) {
-      setErrors(prev => ({ ...prev, password: undefined }))
-    }
-  }, [email, password, errors.email, errors.password])
+  }, [email, password, errors.general])
 
   /**
    * Validate form inputs
@@ -274,7 +271,16 @@ function Login(): JSX.Element {
                 disabled={isSubmitting}
               />
               {errors.password && (
-                <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+                <p className="mt-1 text-sm text-red-600 flex items-start">
+                  <AlertCircle className="h-4 w-4 mr-1 flex-shrink-0 mt-0.5" />
+                  {errors.password}
+                </p>
+              )}
+              {!errors.password && password.length > 0 && password.length < 6 && (
+                <p className="mt-1 text-sm text-amber-600 flex items-start">
+                  <AlertCircle className="h-4 w-4 mr-1 flex-shrink-0 mt-0.5" />
+                  Le mot de passe doit contenir au moins 6 caractères ({password.length}/6)
+                </p>
               )}
             </div>
           </div>

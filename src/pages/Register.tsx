@@ -22,18 +22,12 @@ function Register() {
   // Navigation
   const navigate = useNavigate()
 
-  // Clear error when input changes
+  // Clear only general errors when input changes, keep field-specific errors visible
   useEffect(() => {
-    if (username && errors.username) {
-      setErrors(prev => ({ ...prev, username: undefined }))
+    if ((username || password || email) && errors.general) {
+      setErrors(prev => ({ ...prev, general: undefined }))
     }
-    if (password && errors.password) {
-      setErrors(prev => ({ ...prev, password: undefined }))
-    }
-    if (email && errors.email) {
-      setErrors(prev => ({ ...prev, email: undefined }))
-    }
-  }, [username, password, email, errors.username, errors.password, errors.email])
+  }, [username, password, email, errors.general])
 
   /**
    * Validate form inputs
@@ -189,9 +183,8 @@ function Register() {
                 type="email"
                 autoComplete="email"
                 required
-                className={`block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ${
-                  errors.email ? 'ring-red-300 focus:ring-red-500' : 'ring-gray-300 focus:ring-lime-600'
-                } placeholder:text-gray-400 focus:ring-2 focus:ring-inset sm:text-sm sm:leading-6 disabled:opacity-70 disabled:cursor-not-allowed`}
+                className={`block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ${errors.email ? 'ring-red-300 focus:ring-red-500' : 'ring-gray-300 focus:ring-lime-600'
+                  } placeholder:text-gray-400 focus:ring-2 focus:ring-inset sm:text-sm sm:leading-6 disabled:opacity-70 disabled:cursor-not-allowed`}
                 value={email}
                 onChange={(ev) => setEmail(ev.target.value)}
                 disabled={isSubmitting}
@@ -214,15 +207,23 @@ function Register() {
                 type="text"
                 autoComplete="username"
                 required
-                className={`block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ${
-                  errors.username ? 'ring-red-300 focus:ring-red-500' : 'ring-gray-300 focus:ring-lime-600'
-                } placeholder:text-gray-400 focus:ring-2 focus:ring-inset sm:text-sm sm:leading-6 disabled:opacity-70 disabled:cursor-not-allowed`}
+                className={`block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ${errors.username ? 'ring-red-300 focus:ring-red-500' : 'ring-gray-300 focus:ring-lime-600'
+                  } placeholder:text-gray-400 focus:ring-2 focus:ring-inset sm:text-sm sm:leading-6 disabled:opacity-70 disabled:cursor-not-allowed`}
                 value={username}
                 onChange={(ev) => setUsername(ev.target.value)}
                 disabled={isSubmitting}
               />
               {errors.username && (
-                <p className="mt-1 text-sm text-red-600">{errors.username}</p>
+                <p className="mt-1 text-sm text-red-600 flex items-start">
+                  <AlertCircle className="h-4 w-4 mr-1 flex-shrink-0 mt-0.5" />
+                  {errors.username}
+                </p>
+              )}
+              {!errors.username && username.length > 0 && username.length < 3 && (
+                <p className="mt-1 text-sm text-amber-600 flex items-start">
+                  <AlertCircle className="h-4 w-4 mr-1 flex-shrink-0 mt-0.5" />
+                  Le nom d'utilisateur doit contenir au moins 3 caractères ({username.length}/3)
+                </p>
               )}
             </div>
           </div>
@@ -239,15 +240,23 @@ function Register() {
                 type="password"
                 autoComplete="new-password"
                 required
-                className={`block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ${
-                  errors.password ? 'ring-red-300 focus:ring-red-500' : 'ring-gray-300 focus:ring-lime-600'
-                } placeholder:text-gray-400 focus:ring-2 focus:ring-inset sm:text-sm sm:leading-6 disabled:opacity-70 disabled:cursor-not-allowed`}
+                className={`block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ${errors.password ? 'ring-red-300 focus:ring-red-500' : 'ring-gray-300 focus:ring-lime-600'
+                  } placeholder:text-gray-400 focus:ring-2 focus:ring-inset sm:text-sm sm:leading-6 disabled:opacity-70 disabled:cursor-not-allowed`}
                 value={password}
                 onChange={(ev) => setPassword(ev.target.value)}
                 disabled={isSubmitting}
               />
               {errors.password && (
-                <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+                <p className="mt-1 text-sm text-red-600 flex items-start">
+                  <AlertCircle className="h-4 w-4 mr-1 flex-shrink-0 mt-0.5" />
+                  {errors.password}
+                </p>
+              )}
+              {!errors.password && password.length > 0 && password.length < 6 && (
+                <p className="mt-1 text-sm text-amber-600 flex items-start">
+                  <AlertCircle className="h-4 w-4 mr-1 flex-shrink-0 mt-0.5" />
+                  Le mot de passe doit contenir au moins 6 caractères ({password.length}/6)
+                </p>
               )}
             </div>
           </div>
