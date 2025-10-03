@@ -43,6 +43,9 @@ export const register = async (
 /**
  * Contrôleur pour la connexion d'un utilisateur
  */
+/**
+ * Contrôleur pour la connexion d'un utilisateur
+ */
 export const login = async (
   request: FastifyRequest<{ Body: LoginInput }>,
   reply: FastifyReply
@@ -50,8 +53,8 @@ export const login = async (
   try {
     const user = await AuthService.loginUser(request.body);
 
-    // Générer un token JWT
-    const token = reply.jwtSign(
+    // Générer un token JWT avec request.server.jwt.sign()
+    const token = request.server.jwt.sign(
       {
         _id: user._id.toString(),
         email: user.email,
@@ -62,11 +65,9 @@ export const login = async (
         expiresIn: process.env.JWT_EXPIRES_IN || '30d',
       }
     );
-    // Attendre que le token soit généré
-const jwtToken = await token;
 
-// Définir le cookie avec le token JWT
-reply.setCookie('token', jwtToken, {
+    // Définir le cookie avec le token JWT
+    reply.setCookie('token', token, {
       path: '/',
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', // Secure en production seulement
@@ -78,10 +79,10 @@ reply.setCookie('token', jwtToken, {
     console.log('Cookie token défini avec succès');
 
     // Retourner la réponse
-return reply.status(200).send({
-  token: jwtToken,
-  user,
-});
+    return reply.status(200).send({
+      token, // Toujours inclure le token dans la réponse pour les clients qui préfèrent le stocker manuellement
+      user,
+    });
   } catch (error) {
     request.log.error(error instanceof Error ? error : new Error(String(error)));
 
