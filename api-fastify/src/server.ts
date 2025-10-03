@@ -19,16 +19,21 @@ import { startNotificationCleanup } from './services/notification-cleanup.servic
 export async function buildServer(): Promise<FastifyInstance> {
   // Créer l'instance Fastify
   const server = Fastify({
-    logger: {
-      level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
-      transport: {
-        target: 'pino-pretty',
-        options: {
-          translateTime: 'HH:MM:ss Z',
-          ignore: 'pid,hostname',
+    logger: process.env.VERCEL || process.env.NODE_ENV === 'production'
+      ? {
+          level: 'info',
+          // Use simple JSON logging in production/serverless
+        }
+      : {
+          level: 'debug',
+          transport: {
+            target: 'pino-pretty',
+            options: {
+              translateTime: 'HH:MM:ss Z',
+              ignore: 'pid,hostname',
+            },
+          },
         },
-      },
-    },
     bodyLimit: 10 * 1024 * 1024, // 10MB pour les images base64
   });
 
