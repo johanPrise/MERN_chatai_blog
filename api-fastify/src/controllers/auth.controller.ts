@@ -51,7 +51,7 @@ export const login = async (
     const user = await AuthService.loginUser(request.body);
 
     // Générer un token JWT
-    const token: string = await reply.jwtSign(
+    const token = await reply.jwtSign(
       {
         _id: user._id.toString(),
         email: user.email,

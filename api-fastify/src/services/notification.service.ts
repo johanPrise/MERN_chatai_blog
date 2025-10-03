@@ -77,8 +77,7 @@ export async function getNotifications(
 export async function markNotificationAsRead(notificationId: string): Promise<AdminNotification> {
   try {
     // Valider l'ID MongoDB
-    const ObjectId = Types.ObjectId;
-    if (!ObjectId.isValid(notificationId)) {
+    if (!Types.ObjectId.isValid(notificationId)) {
       throw new Error('ID de notification invalide');
     }
 
@@ -166,7 +165,7 @@ export async function createNotification(input: CreateNotificationInput): Promis
 
     const savedNotification = await notification.save();
     logger.info(`Nouvelle notification créée: ${savedNotification._id}`);
-    
+
     return mapNotificationToResponse(savedNotification);
   } catch (error) {
     if (error instanceof Error && (
