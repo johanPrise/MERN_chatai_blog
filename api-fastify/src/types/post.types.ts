@@ -94,6 +94,13 @@ export type PostResponse = Omit<IPost, 'likedBy'> & {
   // Champs normalisés pour le frontend
   likes?: IUser['_id'][];
   dislikes?: IUser['_id'][];
+  // Stats object for frontend compatibility
+  stats?: {
+    viewCount: number;
+    likeCount: number;
+    commentCount: number;
+    shareCount: number;
+  };
 };
 
 // Block-based content types

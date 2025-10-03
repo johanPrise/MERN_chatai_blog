@@ -102,6 +102,14 @@ const normalizePostForFrontend = (post: any, currentUserId?: string): PostRespon
   (postObj as any).summary = postObj.excerpt ?? null;
   (postObj as any).views = postObj.viewCount ?? 0;
 
+  // Add stats object for frontend compatibility
+  (postObj as any).stats = {
+    viewCount: postObj.viewCount ?? 0,
+    likeCount: likedBy.length ?? 0,
+    commentCount: postObj.commentCount ?? 0,
+    shareCount: 0
+  };
+
   // Normalize coverImage
   if (postObj && (postObj as any).coverImage) {
     if (typeof (postObj as any).coverImage === 'string') {
