@@ -59,7 +59,7 @@ export const sendMessage = async (
       sessionId
     });
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors de l\'envoi du message',
       success: false,

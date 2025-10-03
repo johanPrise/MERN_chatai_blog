@@ -19,7 +19,7 @@ export const getCategories = async (
       categories,
     });
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors de la récupération des catégories',
     });
@@ -53,7 +53,7 @@ export const getCategory = async (
       throw error;
     }
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors de la récupération de la catégorie',
     });
@@ -98,7 +98,7 @@ export const createCategory = async (
       throw error;
     }
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors de la création de la catégorie',
     });
@@ -171,7 +171,7 @@ export const updateCategory = async (
       throw error;
     }
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors de la mise à jour de la catégorie',
     });
@@ -226,7 +226,7 @@ export const deleteCategory = async (
       throw error;
     }
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors de la suppression de la catégorie',
     });

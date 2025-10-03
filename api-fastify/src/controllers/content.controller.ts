@@ -26,7 +26,7 @@ export const getContents = async (
       contents,
     });
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors de la récupération du contenu',
     });
@@ -61,7 +61,7 @@ export const getContent = async (
       throw error;
     }
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors de la récupération du contenu',
     });
@@ -96,7 +96,7 @@ export const createContent = async (
       throw error;
     }
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors de la création du contenu',
     });
@@ -153,7 +153,7 @@ export const updateContent = async (
       throw error;
     }
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors de la mise à jour du contenu',
     });
@@ -200,7 +200,7 @@ export const deleteContent = async (
       throw error;
     }
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors de la suppression du contenu',
     });

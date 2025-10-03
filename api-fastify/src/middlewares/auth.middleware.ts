@@ -55,6 +55,11 @@ export const isAdmin = async (request: FastifyRequest, reply: FastifyReply) => {
     // Vérifier le token JWT
     await request.jwtVerify();
 
+    // Vérifier que l'utilisateur est défini
+    if (!request.user) {
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+    }
+
     // Récupérer l'utilisateur à partir de la base de données
     const user = await User.findById(request.user._id);
 
@@ -75,6 +80,11 @@ export const isEditorOrAdmin = async (request: FastifyRequest, reply: FastifyRep
     // Vérifier le token JWT
     await request.jwtVerify();
 
+    // Vérifier que l'utilisateur est défini
+    if (!request.user) {
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+    }
+
     // Récupérer l'utilisateur à partir de la base de données
     const user = await User.findById(request.user._id);
 
@@ -94,6 +104,11 @@ export const isAuthorEditorOrAdmin = async (request: FastifyRequest, reply: Fast
   try {
     // Vérifier le token JWT
     await request.jwtVerify();
+
+    // Vérifier que l'utilisateur est défini
+    if (!request.user) {
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+    }
 
     // Récupérer l'utilisateur à partir de la base de données
     const user = await User.findById(request.user._id);

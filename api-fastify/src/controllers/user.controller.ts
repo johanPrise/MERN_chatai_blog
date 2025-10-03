@@ -21,7 +21,7 @@ export const getUsers = async (
     // Retourner la réponse
     return reply.status(200).send(result);
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors de la récupération des utilisateurs',
     });
@@ -60,7 +60,7 @@ export const getUserById = async (
       throw error;
     }
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors de la récupération de l\'utilisateur',
     });
@@ -77,7 +77,19 @@ export const updateUser = async (
   try {
     const { id } = request.params;
     const updateData = request.body;
+    if (!request.user) {
+
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+
+    }
+
     const currentUserId = request.user._id;
+    if (!request.user) {
+
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+
+    }
+
     const currentUserRole = request.user.role;
 
     try {
@@ -111,7 +123,7 @@ export const updateUser = async (
       throw error;
     }
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors de la mise à jour de l\'utilisateur',
     });
@@ -127,7 +139,19 @@ export const deleteUser = async (
 ) => {
   try {
     const { id } = request.params;
+    if (!request.user) {
+
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+
+    }
+
     const currentUserId = request.user._id;
+    if (!request.user) {
+
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+
+    }
+
     const currentUserRole = request.user.role;
 
     try {
@@ -160,7 +184,7 @@ export const deleteUser = async (
       throw error;
     }
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors de la suppression de l\'utilisateur',
     });
@@ -205,7 +229,7 @@ export const changeUserRole = async (
       throw error;
     }
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors du changement de rôle de l\'utilisateur',
     });
@@ -220,6 +244,12 @@ export const getUserProfile = async (
   reply: FastifyReply
 ) => {
   try {
+    if (!request.user) {
+
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+
+    }
+
     const userId = request.user._id;
 
     try {
@@ -244,7 +274,7 @@ export const getUserProfile = async (
       throw error;
     }
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors de la récupération du profil utilisateur',
     });
@@ -259,6 +289,12 @@ export const updateUserProfile = async (
   reply: FastifyReply
 ) => {
   try {
+    if (!request.user) {
+
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+
+    }
+
     const userId = request.user._id;
     const updateData = request.body;
 
@@ -289,7 +325,7 @@ export const updateUserProfile = async (
       throw error;
     }
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors de la mise à jour du profil utilisateur',
     });
@@ -304,6 +340,9 @@ export const deleteOwnAccount = async (
   reply: any
 ) => {
   try {
+    if (!request.user) {
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+    }
     const userId = request.user._id
     await UserService.deleteUser(userId, userId, request.user.role)
     return reply.status(200).send({ message: "Compte utilisateur supprimé avec succès" })

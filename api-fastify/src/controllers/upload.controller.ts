@@ -63,7 +63,7 @@ export const uploadFile = async (request: FileUploadRequest, reply: FastifyReply
       }
     });
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors de l\'upload du fichier',
     });
@@ -111,7 +111,7 @@ export const uploadBase64Image = async (request: Base64UploadRequest, reply: Fas
       }
     });
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors de l\'upload de l\'image',
     });

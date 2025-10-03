@@ -18,6 +18,12 @@ export const getNotifications = async (
     const page = request.query.page || 1;
     const limit = Math.min(request.query.limit || 50, 100); // Limiter à 100 max
     const unreadOnly = request.query.unreadOnly || false;
+    if (!request.user) {
+
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+
+    }
+
     const userId = request.user._id;
 
     const result = await NotificationService.getNotifications(page, limit, unreadOnly);
@@ -49,7 +55,7 @@ export const getNotifications = async (
       userId: request.user?._id,
       ip: request.ip,
     });
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors de la récupération des notifications',
     });
@@ -67,6 +73,12 @@ export const markNotificationAsRead = async (
 ) => {
   try {
     const { id } = request.params;
+    if (!request.user) {
+
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+
+    }
+
     const userId = request.user._id;
 
     try {
@@ -108,7 +120,7 @@ export const markNotificationAsRead = async (
       userId: request.user?._id,
       ip: request.ip,
     });
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors du marquage de la notification',
     });
@@ -123,6 +135,12 @@ export const markAllNotificationsAsRead = async (
   reply: FastifyReply
 ) => {
   try {
+    if (!request.user) {
+
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+
+    }
+
     const userId = request.user._id;
 
     const result = await NotificationService.markAllNotificationsAsRead();
@@ -150,7 +168,7 @@ export const markAllNotificationsAsRead = async (
       userId: request.user?._id,
       ip: request.ip,
     });
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors du marquage de toutes les notifications',
     });
@@ -165,6 +183,12 @@ export const cleanupOldNotifications = async (
   reply: FastifyReply
 ) => {
   try {
+    if (!request.user) {
+
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+
+    }
+
     const userId = request.user._id;
 
     const result = await manualCleanup();
@@ -183,7 +207,7 @@ export const cleanupOldNotifications = async (
       userId: request.user?._id,
       ip: request.ip,
     });
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors du nettoyage des notifications',
     });
@@ -209,7 +233,7 @@ export const getCleanupServiceStatus = async (
       userId: request.user?._id,
       ip: request.ip,
     });
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors de la récupération du statut',
     });

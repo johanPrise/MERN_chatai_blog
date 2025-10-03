@@ -70,7 +70,7 @@ export const getPosts = async (
     // Retourner la réponse
     return reply.status(200).send(result);
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors de la récupération des articles',
     });
@@ -106,7 +106,7 @@ export const getPost = async (
       throw error;
     }
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: "Une erreur est survenue lors de la récupération de l'article",
     });
@@ -122,6 +122,12 @@ export const createPost = async (
 ) => {
   try {
     const postData = request.body;
+    if (!request.user) {
+
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+
+    }
+
     const authorId = request.user._id;
 
     // Debug: summarize incoming contentBlocks
@@ -169,7 +175,7 @@ export const createPost = async (
       throw error;
     }
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: "Une erreur est survenue lors de la création de l'article",
     });
@@ -191,6 +197,9 @@ export const updatePost = async (
     request.log.info({
       msg: '[updatePost] Request received',
       id,
+      if (!request.user) {
+        return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+      }
       userId: request.user._id,
       userRole: request.user.role,
       dataKeys: Object.keys(updateData),
@@ -201,7 +210,22 @@ export const updatePost = async (
       categories: updateData.categories,
     });
 
+    if (!request.user) {
+
+
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+
+
+    }
+
+
     const currentUserId = request.user._id;
+    if (!request.user) {
+
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+
+    }
+
     const currentUserRole = request.user.role;
 
     // Vérifier si l'ID est valide
@@ -243,7 +267,7 @@ export const updatePost = async (
       throw error;
     }
   } catch (error) {
-    request.log.error('[updatePost] Unexpected error', { error });
+    request.log.error('[updatePost] Unexpected error', { error: error instanceof Error ? error.message : String(error) });
     return reply.status(500).send({
       success: false,
       message: "Une erreur est survenue lors de la mise à jour de l'article",
@@ -262,7 +286,19 @@ export const deletePost = async (
   try {
     const { id } = request.params;
     const { soft = true } = request.body || {}; // Par défaut, soft delete
+    if (!request.user) {
+
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+
+    }
+
     const currentUserId = request.user._id;
+    if (!request.user) {
+
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+
+    }
+
     const currentUserRole = request.user.role;
 
     // Vérifier si l'ID est valide
@@ -297,7 +333,7 @@ export const deletePost = async (
       throw error;
     }
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: "Une erreur est survenue lors de la suppression de l'article",
     });
@@ -313,6 +349,12 @@ export const likePost = async (
 ) => {
   try {
     const { id } = request.params;
+    if (!request.user) {
+
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+
+    }
+
     const userId = request.user._id;
 
     // Vérifier si l'ID est valide
@@ -356,7 +398,7 @@ export const likePost = async (
       throw error;
     }
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: "Une erreur est survenue lors du like de l'article",
     });
@@ -372,6 +414,12 @@ export const unlikePost = async (
 ) => {
   try {
     const { id } = request.params;
+    if (!request.user) {
+
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+
+    }
+
     const userId = request.user._id;
 
     // Vérifier si l'ID est valide
@@ -415,7 +463,7 @@ export const unlikePost = async (
       throw error;
     }
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: "Une erreur est survenue lors du unlike de l'article",
     });
@@ -431,6 +479,12 @@ export const dislikePost = async (
 ) => {
   try {
     const { id } = request.params;
+    if (!request.user) {
+
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+
+    }
+
     const userId = request.user._id;
 
     // Vérifier si l'ID est valide
@@ -474,7 +528,7 @@ export const dislikePost = async (
       throw error;
     }
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: "Une erreur est survenue lors du dislike de l'article",
     });

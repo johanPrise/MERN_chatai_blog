@@ -26,7 +26,7 @@ export const register = async (
       user: newUser,
     });
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
 
     if (error instanceof Error && error.message.includes('déjà utilisé')) {
       return reply.status(400).send({
@@ -81,7 +81,7 @@ export const login = async (
       user,
     });
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
 
     if (error instanceof Error && error.message.includes('incorrect')) {
       return reply.status(401).send({
@@ -112,7 +112,7 @@ export const verifyEmail = async (
       message: 'Email vérifié avec succès. Vous pouvez maintenant vous connecter.',
     });
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
 
     if (error instanceof Error && error.message.includes('invalide')) {
       return reply.status(400).send({
@@ -141,7 +141,7 @@ export const forgotPassword = async (
       message: 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.',
     });
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors de la demande de réinitialisation de mot de passe',
     });
@@ -163,7 +163,7 @@ export const resetPassword = async (
       message: 'Mot de passe réinitialisé avec succès. Vous pouvez maintenant vous connecter.',
     });
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
 
     if (error instanceof Error && error.message.includes('invalide')) {
       return reply.status(400).send({
@@ -185,6 +185,12 @@ export const changePassword = async (
   reply: FastifyReply
 ) => {
   try {
+    if (!request.user) {
+
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+
+    }
+
     const userId = request.user._id;
 
     await AuthService.changeUserPassword(userId, request.body);
@@ -194,7 +200,7 @@ export const changePassword = async (
       message: 'Mot de passe changé avec succès',
     });
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
 
     if (error instanceof Error) {
       if (error.message.includes('non trouvé')) {
@@ -222,6 +228,12 @@ export const getMe = async (
   reply: FastifyReply
 ) => {
   try {
+    if (!request.user) {
+
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+
+    }
+
     const userId = request.user._id;
 
     const user = await AuthService.getCurrentUser(userId);
@@ -231,7 +243,7 @@ export const getMe = async (
       user,
     });
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
 
     if (error instanceof Error && error.message.includes('non trouvé')) {
       return reply.status(404).send({
@@ -253,6 +265,12 @@ export const checkAuthorEditorAdmin = async (
   reply: FastifyReply
 ) => {
   try {
+    if (!request.user) {
+
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+
+    }
+
     const userId = request.user._id;
 
     const user = await AuthService.getCurrentUser(userId);
@@ -265,7 +283,7 @@ export const checkAuthorEditorAdmin = async (
       isAuthorOrAdmin,
     });
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
 
     return reply.status(500).send({
       message: 'Une erreur est survenue lors de la vérification des privilèges',
@@ -282,6 +300,12 @@ export const checkAdmin = async (
   reply: FastifyReply
 ) => {
   try {
+    if (!request.user) {
+
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+
+    }
+
     const userId = request.user._id;
 
     const user = await AuthService.getCurrentUser(userId);
@@ -294,7 +318,7 @@ export const checkAdmin = async (
       isAdmin,
     });
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
 
     return reply.status(500).send({
       message: 'Une erreur est survenue lors de la vérification des privilèges d\'administrateur',
@@ -321,7 +345,7 @@ export const logout = async (
       message: 'Déconnexion réussie',
     });
   } catch (error) {
-    request.log.error(error);
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: 'Une erreur est survenue lors de la déconnexion',
     });
