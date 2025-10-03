@@ -122,10 +122,9 @@ export const createPost = async (
 ) => {
   try {
     const postData = request.body;
+    
     if (!request.user) {
-
       return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
     }
 
     const authorId = request.user._id;
@@ -193,15 +192,20 @@ export const updatePost = async (
     const { id } = request.params;
     const updateData = request.body;
 
+    // Check authentication first
+    if (!request.user) {
+      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+    }
+
+    const currentUserId = request.user._id;
+    const currentUserRole = request.user.role;
+
     // Log détaillé pour debug
     request.log.info({
       msg: '[updatePost] Request received',
       id,
-      if (!request.user) {
-        return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-      }
-      userId: request.user._id,
-      userRole: request.user.role,
+      userId: currentUserId,
+      userRole: currentUserRole,
       dataKeys: Object.keys(updateData),
       hasTitle: !!updateData.title,
       hasContent: !!updateData.content,
@@ -209,24 +213,6 @@ export const updatePost = async (
       status: updateData.status,
       categories: updateData.categories,
     });
-
-    if (!request.user) {
-
-
-      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
-
-    }
-
-
-    const currentUserId = request.user._id;
-    if (!request.user) {
-
-      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
-    }
-
-    const currentUserRole = request.user.role;
 
     // Vérifier si l'ID est valide
     if (!isValidObjectId(id)) {
@@ -286,19 +272,12 @@ export const deletePost = async (
   try {
     const { id } = request.params;
     const { soft = true } = request.body || {}; // Par défaut, soft delete
+    
     if (!request.user) {
-
       return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
     }
 
     const currentUserId = request.user._id;
-    if (!request.user) {
-
-      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
-    }
-
     const currentUserRole = request.user.role;
 
     // Vérifier si l'ID est valide
@@ -349,10 +328,9 @@ export const likePost = async (
 ) => {
   try {
     const { id } = request.params;
+    
     if (!request.user) {
-
       return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
     }
 
     const userId = request.user._id;
@@ -414,10 +392,9 @@ export const unlikePost = async (
 ) => {
   try {
     const { id } = request.params;
+    
     if (!request.user) {
-
       return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
     }
 
     const userId = request.user._id;
@@ -479,10 +456,9 @@ export const dislikePost = async (
 ) => {
   try {
     const { id } = request.params;
+    
     if (!request.user) {
-
       return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
     }
 
     const userId = request.user._id;

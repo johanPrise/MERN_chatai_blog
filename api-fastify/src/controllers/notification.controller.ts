@@ -19,9 +19,7 @@ export const getNotifications = async (
     const limit = Math.min(request.query.limit || 50, 100); // Limiter à 100 max
     const unreadOnly = request.query.unreadOnly || false;
     if (!request.user) {
-
       return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
     }
 
     const userId = request.user._id;
@@ -74,9 +72,7 @@ export const markNotificationAsRead = async (
   try {
     const { id } = request.params;
     if (!request.user) {
-
       return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
     }
 
     const userId = request.user._id;
@@ -136,9 +132,7 @@ export const markAllNotificationsAsRead = async (
 ) => {
   try {
     if (!request.user) {
-
       return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
     }
 
     const userId = request.user._id;
@@ -184,9 +178,7 @@ export const cleanupOldNotifications = async (
 ) => {
   try {
     if (!request.user) {
-
       return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
     }
 
     const userId = request.user._id;

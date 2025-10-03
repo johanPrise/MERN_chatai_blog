@@ -78,18 +78,10 @@ export const updateUser = async (
     const { id } = request.params;
     const updateData = request.body;
     if (!request.user) {
-
       return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
     }
 
     const currentUserId = request.user._id;
-    if (!request.user) {
-
-      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
-    }
-
     const currentUserRole = request.user.role;
 
     try {
@@ -140,18 +132,10 @@ export const deleteUser = async (
   try {
     const { id } = request.params;
     if (!request.user) {
-
       return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
     }
 
     const currentUserId = request.user._id;
-    if (!request.user) {
-
-      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
-    }
-
     const currentUserRole = request.user.role;
 
     try {
@@ -245,9 +229,7 @@ export const getUserProfile = async (
 ) => {
   try {
     if (!request.user) {
-
       return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
     }
 
     const userId = request.user._id;
@@ -290,9 +272,7 @@ export const updateUserProfile = async (
 ) => {
   try {
     if (!request.user) {
-
       return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
     }
 
     const userId = request.user._id;
@@ -336,18 +316,18 @@ export const updateUserProfile = async (
  * Contrôleur pour supprimer le compte de l'utilisateur connecté
  */
 export const deleteOwnAccount = async (
-  request: any,
-  reply: any
+  request: FastifyRequest,
+  reply: FastifyReply
 ) => {
   try {
     if (!request.user) {
       return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
     }
-    const userId = request.user._id
-    await UserService.deleteUser(userId, userId, request.user.role)
-    return reply.status(200).send({ message: "Compte utilisateur supprimé avec succès" })
+    const userId = request.user._id;
+    await UserService.deleteUser(userId, userId, request.user.role);
+    return reply.status(200).send({ message: 'Compte utilisateur supprimé avec succès' });
   } catch (error) {
-    request.log.error(error)
-    return reply.status(500).send({ message: "Une erreur est survenue lors de la suppression du compte utilisateur" })
+    request.log.error(error instanceof Error ? error : new Error(String(error)));
+    return reply.status(500).send({ message: 'Une erreur est survenue lors de la suppression du compte utilisateur' });
   }
 }

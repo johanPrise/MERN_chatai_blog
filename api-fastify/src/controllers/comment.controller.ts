@@ -134,9 +134,7 @@ export const createComment = async (
   try {
     const commentData = request.body;
     if (!request.user) {
-
       return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
     }
 
     const authorId = request.user._id;
@@ -199,18 +197,10 @@ export const updateComment = async (
     const { id } = request.params;
     const updateData = request.body;
     if (!request.user) {
-
       return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
     }
 
     const currentUserId = request.user._id;
-    if (!request.user) {
-
-      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
-    }
-
     const currentUserRole = request.user.role;
 
     // Vérifier si l'ID est valide
@@ -270,18 +260,10 @@ export const deleteComment = async (
   try {
     const { id } = request.params;
     if (!request.user) {
-
       return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
     }
 
     const currentUserId = request.user._id;
-    if (!request.user) {
-
-      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
-    }
-
     const currentUserRole = request.user.role;
 
     // Vérifier si l'ID est valide
@@ -335,9 +317,7 @@ export const likeComment = async (
   try {
     const { id } = request.params;
     if (!request.user) {
-
       return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
     }
 
     const userId = request.user._id;
@@ -404,9 +384,7 @@ export const unlikeComment = async (
   try {
     const { id } = request.params;
     if (!request.user) {
-
       return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
     }
 
     const userId = request.user._id;
@@ -473,9 +451,7 @@ export const dislikeComment = async (
   try {
     const { id } = request.params;
     if (!request.user) {
-
       return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
     }
 
     const userId = request.user._id;

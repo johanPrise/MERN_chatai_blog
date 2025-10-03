@@ -186,9 +186,7 @@ export const changePassword = async (
 ) => {
   try {
     if (!request.user) {
-
       return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
     }
 
     const userId = request.user._id;
@@ -229,9 +227,7 @@ export const getMe = async (
 ) => {
   try {
     if (!request.user) {
-
       return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
     }
 
     const userId = request.user._id;
@@ -266,9 +262,7 @@ export const checkAuthorEditorAdmin = async (
 ) => {
   try {
     if (!request.user) {
-
       return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
     }
 
     const userId = request.user._id;
@@ -301,9 +295,7 @@ export const checkAdmin = async (
 ) => {
   try {
     if (!request.user) {
-
       return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-
     }
 
     const userId = request.user._id;

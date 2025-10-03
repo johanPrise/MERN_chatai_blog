@@ -1,7 +1,7 @@
 import { Notification, INotification } from '../models/notification.model.js';
 import { AdminNotification, GetNotificationsResponse, CreateNotificationInput } from '../types/notification.types.js';
 import { logger } from './logger.service.js';
-import mongoose from 'mongoose';
+import { Types } from 'mongoose';
 
 /**
  * Convertit un document MongoDB en objet AdminNotification
@@ -77,7 +77,7 @@ export async function getNotifications(
 export async function markNotificationAsRead(notificationId: string): Promise<AdminNotification> {
   try {
     // Valider l'ID MongoDB
-    if (!mongoose.Types.ObjectId.isValid(notificationId)) {
+    if (!Types.ObjectId.isValid(notificationId)) {
       throw new Error('ID de notification invalide');
     }
 

@@ -1,5 +1,12 @@
 import 'fastify';
-import { Types } from 'mongoose';
+
+// Define the user payload interface
+interface UserPayload {
+  _id: string;
+  email: string;
+  username: string;
+  role: string;
+}
 
 declare module 'fastify' {
   interface FastifyBaseLogger {
@@ -18,19 +25,13 @@ declare module 'fastify' {
   }
 
   interface FastifyRequest {
-    user?: {
-      _id: string;
-      email: string;
-      username: string;
-      role: string;
-    };
+    user?: UserPayload;
   }
 }
 
-declare module 'mongoose' {
-  namespace Types {
-    interface ObjectIdConstructor {
-      isValid(id: string | number | Types.ObjectId | null | undefined): boolean;
-    }
+declare module '@fastify/jwt' {
+  interface FastifyJWT {
+    payload: UserPayload;
+    user: UserPayload;
   }
 }

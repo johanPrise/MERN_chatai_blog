@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import mongoose from 'mongoose';
+import { Types } from 'mongoose';
 
 /**
  * Valide l'ID de notification dans les paramètres
@@ -25,7 +25,7 @@ export const validateNotificationId = async (
   }
 
   // Vérifier que l'ID est un ObjectId MongoDB valide
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!Types.ObjectId.isValid(id)) {
     return reply.status(400).send({
       message: 'Format d\'ID de notification invalide',
     });

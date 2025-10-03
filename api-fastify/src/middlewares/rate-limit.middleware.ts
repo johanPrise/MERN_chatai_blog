@@ -71,7 +71,9 @@ export const notificationRateLimit = createRateLimitMiddleware({
   maxRequests: 100,
   keyGenerator: (request: FastifyRequest) => {
     // Utiliser l'ID utilisateur si disponible, sinon l'IP
-    return request.user?._id || request.ip;
+    // Type-safe access to request.user._id
+    const userId = request.user?._id;
+    return userId ? String(userId) : request.ip;
   },
   skipSuccessfulRequests: false,
   skipFailedRequests: true, // Ne pas compter les erreurs serveur
@@ -85,7 +87,9 @@ export const notificationModifyRateLimit = createRateLimitMiddleware({
   windowMs: 60 * 1000, // 1 minute
   maxRequests: 30,
   keyGenerator: (request: FastifyRequest) => {
-    return request.user?._id || request.ip;
+    // Type-safe access to request.user._id
+    const userId = request.user?._id;
+    return userId ? String(userId) : request.ip;
   },
   skipSuccessfulRequests: false,
   skipFailedRequests: true,
