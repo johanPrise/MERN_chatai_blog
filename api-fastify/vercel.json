@@ -1,6 +1,6 @@
 {
-  "version": 2,
-  "env": {
-    "NODE_ENV": "production"
-  }
+  "buildCommand": "cd api-fastify && pnpm run build",
+  "outputDirectory": "api-fastify/dist",
+  "installCommand": "cd api-fastify && pnpm install",
+  "framework": null
 }
