@@ -51,7 +51,7 @@ export const login = async (
     const user = await AuthService.loginUser(request.body);
 
     // Générer un token JWT
-    const token = await reply.jwtSign(
+    const token = reply.jwtSign(
       {
         _id: user._id.toString(),
         email: user.email,
@@ -62,9 +62,11 @@ export const login = async (
         expiresIn: process.env.JWT_EXPIRES_IN || '30d',
       }
     );
+    // Attendre que le token soit généré
+const jwtToken = await token;
 
-    // Définir le cookie avec le token JWT
-    reply.setCookie('token', token, {
+// Définir le cookie avec le token JWT
+reply.setCookie('token', jwtToken, {
       path: '/',
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', // Secure en production seulement
@@ -76,10 +78,10 @@ export const login = async (
     console.log('Cookie token défini avec succès');
 
     // Retourner la réponse
-    return reply.status(200).send({
-      token, // Toujours inclure le token dans la réponse pour les clients qui préfèrent le stocker manuellement
-      user,
-    });
+return reply.status(200).send({
+  token: jwtToken,
+  user,
+});
   } catch (error) {
     request.log.error(error instanceof Error ? error : new Error(String(error)));
 
