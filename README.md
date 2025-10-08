@@ -348,6 +348,6 @@ For questions, issues, or feature requests:
 
 ---
 
-**Last Updated**: March 2025  
+**Last Updated**: September 2025  
 **Documentation Version**: 1.0.0  
 **Project Version**: See [package.json](../package.json)
