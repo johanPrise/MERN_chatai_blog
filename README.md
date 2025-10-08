@@ -10,76 +10,76 @@ This repository contains extensive documentation covering all aspects of the MER
 
 ### Core Documentation
 
-- **[System Overview](./repowiki/en/content/System%20Overview.md)** - High-level architecture and project structure
-- **[Getting Started](./repowiki/en/content/Getting%20Started.md)** - Installation, setup, and initial configuration
-- **[Technology Stack](./repowiki/en/content/Technology%20Stack.md)** - Detailed breakdown of all technologies used
-- **[Environment Configuration](./repowiki/en/content/Environment%20Configuration.md)** - Environment variables and configuration
-- **[Deployment Architecture](./repowiki/en/content/Deployment%20Architecture.md)** - Production deployment strategies
-- **[Contributing Guide](./repowiki/en/content/Contributing%20Guide.md)** - Guidelines for contributing to the project
+- **[System Overview](./.qoder/repowiki/en/content/System%20Overview.md)** - High-level architecture and project structure
+- **[Getting Started](./.qoder/repowiki/en/content/Getting%20Started.md)** - Installation, setup, and initial configuration
+- **[Technology Stack](./.qoder/repowiki/en/content/Technology%20Stack.md)** - Detailed breakdown of all technologies used
+- **[Environment Configuration](./.qoder/repowiki/en/content/Environment%20Configuration.md)** - Environment variables and configuration
+- **[Deployment Architecture](./.qoder/repowiki/en/content/Deployment%20Architecture.md)** - Production deployment strategies
+- **[Contributing Guide](./.qoder/repowiki/en/content/Contributing%20Guide.md)** - Guidelines for contributing to the project
 
 ### Frontend Architecture
 
-- **[Frontend Architecture](./repowiki/en/content/Frontend%20Architecture/Frontend%20Architecture.md)** - Overview of frontend design patterns
-- **[Component Architecture](./repowiki/en/content/Frontend%20Architecture/Component%20Architecture.md)** - React component structure and patterns
-- **[State Management](./repowiki/en/content/Frontend%20Architecture/State%20Management.md)** - Context API and state handling
-- **[Routing & Navigation](./repowiki/en/content/Frontend%20Architecture/Routing%20&%20Navigation.md)** - React Router implementation
-- **[API Integration Layer](./repowiki/en/content/Frontend%20Architecture/API%20Integration%20Layer.md)** - Frontend-backend communication
-- **[Styling Strategy](./repowiki/en/content/Frontend%20Architecture/Styling%20Strategy.md)** - Tailwind CSS and design system
+- **[Frontend Architecture](./.qoder/repowiki/en/content/Frontend%20Architecture/Frontend%20Architecture.md)** - Overview of frontend design patterns
+- **[Component Architecture](./.qoder/repowiki/en/content/Frontend%20Architecture/Component%20Architecture.md)** - React component structure and patterns
+- **[State Management](./.qoder/repowiki/en/content/Frontend%20Architecture/State%20Management.md)** - Context API and state handling
+- **[Routing & Navigation](./.qoder/repowiki/en/content/Frontend%20Architecture/Routing%20&%20Navigation.md)** - React Router implementation
+- **[API Integration Layer](./.qoder/repowiki/en/content/Frontend%20Architecture/API%20Integration%20Layer.md)** - Frontend-backend communication
+- **[Styling Strategy](./.qoder/repowiki/en/content/Frontend%20Architecture/Styling%20Strategy.md)** - Tailwind CSS and design system
 
 ### Backend Architecture
 
-- **[Backend Architecture](./repowiki/en/content/Backend%20Architecture/Backend%20Architecture.md)** - Fastify server architecture
-- **[Middleware & Interceptors](./repowiki/en/content/Backend%20Architecture/Middleware%20&%20Interceptors.md)** - Request/response processing
-- **[Data Models & ORM Mapping](./repowiki/en/content/Backend%20Architecture/Data%20Models%20&%20ORM%20Mapping.md)** - Mongoose schemas and relationships
+- **[Backend Architecture](./.qoder/repowiki/en/content/Backend%20Architecture/Backend%20Architecture.md)** - Fastify server architecture
+- **[Middleware & Interceptors](./.qoder/repowiki/en/content/Backend%20Architecture/Middleware%20&%20Interceptors.md)** - Request/response processing
+- **[Data Models & ORM Mapping](./.qoder/repowiki/en/content/Backend%20Architecture/Data%20Models%20&%20ORM%20Mapping.md)** - Mongoose schemas and relationships
 
 #### Business Logic Layer
 
-- **[Business Logic Layer](./repowiki/en/content/Backend%20Architecture/Business%20Logic%20Layer/Business%20Logic%20Layer.md)** - Service layer overview
-- **[Authentication Service](./repowiki/en/content/Backend%20Architecture/Business%20Logic%20Layer/Authentication%20Service.md)** - User authentication logic
-- **[Post Service](./repowiki/en/content/Backend%20Architecture/Business%20Logic%20Layer/Post%20Service.md)** - Content management service
-- **[Comment Service](./repowiki/en/content/Backend%20Architecture/Business%20Logic%20Layer/Comment%20Service.md)** - Comment handling
-- **[Category Service](./repowiki/en/content/Backend%20Architecture/Business%20Logic%20Layer/Category%20Service.md)** - Category management
-- **[User Service](./repowiki/en/content/Backend%20Architecture/Business%20Logic%20Layer/User%20Service.md)** - User profile management
-- **[AI Service](./repowiki/en/content/Backend%20Architecture/Business%20Logic%20Layer/AI%20Service.md)** - AI integration service
-- **[Notification Service](./repowiki/en/content/Backend%20Architecture/Business%20Logic%20Layer/Notification%20Service.md)** - Real-time notifications
-- **[Upload Service](./repowiki/en/content/Backend%20Architecture/Business%20Logic%20Layer/Upload%20Service.md)** - File upload handling
-- **[Content Service](./repowiki/en/content/Backend%20Architecture/Business%20Logic%20Layer/Content%20Service.md)** - Content processing
+- **[Business Logic Layer](./.qoder/repowiki/en/content/Backend%20Architecture/Business%20Logic%20Layer/Business%20Logic%20Layer.md)** - Service layer overview
+- **[Authentication Service](./.qoder/repowiki/en/content/Backend%20Architecture/Business%20Logic%20Layer/Authentication%20Service.md)** - User authentication logic
+- **[Post Service](./.qoder/repowiki/en/content/Backend%20Architecture/Business%20Logic%20Layer/Post%20Service.md)** - Content management service
+- **[Comment Service](./.qoder/repowiki/en/content/Backend%20Architecture/Business%20Logic%20Layer/Comment%20Service.md)** - Comment handling
+- **[Category Service](./.qoder/repowiki/en/content/Backend%20Architecture/Business%20Logic%20Layer/Category%20Service.md)** - Category management
+- **[User Service](./.qoder/repowiki/en/content/Backend%20Architecture/Business%20Logic%20Layer/User%20Service.md)** - User profile management
+- **[AI Service](./.qoder/repowiki/en/content/Backend%20Architecture/Business%20Logic%20Layer/AI%20Service.md)** - AI integration service
+- **[Notification Service](./.qoder/repowiki/en/content/Backend%20Architecture/Business%20Logic%20Layer/Notification%20Service.md)** - Real-time notifications
+- **[Upload Service](./.qoder/repowiki/en/content/Backend%20Architecture/Business%20Logic%20Layer/Upload%20Service.md)** - File upload handling
+- **[Content Service](./.qoder/repowiki/en/content/Backend%20Architecture/Business%20Logic%20Layer/Content%20Service.md)** - Content processing
 
 #### External Integrations
 
-- **[External Integrations](./repowiki/en/content/Backend%20Architecture/External%20Integrations/External%20Integrations.md)** - Third-party services overview
-- **[Database Integration](./repowiki/en/content/Backend%20Architecture/External%20Integrations/Database%20Integration.md)** - MongoDB connection and management
-- **[Caching Layer](./repowiki/en/content/Backend%20Architecture/External%20Integrations/Caching%20Layer.md)** - Redis caching strategy
-- **[Email Service](./repowiki/en/content/Backend%20Architecture/External%20Integrations/Email%20Service.md)** - Nodemailer email integration
-- **[AI Service Integration](./repowiki/en/content/Backend%20Architecture/External%20Integrations/AI%20Service%20Integration.md)** - Hugging Face Spaces integration
-- **[Notification Hooks](./repowiki/en/content/Backend%20Architecture/External%20Integrations/Notification%20Hooks.md)** - Webhook system
+- **[External Integrations](./.qoder/repowiki/en/content/Backend%20Architecture/External%20Integrations/External%20Integrations.md)** - Third-party services overview
+- **[Database Integration](./.qoder/repowiki/en/content/Backend%20Architecture/External%20Integrations/Database%20Integration.md)** - MongoDB connection and management
+- **[Caching Layer](./.qoder/repowiki/en/content/Backend%20Architecture/External%20Integrations/Caching%20Layer.md)** - Redis caching strategy
+- **[Email Service](./.qoder/repowiki/en/content/Backend%20Architecture/External%20Integrations/Email%20Service.md)** - Nodemailer email integration
+- **[AI Service Integration](./.qoder/repowiki/en/content/Backend%20Architecture/External%20Integrations/AI%20Service%20Integration.md)** - Hugging Face Spaces integration
+- **[Notification Hooks](./.qoder/repowiki/en/content/Backend%20Architecture/External%20Integrations/Notification%20Hooks.md)** - Webhook system
 
 ### API Reference
 
 Complete API documentation for all endpoints:
 
-- **[API Reference](./repowiki/en/content/API%20Reference/API%20Reference.md)** - API overview and conventions
-- **[Authentication API](./repowiki/en/content/API%20Reference/Authentication%20API.md)** - Login, register, password reset
-- **[Users API](./repowiki/en/content/API%20Reference/Users%20API.md)** - User management endpoints
-- **[Posts API](./repowiki/en/content/API%20Reference/Posts%20API.md)** - Blog post CRUD operations
-- **[Comments API](./repowiki/en/content/API%20Reference/Comments%20API.md)** - Comment management
-- **[Categories API](./repowiki/en/content/API%20Reference/Categories%20API.md)** - Category hierarchy
-- **[Content API](./repowiki/en/content/API%20Reference/Content%20API.md)** - Content retrieval
-- **[AI API](./repowiki/en/content/API%20Reference/AI%20API.md)** - AI chatbot endpoints
-- **[Upload API](./repowiki/en/content/API%20Reference/Upload%20API.md)** - File upload endpoints
-- **[Notifications API](./repowiki/en/content/API%20Reference/Notifications%20API.md)** - Notification management
-- **[Health API](./repowiki/en/content/API%20Reference/Health%20API.md)** - System health checks
+- **[API Reference](./.qoder/repowiki/en/content/API%20Reference/API%20Reference.md)** - API overview and conventions
+- **[Authentication API](./.qoder/repowiki/en/content/API%20Reference/Authentication%20API.md)** - Login, register, password reset
+- **[Users API](./.qoder/repowiki/en/content/API%20Reference/Users%20API.md)** - User management endpoints
+- **[Posts API](./.qoder/repowiki/en/content/API%20Reference/Posts%20API.md)** - Blog post CRUD operations
+- **[Comments API](./.qoder/repowiki/en/content/API%20Reference/Comments%20API.md)** - Comment management
+- **[Categories API](./.qoder/repowiki/en/content/API%20Reference/Categories%20API.md)** - Category hierarchy
+- **[Content API](./.qoder/repowiki/en/content/API%20Reference/Content%20API.md)** - Content retrieval
+- **[AI API](./.qoder/repowiki/en/content/API%20Reference/AI%20API.md)** - AI chatbot endpoints
+- **[Upload API](./.qoder/repowiki/en/content/API%20Reference/Upload%20API.md)** - File upload endpoints
+- **[Notifications API](./.qoder/repowiki/en/content/API%20Reference/Notifications%20API.md)** - Notification management
+- **[Health API](./.qoder/repowiki/en/content/API%20Reference/Health%20API.md)** - System health checks
 
 ### Data Models
 
 Detailed documentation of all database schemas:
 
-- **[Data Models](./repowiki/en/content/Data%20Models/Data%20Models.md)** - Overview of data architecture
-- **[User Model](./repowiki/en/content/Data%20Models/User%20Model.md)** - User schema and authentication
-- **[Post Model](./repowiki/en/content/Data%20Models/Post%20Model.md)** - Blog post structure
-- **[Comment Model](./repowiki/en/content/Data%20Models/Comment%20Model.md)** - Hierarchical comments
-- **[Category Model](./repowiki/en/content/Data%20Models/Category%20Model.md)** - Category taxonomy
-- **[Notification Model](./repowiki/en/content/Data%20Models/Notification%20Model.md)** - Notification schema
+- **[Data Models](./.qoder/repowiki/en/content/Data%20Models/Data%20Models.md)** - Overview of data architecture
+- **[User Model](./.qoder/repowiki/en/content/Data%20Models/User%20Model.md)** - User schema and authentication
+- **[Post Model](./.qoder/repowiki/en/content/Data%20Models/Post%20Model.md)** - Blog post structure
+- **[Comment Model](./.qoder/repowiki/en/content/Data%20Models/Comment%20Model.md)** - Hierarchical comments
+- **[Category Model](./.qoder/repowiki/en/content/Data%20Models/Category%20Model.md)** - Category taxonomy
+- **[Notification Model](./.qoder/repowiki/en/content/Data%20Models/Notification%20Model.md)** - Notification schema
 
 ### UI Components
 
@@ -96,40 +96,40 @@ Component library documentation:
 
 In-depth feature documentation:
 
-- **[Feature Modules](./repowiki/en/content/Feature%20Modules/Feature%20Modules.md)** - Feature architecture overview
+- **[Feature Modules](./.qoder/repowiki/en/content/Feature%20Modules/Feature%20Modules.md)** - Feature architecture overview
 
 #### Authentication System
-- **[Authentication System](./repowiki/en/content/Feature%20Modules/Authentication%20System/Authentication%20System.md)** - Auth system overview
-- **[User Registration](./repowiki/en/content/Feature%20Modules/Authentication%20System/User%20Registration.md)** - Registration flow
-- **[User Login](./repowiki/en/content/Feature%20Modules/Authentication%20System/User%20Login.md)** - Login implementation
-- **[Role-Based Access Control](./repowiki/en/content/Feature%20Modules/Authentication%20System/Role-Based%20Access%20Control.md)** - RBAC system
-- **[Password Management](./repowiki/en/content/Feature%20Modules/Authentication%20System/Password%20Management/Password%20Management.md)** - Password features
-  - **[Password Reset](./repowiki/en/content/Feature%20Modules/Authentication%20System/Password%20Management/Password%20Reset.md)**
-  - **[Password Change](./repowiki/en/content/Feature%20Modules/Authentication%20System/Password%20Management/Password%20Change.md)**
+- **[Authentication System](./.qoder/repowiki/en/content/Feature%20Modules/Authentication%20System/Authentication%20System.md)** - Auth system overview
+- **[User Registration](./.qoder/repowiki/en/content/Feature%20Modules/Authentication%20System/User%20Registration.md)** - Registration flow
+- **[User Login](./.qoder/repowiki/en/content/Feature%20Modules/Authentication%20System/User%20Login.md)** - Login implementation
+- **[Role-Based Access Control](./.qoder/repowiki/en/content/Feature%20Modules/Authentication%20System/Role-Based%20Access%20Control.md)** - RBAC system
+- **[Password Management](./.qoder/repowiki/en/content/Feature%20Modules/Authentication%20System/Password%20Management/Password%20Management.md)** - Password features
+  - **[Password Reset](./.qoder/repowiki/en/content/Feature%20Modules/Authentication%20System/Password%20Management/Password%20Reset.md)**
+  - **[Password Change](./.qoder/repowiki/en/content/Feature%20Modules/Authentication%20System/Password%20Management/Password%20Change.md)**
 
 #### Content Management
-- **[Content Management](./repowiki/en/content/Feature%20Modules/Content%20Management/Content%20Management.md)** - CMS overview
-- **[Post Creation](./repowiki/en/content/Feature%20Modules/Content%20Management/Post%20Creation.md)** - Creating blog posts
-- **[Post Editing](./repowiki/en/content/Feature%20Modules/Content%20Management/Post%20Editing.md)** - Editing workflow
-- **[Draft Management](./repowiki/en/content/Feature%20Modules/Content%20Management/Draft%20Management.md)** - Draft system
-- **[Publishing Workflow](./repowiki/en/content/Feature%20Modules/Content%20Management/Publishing%20Workflow.md)** - Publication process
+- **[Content Management](./.qoder/repowiki/en/content/Feature%20Modules/Content%20Management/Content%20Management.md)** - CMS overview
+- **[Post Creation](./.qoder/repowiki/en/content/Feature%20Modules/Content%20Management/Post%20Creation.md)** - Creating blog posts
+- **[Post Editing](./.qoder/repowiki/en/content/Feature%20Modules/Content%20Management/Post%20Editing.md)** - Editing workflow
+- **[Draft Management](./.qoder/repowiki/en/content/Feature%20Modules/Content%20Management/Draft%20Management.md)** - Draft system
+- **[Publishing Workflow](./.qoder/repowiki/en/content/Feature%20Modules/Content%20Management/Publishing%20Workflow.md)** - Publication process
 
 #### AI Features
-- **[AI Features](./repowiki/en/content/Feature%20Modules/AI%20Features/AI%20Features.md)** - AI capabilities overview
-- **[Chatbot Interface](./repowiki/en/content/Feature%20Modules/AI%20Features/Chatbot%20Interface.md)** - Chat UI implementation
-- **[AI Content Processing](./repowiki/en/content/Feature%20Modules/AI%20Features/AI%20Content%20Processing.md)** - AI processing pipeline
+- **[AI Features](./.qoder/repowiki/en/content/Feature%20Modules/AI%20Features/AI%20Features.md)** - AI capabilities overview
+- **[Chatbot Interface](./.qoder/repowiki/en/content/Feature%20Modules/AI%20Features/Chatbot%20Interface.md)** - Chat UI implementation
+- **[AI Content Processing](./.qoder/repowiki/en/content/Feature%20Modules/AI%20Features/AI%20Content%20Processing.md)** - AI processing pipeline
 
 #### Notification System
-- **[Notification System](./repowiki/en/content/Feature%20Modules/Notification%20System/Notification%20System.md)** - Notification architecture
-- **[Real-Time Notifications](./repowiki/en/content/Feature%20Modules/Notification%20System/Real-Time%20Notifications.md)** - Live updates
-- **[Notification Management](./repowiki/en/content/Feature%20Modules/Notification%20System/Notification%20Management.md)** - Managing notifications
-- **[Error Handling and Display](./repowiki/en/content/Feature%20Modules/Notification%20System/Error%20Handling%20and%20Display.md)** - Error notifications
+- **[Notification System](./.qoder/repowiki/en/content/Feature%20Modules/Notification%20System/Notification%20System.md)** - Notification architecture
+- **[Real-Time Notifications](./.qoder/repowiki/en/content/Feature%20Modules/Notification%20System/Real-Time%20Notifications.md)** - Live updates
+- **[Notification Management](./.qoder/repowiki/en/content/Feature%20Modules/Notification%20System/Notification%20Management.md)** - Managing notifications
+- **[Error Handling and Display](./.qoder/repowiki/en/content/Feature%20Modules/Notification%20System/Error%20Handling%20and%20Display.md)** - Error notifications
 
 #### Admin Dashboard
-- **[Admin Dashboard](./repowiki/en/content/Feature%20Modules/Admin%20Dashboard/Admin%20Dashboard.md)** - Dashboard overview
-- **[User Management](./repowiki/en/content/Feature%20Modules/Admin%20Dashboard/User%20Management.md)** - Managing users
-- **[Site Statistics](./repowiki/en/content/Feature%20Modules/Admin%20Dashboard/Site%20Statistics.md)** - Analytics and stats
-- **[Content Filtering](./repowiki/en/content/Feature%20Modules/Admin%20Dashboard/Content%20Filtering.md)** - Content moderation
+- **[Admin Dashboard](./.qoder/repowiki/en/content/Feature%20Modules/Admin%20Dashboard/Admin%20Dashboard.md)** - Dashboard overview
+- **[User Management](./.qoder/repowiki/en/content/Feature%20Modules/Admin%20Dashboard/User%20Management.md)** - Managing users
+- **[Site Statistics](./.qoder/repowiki/en/content/Feature%20Modules/Admin%20Dashboard/Site%20Statistics.md)** - Analytics and stats
+- **[Content Filtering](./.qoder/repowiki/en/content/Feature%20Modules/Admin%20Dashboard/Content%20Filtering.md)** - Content moderation
 
 ## 🚀 Quick Start
 
@@ -159,7 +159,7 @@ cp api-fastify/.env.example api-fastify/.env
 pnpm run start
 ```
 
-Visit [Getting Started](./repowiki/en/content/Getting%20Started.md) for detailed setup instructions.
+Visit [Getting Started](./.qoder/repowiki/en/content/Getting%20Started.md) for detailed setup instructions.
 
 ## 🏗️ Architecture Highlights
 
@@ -259,7 +259,7 @@ All API endpoints are documented with:
 - Code examples
 - Rate limiting information
 
-See the [API Reference](./repowiki/en/content/API%20Reference/API%20Reference.md) section for complete documentation.
+See the [API Reference](./.qoder/repowiki/en/content/API%20Reference/API%20Reference.md) section for complete documentation.
 
 ## 🧪 Testing
 
@@ -283,11 +283,11 @@ The application supports multiple deployment strategies:
 - **Database**: MongoDB Atlas or self-hosted MongoDB
 - **Caching**: Redis Cloud or self-hosted Redis
 
-See [Deployment Architecture](./repowiki/en/content/Deployment%20Architecture.md) for detailed deployment guides.
+See [Deployment Architecture](./.qoder/repowiki/en/content/Deployment%20Architecture.md) for detailed deployment guides.
 
 ## 🤝 Contributing
 
-We welcome contributions! Please read our [Contributing Guide](./repowiki/en/content/Contributing%20Guide.md) for:
+We welcome contributions! Please read our [Contributing Guide](./.qoder/repowiki/en/content/Contributing%20Guide.md) for:
 
 - Code style guidelines
 - Commit message conventions
@@ -311,7 +311,7 @@ For questions, issues, or feature requests:
 
 - Open an issue on GitHub
 - Check existing documentation
-- Review troubleshooting guides in [Getting Started](./repowiki/en/content/Getting%20Started.md)
+- Review troubleshooting guides in [Getting Started](./.qoder/repowiki/en/content/Getting%20Started.md)
 
 ## 🗺️ Roadmap
 
