@@ -1,4 +1,4 @@
-import { Client } from "@gradio/client";
+import { Client } from '@gradio/client';
 import { IMessage } from '../types/conversation.types.js';
 
 // Interface pour la session de chat
@@ -49,8 +49,9 @@ const getOrCreateSession = (sessionId: string): ChatSession => {
  */
 const generateResponse = async (messages: IMessage[]): Promise<string> => {
   const models = [
-    "Qwen/Qwen2-72B-Instruct",
-    "Qwen/Qwen1.5-110B-Chat-demo"
+    'Qwen/Qwen2-72B-Instruct',
+    'Qwen/Qwen1.5-110B-Chat-demo',
+    'Qwen/Qwen3-Demo', // Nouveau modèle en fallback
   ];
 
   for (const model of models) {
@@ -60,14 +61,34 @@ const generateResponse = async (messages: IMessage[]): Promise<string> => {
       // Récupérer le dernier message de l'utilisateur
       const lastUserMessage = messages[messages.length - 1].content;
 
-      // Préparer l'historique des messages
-      const history = messages.slice(0, -1).map(msg => [msg.content, msg.sender]);
+      let result;
 
-      const result = await client.predict("/model_chat", {
-        query: lastUserMessage,
-        history: history,
-        system: process.env.QWEN_PROMPT || "Tu es un assistant utile et amical pour un blog sur la technologie et l'IA."
-      });
+      // Qwen3-Demo utilise un endpoint différent
+      if (model === 'Qwen/Qwen3-Demo') {
+        console.log(`🔄 Utilisation du modèle Qwen3 avec endpoint /add_message`);
+
+        result = await client.predict('/add_message', {
+          input_value: lastUserMessage,
+          settings_form_value: {
+            model: 'qwen3-235b-a22b',
+            sys_prompt:
+              process.env.QWEN_PROMPT ||
+              "Tu es un assistant utile et amical pour un blog sur la technologie et l'IA.",
+            thinking_budget: 38,
+          },
+        });
+      } else {
+        // Anciens modèles utilisent /model_chat
+        const history = messages.slice(0, -1).map(msg => [msg.content, msg.sender]);
+
+        result = await client.predict('/model_chat', {
+          query: lastUserMessage,
+          history: history,
+          system:
+            process.env.QWEN_PROMPT ||
+            "Tu es un assistant utile et amical pour un blog sur la technologie et l'IA.",
+        });
+      }
 
       console.log(`Résultat brut de l'API (${model}):`, result.data);
 
@@ -76,9 +97,24 @@ const generateResponse = async (messages: IMessage[]): Promise<string> => {
       }
 
       // Extraire la réponse du modèle
-      // Utilisation de any pour accéder aux données de structure complexe
       const resultData = result.data as any;
-      const aiResponse = resultData[1][resultData[1].length - 1][1];
+
+      let aiResponse: string;
+
+      if (model === 'Qwen/Qwen3-Demo') {
+        // Format de réponse Qwen3: result.data[1] contient le chatbot
+        // On prend le dernier message de l'assistant
+        const chatbot = resultData[1];
+        if (Array.isArray(chatbot) && chatbot.length > 0) {
+          const lastMessage = chatbot[chatbot.length - 1];
+          aiResponse = lastMessage[1]; // [user_msg, assistant_msg]
+        } else {
+          throw new Error('Format de réponse Qwen3 invalide');
+        }
+      } else {
+        // Format de réponse ancien modèle
+        aiResponse = resultData[1][resultData[1].length - 1][1];
+      }
 
       return aiResponse;
     } catch (error) {
@@ -95,7 +131,7 @@ const generateResponse = async (messages: IMessage[]): Promise<string> => {
   }
 
   // Si aucun modèle n'a réussi à générer une réponse
-  throw new Error("Tous les modèles ont échoué à générer une réponse");
+  throw new Error('Tous les modèles ont échoué à générer une réponse');
 };
 
 /**
@@ -122,7 +158,7 @@ export const sendMessage = async (input: string, sessionId: string): Promise<str
 
     return aiResponse;
   } catch (error) {
-    console.error('Erreur lors de l\'envoi du message à l\'IA:', error);
+    console.error("Erreur lors de l'envoi du message à l'IA:", error);
 
     // En cas d'erreur, utiliser une réponse de secours
     return 'Désolé, je rencontre des difficultés à traiter votre demande pour le moment. Veuillez réessayer plus tard.';
