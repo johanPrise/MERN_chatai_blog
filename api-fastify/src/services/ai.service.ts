@@ -102,14 +102,35 @@ const generateResponse = async (messages: IMessage[]): Promise<string> => {
       let aiResponse: string;
 
       if (model === 'Qwen/Qwen3-Demo') {
-        // Format de réponse Qwen3: result.data[1] contient le chatbot
-        // On prend le dernier message de l'assistant
-        const chatbot = resultData[1];
-        if (Array.isArray(chatbot) && chatbot.length > 0) {
-          const lastMessage = chatbot[chatbot.length - 1];
-          aiResponse = lastMessage[1]; // [user_msg, assistant_msg]
+        // Format de réponse Qwen3: resultData est un tableau, l'élément avec la clé 'value' contient le chatbot
+        // Chercher l'objet qui contient value avec les messages
+        const chatbotData = resultData.find(
+          (item: any) => item && item.value && Array.isArray(item.value)
+        );
+
+        if (chatbotData && chatbotData.value && chatbotData.value.length > 0) {
+          // value contient un tableau de [user_message, bot_message]
+          const lastExchange = chatbotData.value[chatbotData.value.length - 1];
+
+          // Vérifier que lastExchange est bien un objet avec les bonnes propriétés
+          if (lastExchange && typeof lastExchange === 'object') {
+            // Le format peut être un tableau [user, bot] ou un objet {role, content}
+            if (Array.isArray(lastExchange) && lastExchange.length >= 2) {
+              aiResponse = lastExchange[1]; // [user_msg, assistant_msg]
+            } else if (lastExchange.content) {
+              aiResponse = lastExchange.content;
+            } else {
+              throw new Error('Format de réponse Qwen3 invalide: structure de message inattendue');
+            }
+          } else {
+            throw new Error('Format de réponse Qwen3 invalide: lastExchange invalide');
+          }
         } else {
-          throw new Error('Format de réponse Qwen3 invalide');
+          console.error(
+            'Structure complète de la réponse Qwen3:',
+            JSON.stringify(resultData, null, 2)
+          );
+          throw new Error('Format de réponse Qwen3 invalide: chatbotData introuvable');
         }
       } else {
         // Format de réponse ancien modèle

@@ -17,7 +17,7 @@ interface Base64UploadRequest extends FastifyRequest<{
   Body: {
     filename: string;
     data: string;
-  }
+  };
 }> {}
 
 /**
@@ -45,9 +45,10 @@ export const uploadFile = async (request: FileUploadRequest, reply: FastifyReply
     // Sauvegarder le fichier + dérivés
     const saved = await UploadService.saveImageFile(file);
 
-    // Construire l'URL complète avec le port
-    const port = process.env.PORT || 4200;
-    const baseUrl = `${request.protocol}://${request.hostname}:${port}`;
+    // Construire l'URL complète (sans port en production pour compatibilité Vercel/Netlify)
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL;
+    const port = isProduction ? '' : `:${process.env.PORT || 4200}`;
+    const baseUrl = `${request.protocol}://${request.hostname}${port}`;
     const fileUrl = `${baseUrl}${saved.url}`;
     const optimizedUrl = `${baseUrl}${saved.optimizedUrl}`;
     const thumbnailUrl = `${baseUrl}${saved.thumbnailUrl}`;
@@ -60,12 +61,12 @@ export const uploadFile = async (request: FileUploadRequest, reply: FastifyReply
         original: fileUrl,
         optimized: optimizedUrl,
         thumbnail: thumbnailUrl,
-      }
+      },
     });
   } catch (error) {
     request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
-      message: 'Une erreur est survenue lors de l\'upload du fichier',
+      message: "Une erreur est survenue lors de l'upload du fichier",
     });
   }
 };
@@ -79,23 +80,24 @@ export const uploadBase64Image = async (request: Base64UploadRequest, reply: Fas
 
     if (!data) {
       return reply.status(400).send({
-        message: 'Aucune donnée d\'image fournie',
+        message: "Aucune donnée d'image fournie",
       });
     }
 
     // Vérifier que les données sont au format base64
     if (!data.startsWith('data:image/')) {
       return reply.status(400).send({
-        message: 'Format d\'image invalide. Doit être une image en base64 avec en-tête data:image/',
+        message: "Format d'image invalide. Doit être une image en base64 avec en-tête data:image/",
       });
     }
 
     // Sauvegarder l'image + dérivés
     const saved = await UploadService.saveBase64ImageDetailed(data, filename);
 
-    // Construire l'URL complète avec le port
-    const port = process.env.PORT || 4200;
-    const baseUrl = `${request.protocol}://${request.hostname}:${port}`;
+    // Construire l'URL complète (sans port en production pour compatibilité Vercel/Netlify)
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL;
+    const port = isProduction ? '' : `:${process.env.PORT || 4200}`;
+    const baseUrl = `${request.protocol}://${request.hostname}${port}`;
     const fileUrl = `${baseUrl}${saved.url}`;
     const optimizedUrl = `${baseUrl}${saved.optimizedUrl}`;
     const thumbnailUrl = `${baseUrl}${saved.thumbnailUrl}`;
@@ -108,12 +110,12 @@ export const uploadBase64Image = async (request: Base64UploadRequest, reply: Fas
         original: fileUrl,
         optimized: optimizedUrl,
         thumbnail: thumbnailUrl,
-      }
+      },
     });
   } catch (error) {
     request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
-      message: 'Une erreur est survenue lors de l\'upload de l\'image',
+      message: "Une erreur est survenue lors de l'upload de l'image",
     });
   }
 };
