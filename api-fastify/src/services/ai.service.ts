@@ -114,13 +114,29 @@ const generateResponse = async (messages: IMessage[]): Promise<string> => {
 
           // Vérifier que lastExchange est bien un objet avec les bonnes propriétés
           if (lastExchange && typeof lastExchange === 'object') {
+            let rawResponse: any;
+
             // Le format peut être un tableau [user, bot] ou un objet {role, content}
             if (Array.isArray(lastExchange) && lastExchange.length >= 2) {
-              aiResponse = lastExchange[1]; // [user_msg, assistant_msg]
+              rawResponse = lastExchange[1]; // [user_msg, assistant_msg]
             } else if (lastExchange.content) {
-              aiResponse = lastExchange.content;
+              rawResponse = lastExchange.content;
             } else {
               throw new Error('Format de réponse Qwen3 invalide: structure de message inattendue');
+            }
+
+            // Extraire la chaîne de caractères si rawResponse est un objet
+            if (typeof rawResponse === 'string') {
+              aiResponse = rawResponse;
+            } else if (rawResponse && typeof rawResponse === 'object') {
+              // Essayer différentes propriétés courantes
+              aiResponse =
+                rawResponse.content ||
+                rawResponse.text ||
+                rawResponse.message ||
+                JSON.stringify(rawResponse);
+            } else {
+              aiResponse = String(rawResponse);
             }
           } else {
             throw new Error('Format de réponse Qwen3 invalide: lastExchange invalide');
