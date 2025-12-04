@@ -125,11 +125,21 @@ const generateResponse = async (messages: IMessage[]): Promise<string> => {
               throw new Error('Format de réponse Qwen3 invalide: structure de message inattendue');
             }
 
-            // Extraire la chaîne de caractères si rawResponse est un objet
+            // Extraire la chaîne de caractères du format Qwen3
             if (typeof rawResponse === 'string') {
               aiResponse = rawResponse;
+            } else if (Array.isArray(rawResponse)) {
+              // Nouveau format Qwen3: [{type:"tool", content:"..."}, {type:"text", content:"..."}]
+              const textObject = rawResponse.find((item: any) => item && item.type === 'text');
+              if (textObject && textObject.content) {
+                aiResponse = textObject.content;
+              } else {
+                // Fallback: prendre le contenu du dernier élément
+                const lastItem = rawResponse[rawResponse.length - 1];
+                aiResponse = lastItem?.content || JSON.stringify(rawResponse);
+              }
             } else if (rawResponse && typeof rawResponse === 'object') {
-              // Essayer différentes propriétés courantes
+              // Format objet simple
               aiResponse =
                 rawResponse.content ||
                 rawResponse.text ||
