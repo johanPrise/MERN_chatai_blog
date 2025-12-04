@@ -133,9 +133,34 @@ export const useImageHandler = (): UseImageHandlerReturn => {
           return null;
         }
 
+        // Compress image before upload to stay under Vercel's 4.5MB limit
+        let fileToUpload = file;
+        try {
+          const { ImageCompressor } = await import('../utils/imageCompression');
+          const compressor = ImageCompressor.getInstance();
+
+          // Compress with aggressive settings for Vercel
+          const compressed = await compressor.compressImage(file, {
+            maxWidth: 1600,
+            maxHeight: 1200,
+            quality: 0.75,
+            format: 'jpeg', // JPEG has better compression than PNG
+          });
+
+          // Only use compressed if it's actually smaller
+          if (compressed.compressedSize < file.size) {
+            fileToUpload = new File([compressed.blob], file.name, { type: 'image/jpeg' });
+            console.log(
+              `✅ Compressed ${file.name}: ${(file.size / 1024).toFixed(0)}KB → ${(compressed.compressedSize / 1024).toFixed(0)}KB`
+            );
+          }
+        } catch (compressionError) {
+          console.warn('⚠️ Compression failed, uploading original:', compressionError);
+        }
+
         // Create form data (backend expects 'file')
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('file', fileToUpload);
 
         // Upload with progress tracking
         const xhr = new XMLHttpRequest();
