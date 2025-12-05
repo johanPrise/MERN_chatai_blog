@@ -18,7 +18,7 @@ services:
     networks:
       - mern_blog_network
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/${DB_NAME:-mern_blog} --quiet
       interval: 30s
       timeout: 10s
       retries: 5
