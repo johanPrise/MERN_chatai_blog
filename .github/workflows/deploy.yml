@@ -13,6 +13,8 @@ jobs:
     name: Deploy Frontend to Netlify
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: read
     
     steps:
       - name: Checkout code
@@ -49,6 +51,9 @@ jobs:
     name: Build and Push Docker Images
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: read
+      packages: write
     
     steps:
       - name: Checkout code
@@ -96,6 +101,8 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [deploy-frontend, build-docker]
+    permissions:
+      contents: write
     
     steps:
       - name: Checkout code

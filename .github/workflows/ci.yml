@@ -11,6 +11,8 @@ jobs:
   frontend:
     name: Frontend CI
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     
     strategy:
       matrix:
@@ -72,6 +74,8 @@ jobs:
   backend:
     name: Backend CI
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     
     strategy:
       matrix:
@@ -157,6 +161,8 @@ jobs:
   security:
     name: Security Audit
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     
     steps:
       - name: Checkout code
