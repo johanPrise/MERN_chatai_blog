@@ -179,7 +179,7 @@ export async function translatePostWithDeepL(post: any, targetLang: 'fr' | 'en')
 }
 ```
 
-#### Option C : Google Translate (Gratuit mais qualité moindre)
+#### Option C : Google Translate (Budget)
 
 ```bash
 cd api-fastify
@@ -207,6 +207,171 @@ export async function translateWithGoogle(
   }
 }
 ```
+
+#### Option D : LibreTranslate (100% Gratuit) ⭐ MVP
+
+LibreTranslate est une API de traduction open-source, gratuite et auto-hébergeable.
+
+```bash
+cd api-fastify
+pnpm add node-fetch
+```
+
+```typescript
+// api-fastify/src/services/translation.service.ts
+import fetch from 'node-fetch';
+
+export async function translateWithLibreTranslate(
+  text: string,
+  targetLang: 'fr' | 'en'
+): Promise<string> {
+  try {
+    const response = await fetch('https://libretranslate.com/translate', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        q: text,
+        source: targetLang === 'en' ? 'fr' : 'en',
+        target: targetLang,
+        format: 'text'
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`LibreTranslate API error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    return result.translatedText;
+  } catch (error) {
+    console.error('Erreur traduction LibreTranslate:', error);
+    throw new Error('Échec de la traduction');
+  }
+}
+
+export async function translatePostWithLibreTranslate(post: any, targetLang: 'fr' | 'en') {
+  const [translatedTitle, translatedContent, translatedSummary] = await Promise.all([
+    translateWithLibreTranslate(post.title, targetLang),
+    translateWithLibreTranslate(post.content, targetLang),
+    post.summary ? translateWithLibreTranslate(post.summary, targetLang) : Promise.resolve('')
+  ]);
+
+  return {
+    title: translatedTitle,
+    content: translatedContent,
+    summary: translatedSummary
+  };
+}
+```
+
+**Avantages** :
+- ✅ 100% gratuit
+- ✅ Open source
+- ✅ Peut être auto-hébergé
+- ✅ Pas de limite de quota sur instance publique
+- ✅ Support +20 langues (dont FR ↔ EN)
+
+**Inconvénients** :
+- ❌ Qualité inférieure à DeepL/GPT-4
+- ❌ Instances publiques parfois surchargées
+- ❌ Peut nécessiter retry logic
+
+**Auto-hébergement (optionnel)** :
+```yaml
+# docker-compose.yml - Ajouter
+services:
+  libretranslate:
+    image: libretranslate/libretranslate:latest
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - LT_DISABLE_WEB_UI=false
+    volumes:
+      - libretranslate_data:/home/libretranslate/.local
+```
+
+#### Option E : MyMemory Translation API (Freemium)
+
+API gratuite avec quota quotidien généreux (50,000 caractères/jour).
+
+```bash
+# Aucune dépendance supplémentaire nécessaire
+```
+
+```typescript
+// api-fastify/src/services/translation.service.ts
+import fetch from 'node-fetch';
+
+export async function translateWithMyMemory(
+  text: string,
+  targetLang: 'fr' | 'en'
+): Promise<string> {
+  try {
+    const sourceLang = targetLang === 'en' ? 'fr' : 'en';
+    const langPair = `${sourceLang}|${targetLang}`;
+    
+    const response = await fetch(
+      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langPair}`,
+      {
+        headers: {
+          'User-Agent': 'MERN-Blog/1.0'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`MyMemory API error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    
+    if (result.responseStatus !== 200) {
+      throw new Error(`MyMemory translation failed: ${result.responseDetails}`);
+    }
+
+    return result.responseData.translatedText;
+  } catch (error) {
+    console.error('Erreur traduction MyMemory:', error);
+    throw new Error('Échec de la traduction');
+  }
+}
+
+export async function translatePostWithMyMemory(post: any, targetLang: 'fr' | 'en') {
+  // MyMemory recommande des pauses entre requêtes
+  const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+  const translatedTitle = await translateWithMyMemory(post.title, targetLang);
+  await delay(500); // Pause 500ms entre requêtes
+
+  const translatedContent = await translateWithMyMemory(post.content, targetLang);
+  await delay(500);
+
+  const translatedSummary = post.summary 
+    ? await translateWithMyMemory(post.summary, targetLang)
+    : '';
+
+  return {
+    title: translatedTitle,
+    content: translatedContent,
+    summary: translatedSummary
+  };
+}
+```
+
+**Avantages** :
+- ✅ Gratuit jusqu'à 50,000 caractères/jour
+- ✅ Aucune clé API requise
+- ✅ Facile à intégrer
+- ✅ Bon pour MVP et prototypes
+
+**Inconvénients** :
+- ❌ Quota quotidien limité (~15 posts/jour)
+- ❌ Qualité variable selon les langues
+- ❌ Nécessite rate limiting
+- ❌ Pas adapté pour production à grande échelle
 
 ---
 
@@ -762,11 +927,94 @@ function hashText(text: string): string {
 
 ---
 
+## Solution 4 : Fallback Multi-Services (Production)
+
+Pour maximiser la disponibilité et optimiser les coûts, implémenter un système de fallback automatique.
+
+```typescript
+// api-fastify/src/services/translation-fallback.service.ts
+import { translateWithGPT } from './translation.service';
+import { translateWithDeepL } from './translation.service';
+import { translateWithLibreTranslate } from './translation.service';
+
+interface TranslationService {
+  name: string;
+  translate: (text: string, targetLang: 'fr' | 'en') => Promise<string>;
+  priority: number; // 1 = highest
+  cost: number; // Coût estimé par traduction
+}
+
+const services: TranslationService[] = [
+  {
+    name: 'gpt-4',
+    translate: translateWithGPT,
+    priority: 1,
+    cost: 0.08
+  },
+  {
+    name: 'deepl',
+    translate: translateWithDeepL,
+    priority: 2,
+    cost: 0.03
+  },
+  {
+    name: 'libretranslate',
+    translate: translateWithLibreTranslate,
+    priority: 3,
+    cost: 0
+  }
+].sort((a, b) => a.priority - b.priority);
+
+export async function translateWithFallback(
+  text: string,
+  targetLang: 'fr' | 'en',
+  maxRetries: number = 3
+): Promise<{ translation: string; service: string; cost: number }> {
+  let lastError: Error | null = null;
+
+  for (const service of services) {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        console.log(`Tentative traduction avec ${service.name} (essai ${attempt + 1}/${maxRetries})`);
+        
+        const translation = await service.translate(text, targetLang);
+        
+        console.log(`✓ Traduction réussie avec ${service.name}`);
+        return {
+          translation,
+          service: service.name,
+          cost: service.cost
+        };
+      } catch (error) {
+        console.error(`✗ Échec ${service.name} (essai ${attempt + 1}):`, error);
+        lastError = error as Error;
+        
+        // Attendre avant retry (backoff exponentiel)
+        if (attempt < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+        }
+      }
+    }
+  }
+
+  throw new Error(`Tous les services de traduction ont échoué. Dernière erreur: ${lastError?.message}`);
+}
+```
+
+**Avantages** :
+- ✅ Haute disponibilité (99.9%+)
+- ✅ Optimisation coûts automatique
+- ✅ Dégradation gracieuse
+- ✅ Monitoring par service
+
+---
+
 ## Variables d'Environnement
 
 ```bash
 # api-fastify/.env
-# Choisir UN service de traduction :
+
+# Services de traduction (configurations multiples pour fallback)
 
 # Option 1 : OpenAI (meilleure qualité, $$)
 OPENAI_API_KEY=sk-...
@@ -774,36 +1022,75 @@ OPENAI_API_KEY=sk-...
 # Option 2 : DeepL (bon compromis, $)
 DEEPL_API_KEY=...
 
-# Option 3 : Google Translate (gratuit/low cost)
+# Option 3 : Google Translate (budget)
 GOOGLE_TRANSLATE_API_KEY=...
 
+# Option 4 : LibreTranslate (GRATUIT) ⭐
+LIBRETRANSLATE_URL=https://libretranslate.com  # ou auto-hébergé
+
 # Configuration
-TRANSLATION_SERVICE=openai  # ou 'deepl' ou 'google'
+TRANSLATION_SERVICE=fallback  # ou 'openai', 'deepl', 'google', 'libretranslate'
+TRANSLATION_FALLBACK_ORDER=gpt4,deepl,libretranslate  # Ordre de priorité
 ENABLE_TRANSLATION_CACHE=true
 TRANSLATION_TIMEOUT=30000  # 30 secondes
+TRANSLATION_MAX_RETRIES=3
 ```
 
 ---
 
 ## Coûts Estimés
 
-### OpenAI GPT-4 Turbo
+### Services Gratuits
+
+#### LibreTranslate ⭐ Recommandé pour MVP
+- **Prix** : **GRATUIT** (instance publique ou auto-hébergée)
+- **Post moyen** : ~3000 caractères
+- **Coût par post** : **$0**
+- **1000 posts/mois** : **$0/mois**
+- **Limites** : Qualité correcte, instances publiques parfois lentes
+
+#### MyMemory Translation
+- **Prix** : **GRATUIT** jusqu'à 50,000 caractères/jour
+- **Post moyen** : ~3000 caractères
+- **Coût par post** : **$0** (dans le quota)
+- **Capacité gratuite** : ~15-16 posts/jour
+- **Pour 1000 posts/mois** : Au-delà du quota gratuit
+- **Limites** : Quota quotidien limité
+
+### Services Payants
+
+#### OpenAI GPT-4 Turbo (Meilleure qualité)
 - **Prix** : ~$0.01 / 1K tokens entrée, ~$0.03 / 1K tokens sortie
 - **Post moyen** : ~2000 tokens
 - **Coût par post** : ~$0.08-0.10
 - **1000 posts/mois** : ~$100/mois
+- **Qualité** : ⭐⭐⭐⭐⭐ Excellente
 
-### DeepL API Pro
-- **Prix** : $5.49 / 500K caractères
+#### DeepL API Pro (Meilleur rapport qualité/prix)
+- **Prix** : $5.49 / 500K caractères (ou $24.99 pour 2M)
 - **Post moyen** : ~3000 caractères
 - **Coût par post** : ~$0.03
 - **1000 posts/mois** : ~$30/mois
+- **Qualité** : ⭐⭐⭐⭐ Très bonne
 
-### Google Translate
+#### Google Translate
 - **Prix** : $20 / 1M caractères
 - **Post moyen** : ~3000 caractères
 - **Coût par post** : ~$0.06
 - **1000 posts/mois** : ~$60/mois
+- **Qualité** : ⭐⭐⭐ Bonne
+
+---
+
+## Tableau Comparatif des Services
+
+| Service | Coût (1000 posts/mois) | Qualité | Vitesse | Setup | Recommandation |
+|---------|------------------------|---------|---------|-------|----------------|
+| **LibreTranslate** | **$0** (gratuit) | ⭐⭐⭐ | Moyenne | Facile | ✅ MVP/Démarrage |
+| **MyMemory** | **$0** (quota limité) | ⭐⭐ | Rapide | Très facile | ✅ Prototypes |
+| **DeepL** | ~$30 | ⭐⭐⭐⭐ | Rapide | Facile | ✅ Production (PME) |
+| **GPT-4** | ~$100 | ⭐⭐⭐⭐⭐ | Moyenne | Facile | ✅ Production (qualité max) |
+| **Google** | ~$60 | ⭐⭐⭐ | Rapide | Moyen | Alternative |
 
 ---
 
@@ -925,18 +1212,33 @@ export async function queueTranslation(postId: string, targetLang: 'en' | 'fr') 
 
 ## Recommandations Finales
 
-### Pour Débuter (MVP)
-1. ✅ Utiliser **DeepL** (meilleur rapport qualité/prix)
+### Pour Débuter / Budget Zéro (MVP) ⭐
+1. ✅ Utiliser **LibreTranslate** (100% gratuit)
 2. ✅ Traduction **en arrière-plan** (non bloquante)
-3. ✅ Cache Redis pour optimiser
+3. ✅ Retry logic pour gérer les instances surchargées
 4. ✅ Interface simple (bouton "traduire")
+5. ✅ Considérer auto-hébergement si volume important
 
-### Pour Production
-1. ✅ Utiliser **OpenAI GPT-4** (meilleure qualité)
+**Alternative** : **MyMemory** si moins de 15 posts/jour
+
+### Pour Production Petit Budget
+1. ✅ Utiliser **DeepL** (meilleur rapport qualité/prix ~$30/mois)
+2. ✅ Cache Redis pour optimiser
+3. ✅ Traduction en arrière-plan
+4. ✅ Monitoring basique
+
+### Pour Production Qualité Premium
+1. ✅ Utiliser **OpenAI GPT-4** (meilleure qualité ~$100/mois)
 2. ✅ **BullMQ** pour gérer la queue
 3. ✅ Monitoring traductions (taux succès, temps, coûts)
-4. ✅ Fallback multi-services (GPT → DeepL → Google)
+4. ✅ Fallback multi-services (GPT-4 → DeepL → LibreTranslate)
 5. ✅ Interface riche (sélecteur langue, badge disponibilité)
+
+### Stratégie Hybride (Recommandée)
+1. ✅ Démarrer avec **LibreTranslate** (gratuit)
+2. ✅ Migrer vers **DeepL** quand budget disponible
+3. ✅ Utiliser **GPT-4** pour posts importants/marketing
+4. ✅ Fallback automatique : GPT-4 → DeepL → LibreTranslate
 
 ### Checklist Implémentation
 - [ ] Choisir service traduction
@@ -985,8 +1287,13 @@ export async function queueTranslation(postId: string, targetLang: 'en' | 'fr') 
 **Temps d'implémentation estimé** : 20-30 heures
 
 **Coûts mensuels** (1000 posts/mois) :
-- DeepL : ~$30
-- OpenAI : ~$100
-- Google : ~$60
+- **LibreTranslate** : **$0** (gratuit) ⭐ Recommandé pour démarrer
+- **MyMemory** : **$0** (si < 15 posts/jour)
+- **DeepL** : ~$30 (meilleur rapport qualité/prix)
+- **OpenAI GPT-4** : ~$100 (meilleure qualité)
+- **Google** : ~$60 (alternative)
 
-**Recommandation** : Commencer avec DeepL, migrer vers GPT-4 si besoin de meilleure qualité.
+**Recommandation par étape** :
+1. **Phase 1 (MVP)** : Commencer avec **LibreTranslate** (gratuit)
+2. **Phase 2 (Croissance)** : Passer à **DeepL** quand budget disponible
+3. **Phase 3 (Maturité)** : **GPT-4** pour qualité premium ou hybride GPT-4+DeepL
