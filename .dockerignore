@@ -1,0 +1,55 @@
+# Dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+
+# Build outputs
+dist
+build
+.next
+out
+
+# Environment files
+.env
+.env.local
+.env.*.local
+env.js
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+
+# Test
+coverage
+.nyc_output
+
+# Misc
+.qodo
+.vercel
+.netlify
+*.log
+.temp
+.tmp
+.cache
+
+# Documentation
+*.md
+!README.md
+docs
+
+# CI/CD
+.github
+
+# Development files
+.husky
+.lintstagedrc
+.prettierrc
+.eslintrc.cjs

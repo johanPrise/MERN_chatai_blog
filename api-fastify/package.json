@@ -11,6 +11,9 @@
     "prod": "NODE_ENV=production node --experimental-specifier-resolution=node dist/index.js",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
+    "test": "NODE_ENV=test vitest run",
+    "test:watch": "NODE_ENV=test vitest",
+    "test:coverage": "NODE_ENV=test vitest run --coverage",
     "seed": "tsx src/scripts/seed.ts",
     "migrate:tiptap": "tsx src/scripts/migrate-to-tiptap.ts"
   },
@@ -48,11 +51,13 @@
     "@types/sharp": "^0.31.1",
     "@typescript-eslint/eslint-plugin": "^8.31.1",
     "@typescript-eslint/parser": "^8.31.1",
+    "@vitest/coverage-v8": "^1.4.0",
     "eslint": "^9.25.1",
     "nodemon": "^3.1.10",
     "pino-pretty": "^13.0.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.19.4",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^1.4.0"
   }
 }
