@@ -312,7 +312,7 @@ function TableOfContents({ headings }: { headings: { id: string; text: string; l
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' })
       // Update URL hash without jumping
-      history.replaceState(null, '', `#${id}`)
+      window.history.replaceState(null, '', `#${id}`)
     }
   }
 
