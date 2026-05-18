@@ -1,6 +1,6 @@
-import fs from 'fs';
-import path from 'path';
-import { promisify } from 'util';
+import fs from 'node:fs';
+import path from 'node:path';
+import { promisify } from 'node:util';
 import { nanoid } from 'nanoid';
 import { MultipartFile } from '@fastify/multipart';
 import { imageService } from './image.service.js';
@@ -11,6 +11,41 @@ const writeFile = promisify(fs.writeFile);
 
 // Dossier de destination pour les uploads
 const UPLOAD_DIR = path.join(process.cwd(), 'uploads');
+const ALLOWED_IMAGE_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+]);
+
+export const isAllowedImageMimeType = (mimeType: string): boolean => {
+  return ALLOWED_IMAGE_MIME_TYPES.has(mimeType.toLowerCase());
+};
+
+const parseBase64Image = (base64Data: string): { mimeType: string; buffer: Buffer } => {
+  const matches = base64Data.match(/^data:([A-Za-z0-9.+-]+\/[A-Za-z0-9.+-]+);base64,(.+)$/);
+
+  if (matches?.length !== 3) {
+    throw new Error('Format d\'image base64 invalide');
+  }
+
+  const mimeType = matches[1].toLowerCase();
+  if (!isAllowedImageMimeType(mimeType)) {
+    throw new Error('Format d\'image non autorisé');
+  }
+
+  return {
+    mimeType,
+    buffer: Buffer.from(matches[2], 'base64'),
+  };
+};
+
+const validateImageBuffer = async (buffer: Buffer): Promise<'jpg' | 'png' | 'webp'> => {
+  try {
+    return await imageService.validateImage(buffer);
+  } catch {
+    throw new Error('Image invalide ou non autorisée');
+  }
+};
 
 /**
  * Crée le dossier d'uploads s'il n'existe pas
@@ -59,12 +94,16 @@ export interface SavedImage {
 export const saveImageFile = async (file: MultipartFile): Promise<SavedImage> => {
   await ensureUploadDir();
 
-  const ext = path.extname(file.filename);
+  if (!isAllowedImageMimeType(file.mimetype)) {
+    throw new Error('Format d\'image non autorisé');
+  }
+
   const baseName = nanoid(10);
-  const fileName = `${baseName}${ext}`;
+  const buffer = await file.toBuffer();
+  const ext = await validateImageBuffer(buffer);
+  const fileName = `${baseName}.${ext}`;
   const filePath = path.join(UPLOAD_DIR, fileName);
 
-  const buffer = await file.toBuffer();
   await writeFile(filePath, buffer);
 
   // Générer les dérivés
@@ -84,25 +123,10 @@ export const saveImageFile = async (file: MultipartFile): Promise<SavedImage> =>
 export const saveBase64Image = async (base64Data: string, _fileName: string): Promise<string> => {
   await ensureUploadDir();
 
-  // Extraire les données de l'image
-  const matches = base64Data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-  
-  if (!matches || matches.length !== 3) {
-    throw new Error('Format d\'image base64 invalide');
-  }
-
-  // Récupérer le type MIME et les données
-  const mimeType = matches[1];
-  const imageData = matches[2];
-  const buffer = Buffer.from(imageData, 'base64');
-
-  // Vérifier que c'est bien une image
-  if (!mimeType.startsWith('image/')) {
-    throw new Error('Le fichier doit être une image');
-  }
+  const { buffer } = parseBase64Image(base64Data);
+  const fileExtension = await validateImageBuffer(buffer);
 
   // Générer un nom de fichier unique
-  const fileExtension = mimeType.split('/')[1];
   const uniqueFileName = `${nanoid(10)}.${fileExtension}`;
   const filePath = path.join(UPLOAD_DIR, uniqueFileName);
 
@@ -119,20 +143,9 @@ export const saveBase64Image = async (base64Data: string, _fileName: string): Pr
 export const saveBase64ImageDetailed = async (base64Data: string, _fileName: string): Promise<SavedImage> => {
   await ensureUploadDir();
 
-  const matches = base64Data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-  if (!matches || matches.length !== 3) {
-    throw new Error('Format d\'image base64 invalide');
-  }
+  const { buffer } = parseBase64Image(base64Data);
+  const fileExtension = await validateImageBuffer(buffer);
 
-  const mimeType = matches[1];
-  const imageData = matches[2];
-  const buffer = Buffer.from(imageData, 'base64');
-
-  if (!mimeType.startsWith('image/')) {
-    throw new Error('Le fichier doit être une image');
-  }
-
-  const fileExtension = mimeType.split('/')[1];
   const baseName = nanoid(10);
   const uniqueFileName = `${baseName}.${fileExtension}`;
   const filePath = path.join(UPLOAD_DIR, uniqueFileName);

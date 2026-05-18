@@ -1,25 +1,41 @@
 import sharp from 'sharp';
-import path from 'path';
+import path from 'node:path';
 
 interface ImageOptions {
   width?: number;
   height?: number;
   quality?: number;
   format?: 'jpeg' | 'png' | 'webp';
+  suffix?: string;
 }
 
 class ImageService {
-  private uploadsDir = path.join(process.cwd(), 'uploads');
+  private  readonly uploadsDir = path.join(process.cwd(), 'uploads');
+
+  async validateImage(inputBuffer: Buffer): Promise<'jpg' | 'png' | 'webp'> {
+    const metadata = await sharp(inputBuffer).metadata();
+
+    switch (metadata.format) {
+      case 'jpeg':
+        return 'jpg';
+      case 'png':
+        return 'png';
+      case 'webp':
+        return 'webp';
+      default:
+        throw new Error('Format d\'image non autorisé');
+    }
+  }
 
   async optimizeImage(
     inputBuffer: Buffer,
     filename: string,
     options: ImageOptions = {}
   ): Promise<string> {
-    const { width = 800, height, quality = 80, format = 'webp' } = options;
+    const { width = 800, height, quality = 80, format = 'webp', suffix = 'opt' } = options;
     
     const ext = format === 'jpeg' ? 'jpg' : format;
-    const optimizedFilename = `${path.parse(filename).name}-opt.${ext}`;
+    const optimizedFilename = `${path.parse(filename).name}-${suffix}.${ext}`;
     const outputPath = path.join(this.uploadsDir, optimizedFilename);
 
     let pipeline = sharp(inputBuffer);
@@ -54,7 +70,8 @@ class ImageService {
       width: 300,
       height: 200,
       quality: 70,
-      format: 'webp'
+      format: 'webp',
+      suffix: 'thumb'
     });
   }
 }

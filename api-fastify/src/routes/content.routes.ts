@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import * as ContentController from '../controllers/content.controller.js';
-import { authenticate, isAdmin } from '../middlewares/auth.middleware.js';
+import { authenticate, isAdmin, optionalAuthMiddleware } from '../middlewares/auth.middleware.js';
 import {
   getContentsSchema,
   getContentSchema,
@@ -24,6 +24,7 @@ export async function contentRoutes(fastify: FastifyInstance): Promise<void> {
     '/',
     {
       schema: getContentsSchema,
+      preHandler: [optionalAuthMiddleware],
     },
     ContentController.getContents
   );
@@ -35,6 +36,7 @@ export async function contentRoutes(fastify: FastifyInstance): Promise<void> {
     '/:slug',
     {
       schema: getContentSchema,
+      preHandler: [optionalAuthMiddleware],
     },
     ContentController.getContent
   );

@@ -1,49 +1,366 @@
-import { FastifyRequest, FastifyReply } from 'fastify';
+import { type FastifyRequest, type FastifyReply } from 'fastify';
 import { isValidObjectId } from '../utils/index.js';
 import { CreatePostInput, UpdatePostInput, PostStatus } from '../types/post.types.js';
 import * as PostService from '../services/post.service.js';
+import { invalidatePostCache } from '../utils/cache-invalidation.js';
 
-// Helper pour gérer les erreurs communes
-const handleCommonErrors = (error: Error, reply: FastifyReply) => {
-  if (error.message === 'ID article invalide') {
-    return reply.status(400).send({ success: false, message: error.message });
-  }
-  if (error.message === 'Article non trouvé') {
-    return reply.status(404).send({ success: false, message: error.message });
-  }
-  if (error.message === "Vous n'êtes pas autorisé à mettre à jour cet article") {
-    return reply.status(403).send({ success: false, message: error.message });
-  }
-  if (error.message === "Une ou plusieurs catégories n'existent pas") {
-    return reply.status(400).send({ success: false, message: error.message });
-  }
-  return null;
+type PostListRequest = FastifyRequest<{
+  Querystring: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    category?: string;
+    tag?: string;
+    author?: string;
+    status?: PostStatus;
+  };
+}>;
+type PostCreateRequest = FastifyRequest<{ Body: CreatePostInput }>;
+type PostGetRequest = FastifyRequest<{ Params: { idOrSlug: string } }>;
+type PostIdRequest = FastifyRequest<{ Params: { id: string } }>;
+type PostUpdateRequest = FastifyRequest<{
+  Params: { id: string };
+  Body: UpdatePostInput;
+}>;
+type PostDeleteRequest = FastifyRequest<{
+  Params: { id: string };
+  Body?: { soft?: boolean };
+}>;
+type AuthenticatedUser = NonNullable<FastifyRequest['user']>;
+type AuthenticatedPostContext = {
+  id: string;
+  user: AuthenticatedUser;
+};
+type PostRequestHandler<Request extends FastifyRequest> = (
+  request: Request,
+  reply: FastifyReply
+) => Promise<unknown>;
+type PostReactionName = 'like' | 'unlike' | 'dislike';
+type PostReactionResult = Awaited<ReturnType<typeof PostService.likePost>>;
+type PostReactionAction = (id: string, userId: string) => Promise<PostReactionResult>;
+type PostReactionOptions = {
+  action: PostReactionAction;
+  successMessage: string;
+  fallbackMessage: string;
+  cacheActionName: string;
+};
+type FallbackPayloadFactory = (error: unknown, fallbackMessage: string) => Record<string, unknown>;
+type HandlePostRequestOptions = {
+  request: FastifyRequest;
+  reply: FastifyReply;
+  fallbackMessage: string;
+  action: () => Promise<unknown>;
+  fallbackPayload?: FallbackPayloadFactory;
 };
 
-// Helper pour extraire le message d'erreur en mode développement
+const POST_ERROR_STATUS = new Map<string, 400 | 403 | 404 | 409>([
+  ['ID article invalide', 400],
+  ['Article non trouvé', 404],
+  ["Une ou plusieurs catégories n'existent pas", 400],
+  ["Vous n'êtes pas autorisé à mettre à jour cet article", 403],
+  ['Article déjà supprimé', 409],
+  ["Vous n'êtes pas autorisé à supprimer cet article", 403],
+  ['Seuls les administrateurs peuvent supprimer définitivement un article', 403],
+  ['Vous avez déjà liké cet article', 400],
+  ["Vous n'avez pas liké cet article", 400],
+  ['Vous avez déjà disliké cet article', 400],
+]);
+
+const POST_REACTIONS: Record<PostReactionName, PostReactionOptions> = {
+  like: {
+    action: PostService.likePost,
+    successMessage: 'Article liké avec succès',
+    fallbackMessage: "Une erreur est survenue lors du like de l'article",
+    cacheActionName: 'likePost',
+  },
+  unlike: {
+    action: PostService.unlikePost,
+    successMessage: 'Article unliké avec succès',
+    fallbackMessage: "Une erreur est survenue lors du unlike de l'article",
+    cacheActionName: 'unlikePost',
+  },
+  dislike: {
+    action: PostService.dislikePost,
+    successMessage: 'Article disliké avec succès',
+    fallbackMessage: "Une erreur est survenue lors du dislike de l'article",
+    cacheActionName: 'dislikePost',
+  },
+};
+
+const toError = (error: unknown): Error => {
+  if (error instanceof Error) {
+    return error;
+  }
+
+  if (typeof error === 'string') {
+    return new Error(error);
+  }
+
+  return new Error('Erreur inconnue');
+};
+
 const getErrorMessage = (error: unknown) => {
-  if (process.env.NODE_ENV !== 'development') return undefined;
-  return error instanceof Error ? error.message : String(error);
+  if (process.env.NODE_ENV !== 'development') {
+    return undefined;
+  }
+
+  return toError(error).message;
+};
+
+const sendKnownPostError = (error: unknown, reply: FastifyReply) => {
+  if (!(error instanceof Error)) {
+    return undefined;
+  }
+
+  const statusCode = POST_ERROR_STATUS.get(error.message);
+  if (!statusCode) {
+    return undefined;
+  }
+
+  return reply.status(statusCode).send({
+    message: error.message,
+  });
+};
+
+const defaultFallbackPayload: FallbackPayloadFactory = (_error, fallbackMessage) => ({
+  message: fallbackMessage,
+});
+
+const updateFallbackPayload: FallbackPayloadFactory = (error, fallbackMessage) => ({
+  success: false,
+  message: fallbackMessage,
+  error: getErrorMessage(error),
+});
+
+const handlePostRequest = async ({
+  request,
+  reply,
+  fallbackMessage,
+  action,
+  fallbackPayload = defaultFallbackPayload,
+}: HandlePostRequestOptions) => {
+  try {
+    return await action();
+  } catch (error) {
+    const knownErrorReply = sendKnownPostError(error, reply);
+    if (knownErrorReply) {
+      return knownErrorReply;
+    }
+
+    request.log.error(toError(error));
+    return reply.status(500).send(fallbackPayload(error, fallbackMessage));
+  }
+};
+
+const withPostErrorHandling = <Request extends FastifyRequest>(
+  fallbackMessage: string,
+  action: PostRequestHandler<Request>,
+  fallbackPayload?: FallbackPayloadFactory
+) => {
+  return (request: Request, reply: FastifyReply) => {
+    return handlePostRequest({
+      request,
+      reply,
+      fallbackMessage,
+      action: () => action(request, reply),
+      fallbackPayload,
+    });
+  };
+};
+
+const requireAuthenticatedUser = (
+  request: FastifyRequest,
+  reply: FastifyReply
+) => {
+  if (request.user) {
+    return request.user;
+  }
+
+  reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+  return undefined;
+};
+
+const sendInvalidPostId = (
+  id: string,
+  reply: FastifyReply,
+  payload?: Record<string, unknown>
+) => {
+  if (isValidObjectId(id)) {
+    return false;
+  }
+
+  reply.status(400).send(payload ?? { message: 'ID article invalide' });
+  return true;
+};
+
+const getAuthenticatedPostContext = (
+  request: PostIdRequest,
+  reply: FastifyReply,
+  invalidIdPayload?: Record<string, unknown>
+): AuthenticatedPostContext | undefined => {
+  const { id } = request.params;
+  const user = requireAuthenticatedUser(request, reply);
+
+  if (!user || sendInvalidPostId(id, reply, invalidIdPayload)) {
+    return undefined;
+  }
+
+  return { id, user };
+};
+
+const invalidatePostCacheAfterMutation = async (
+  request: FastifyRequest,
+  actionName: string,
+  postId?: string
+) => {
+  try {
+    await invalidatePostCache(postId);
+  } catch (error) {
+    request.log.warn(
+      `Cache invalidation failed (${actionName}): %s`,
+      toError(error).message
+    );
+  }
+};
+
+const asRecord = (value: unknown): Record<string, unknown> | undefined => {
+  if (typeof value !== 'object' || value === null) {
+    return undefined;
+  }
+
+  return value as Record<string, unknown>;
+};
+
+const isPrimitiveType = (value: unknown): boolean => {
+  const type = typeof value;
+  return type === 'number' || type === 'boolean' || type === 'bigint';
+};
+
+const stringifyPrimitiveIdentifier = (value: unknown): string | undefined => {
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (isPrimitiveType(value)) {
+    return (value as number | boolean | bigint).toString();
+  }
+
+  return undefined;
+};
+
+const stringifyObjectIdentifier = (value: unknown): string | undefined => {
+  const valueRecord = asRecord(value);
+  const toStringValue = valueRecord?.toString;
+  if (typeof toStringValue !== 'function') {
+    return undefined;
+  }
+
+  const stringValue = toStringValue.call(value);
+  return stringValue === '[object Object]' ? undefined : stringValue;
+};
+
+const stringifyIdentifier = (value: unknown): string | undefined => {
+  return stringifyPrimitiveIdentifier(value) ?? stringifyObjectIdentifier(value);
+};
+
+const getPostIdentifier = (post: unknown): string | undefined => {
+  const postRecord = asRecord(post);
+  return stringifyIdentifier(postRecord?._id) ?? stringifyIdentifier(postRecord?.id);
+};
+
+const summarizeContentBlocks = (contentBlocks: unknown) => {
+  if (!Array.isArray(contentBlocks)) {
+    return contentBlocks;
+  }
+
+  return {
+    length: contentBlocks.length,
+    types: contentBlocks.map(block => asRecord(block)?.type),
+  };
+};
+
+const logContentBlocksSummary = (
+  request: FastifyRequest,
+  message: string,
+  postLike: unknown
+) => {
+  const postRecord = asRecord(postLike);
+  const contentBlocks = postRecord?.contentBlocks;
+
+  request.log.debug({
+    msg: message,
+    id: getPostIdentifier(postLike),
+    hasContentBlocks: Array.isArray(contentBlocks),
+    contentBlocks: summarizeContentBlocks(contentBlocks),
+  });
+};
+
+const logUpdatePostRequest = (
+  request: PostUpdateRequest,
+  context: AuthenticatedPostContext
+) => {
+  const { id, user } = context;
+  const updateData = request.body;
+
+  request.log.info({
+    msg: '[updatePost] Request received',
+    id,
+    userId: user._id,
+    userRole: user.role,
+    dataKeys: Object.keys(updateData),
+    hasTitle: Boolean(updateData.title),
+    hasContent: Boolean(updateData.content),
+    hasContentBlocks: Array.isArray(updateData.contentBlocks),
+    status: updateData.status,
+    categories: updateData.categories,
+  });
+};
+
+const logUpdatedPost = (request: FastifyRequest, result: unknown) => {
+  const resultRecord = asRecord(result);
+
+  request.log.info({
+    msg: '[updatePost] Post updated successfully',
+    postId: getPostIdentifier(result),
+    title: resultRecord?.title,
+    status: resultRecord?.status,
+  });
+};
+
+const createReactionController = (options: PostReactionOptions) => {
+  return (request: PostIdRequest, reply: FastifyReply) => {
+    return handlePostRequest({
+      request,
+      reply,
+      fallbackMessage: options.fallbackMessage,
+      action: async () => {
+        const context = getAuthenticatedPostContext(request, reply);
+        if (!context) {
+          return reply;
+        }
+
+        const result = await options.action(context.id, context.user._id);
+        await invalidatePostCacheAfterMutation(
+          request,
+          options.cacheActionName,
+          context.id
+        );
+
+        return reply.status(200).send({
+          message: options.successMessage,
+          ...result,
+        });
+      },
+    });
+  };
 };
 
 /**
  * Contrôleur pour récupérer tous les articles (avec pagination et filtres)
  */
-export const getPosts = async (
-  request: FastifyRequest<{
-    Querystring: {
-      page?: number;
-      limit?: number;
-      search?: string;
-      category?: string;
-      tag?: string;
-      author?: string;
-      status?: PostStatus;
-    };
-  }>,
-  reply: FastifyReply
-) => {
-  try {
+export const getPosts = withPostErrorHandling<PostListRequest>(
+  'Une erreur est survenue lors de la récupération des articles',
+  async (request, reply) => {
     const page = request.query.page || 1;
     const limit = request.query.limit || 10;
     const search = request.query.search || '';
@@ -54,7 +371,6 @@ export const getPosts = async (
     const currentUserId = request.user?._id;
     const currentUserRole = request.user?.role;
 
-    // Utiliser le service pour récupérer les articles
     const result = await PostService.getAllPosts({
       page,
       limit,
@@ -64,449 +380,138 @@ export const getPosts = async (
       author,
       status,
       currentUserId,
-      currentUserRole
+      currentUserRole,
     });
 
-    // Retourner la réponse
     return reply.status(200).send(result);
-  } catch (error) {
-    request.log.error(error instanceof Error ? error : new Error(String(error)));
-    return reply.status(500).send({
-      message: 'Une erreur est survenue lors de la récupération des articles',
-    });
   }
-};
+);
 
 /**
  * Contrôleur pour récupérer un article par ID ou slug
  */
-export const getPost = async (
-  request: FastifyRequest<{ Params: { idOrSlug: string } }>,
-  reply: FastifyReply
-) => {
-  try {
+export const getPost = withPostErrorHandling<PostGetRequest>(
+  "Une erreur est survenue lors de la récupération de l'article",
+  async (request, reply) => {
     const { idOrSlug } = request.params;
     const currentUserId = request.user?._id;
     const currentUserRole = request.user?.role;
+    const post = await PostService.getPostByIdOrSlug(
+      idOrSlug,
+      currentUserId,
+      currentUserRole
+    );
 
-    // Utiliser le service pour récupérer l'article
-    try {
-      const post = await PostService.getPostByIdOrSlug(idOrSlug, currentUserId, currentUserRole);
-
-      // Retourner la réponse
-      return reply.status(200).send({
-        post,
-      });
-    } catch (error) {
-      if (error instanceof Error && error.message === 'Article non trouvé') {
-        return reply.status(404).send({
-          message: 'Article non trouvé',
-        });
-      }
-      throw error;
-    }
-  } catch (error) {
-    request.log.error(error instanceof Error ? error : new Error(String(error)));
-    return reply.status(500).send({
-      message: "Une erreur est survenue lors de la récupération de l'article",
+    return reply.status(200).send({
+      post,
     });
   }
-};
+);
 
 /**
  * Contrôleur pour créer un nouvel article
  */
-export const createPost = async (
-  request: FastifyRequest<{ Body: CreatePostInput }>,
-  reply: FastifyReply
-) => {
-  try {
+export const createPost = withPostErrorHandling<PostCreateRequest>(
+  "Une erreur est survenue lors de la création de l'article",
+  async (request, reply) => {
     const postData = request.body;
-    
-    if (!request.user) {
-      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+    const user = requireAuthenticatedUser(request, reply);
+    if (!user) {
+      return reply;
     }
 
-    const authorId = request.user._id;
+    logContentBlocksSummary(request, '[createPost] incoming payload summary', postData);
 
-    // Debug: summarize incoming contentBlocks
-    try {
-      const cb: any = (postData as any)?.contentBlocks;
-      request.log.debug({
-        msg: '[createPost] incoming payload summary',
-        hasContentBlocks: Array.isArray(cb),
-        contentBlocks: Array.isArray(cb)
-          ? { length: cb.length, types: cb.map((b: any) => b?.type) }
-          : cb,
-      });
-    } catch {}
+    const result = await PostService.createPost(postData, user._id);
+    await invalidatePostCacheAfterMutation(
+      request,
+      'createPost',
+      getPostIdentifier(result)
+    );
 
-    // Utiliser le service pour créer l'article
-    try {
-      const result = await PostService.createPost(postData, authorId);
+    logContentBlocksSummary(request, '[createPost] saved post summary', result);
 
-      // Debug: summarize saved contentBlocks
-      try {
-        const cb: any = (result as any)?.contentBlocks;
-        request.log.debug({
-          msg: '[createPost] saved post summary',
-          id: (result as any)?._id || (result as any)?.id,
-          hasContentBlocks: Array.isArray(cb),
-          contentBlocks: Array.isArray(cb)
-            ? { length: cb.length, types: cb.map((b: any) => b?.type) }
-            : cb,
-        });
-      } catch {}
-
-      // Retourner la réponse
-      return reply.status(201).send({
-        message: 'Article créé avec succès',
-        post: result,
-      });
-    } catch (error) {
-      if (error instanceof Error) {
-        if (error.message === "Une ou plusieurs catégories n'existent pas") {
-          return reply.status(400).send({
-            message: error.message,
-          });
-        }
-      }
-      throw error;
-    }
-  } catch (error) {
-    request.log.error(error instanceof Error ? error : new Error(String(error)));
-    return reply.status(500).send({
-      message: "Une erreur est survenue lors de la création de l'article",
+    return reply.status(201).send({
+      message: 'Article créé avec succès',
+      post: result,
     });
   }
-};
+);
 
 /**
  * Contrôleur pour mettre à jour un article
  */
-export const updatePost = async (
-  request: FastifyRequest<{ Params: { id: string }; Body: UpdatePostInput }>,
-  reply: FastifyReply
-) => {
-  try {
-    const { id } = request.params;
-    const updateData = request.body;
-
-    // Check authentication first
-    if (!request.user) {
-      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+export const updatePost = withPostErrorHandling<PostUpdateRequest>(
+  "Une erreur est survenue lors de la mise à jour de l'article",
+  async (request, reply) => {
+    const context = getAuthenticatedPostContext(
+      request,
+      reply,
+      { success: false, message: 'ID article invalide' }
+    );
+    if (!context) {
+      return reply;
     }
 
-    const currentUserId = request.user._id;
-    const currentUserRole = request.user.role;
+    logUpdatePostRequest(request, context);
 
-    // Log détaillé pour debug
-    request.log.info({
-      msg: '[updatePost] Request received',
-      id,
-      userId: currentUserId,
-      userRole: currentUserRole,
-      dataKeys: Object.keys(updateData),
-      hasTitle: !!updateData.title,
-      hasContent: !!updateData.content,
-      hasContentBlocks: Array.isArray((updateData as any)?.contentBlocks),
-      status: updateData.status,
-      categories: updateData.categories,
+    const result = await PostService.updatePost(
+      context.id,
+      request.body,
+      context.user._id,
+      context.user.role
+    );
+    await invalidatePostCacheAfterMutation(request, 'updatePost', context.id);
+    logUpdatedPost(request, result);
+
+    return reply.status(200).send({
+      success: true,
+      message: 'Article mis à jour avec succès',
+      post: result,
+      data: result,
     });
-
-    // Vérifier si l'ID est valide
-    if (!isValidObjectId(id)) {
-      request.log.warn('[updatePost] Invalid post ID', { id });
-      return reply.status(400).send({
-        success: false,
-        message: 'ID article invalide',
-      });
-    }
-
-    // Utiliser le service pour mettre à jour l'article
-    try {
-      const result = await PostService.updatePost(id, updateData, currentUserId, currentUserRole);
-
-      request.log.info({
-        msg: '[updatePost] Post updated successfully',
-        postId: (result as any)?._id || (result as any)?.id,
-        title: (result as any)?.title,
-        status: (result as any)?.status,
-      });
-
-      // Retourner la réponse avec structure cohérente
-      return reply.status(200).send({
-        success: true,
-        message: 'Article mis à jour avec succès',
-        post: result,
-        data: result, // Ajout pour compatibilité frontend
-      });
-    } catch (error) {
-      request.log.error('[updatePost] Service error', {
-        error: error instanceof Error ? error.message : error,
-      });
-
-      if (error instanceof Error) {
-        const commonErrorResponse = handleCommonErrors(error, reply);
-        if (commonErrorResponse) return commonErrorResponse;
-      }
-      throw error;
-    }
-  } catch (error) {
-    request.log.error('[updatePost] Unexpected error', { error: error instanceof Error ? error.message : String(error) });
-    return reply.status(500).send({
-      success: false,
-      message: "Une erreur est survenue lors de la mise à jour de l'article",
-      error: getErrorMessage(error),
-    });
-  }
-};
+  },
+  updateFallbackPayload
+);
 
 /**
  * Contrôleur pour supprimer un article
  */
-export const deletePost = async (
-  request: FastifyRequest<{ Params: { id: string }; Body?: { soft?: boolean } }>,
-  reply: FastifyReply
-) => {
-  try {
-    const { id } = request.params;
-    const { soft = true } = request.body || {}; // Par défaut, soft delete
-    
-    if (!request.user) {
-      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
+export const deletePost = withPostErrorHandling<PostDeleteRequest>(
+  "Une erreur est survenue lors de la suppression de l'article",
+  async (request, reply) => {
+    const context = getAuthenticatedPostContext(request, reply);
+    if (!context) {
+      return reply;
     }
 
-    const currentUserId = request.user._id;
-    const currentUserRole = request.user.role;
+    const { soft = true } = request.body ?? {};
+    await PostService.deletePost(
+      context.id,
+      context.user._id,
+      context.user.role,
+      soft
+    );
+    await invalidatePostCacheAfterMutation(request, 'deletePost', context.id);
 
-    // Vérifier si l'ID est valide
-    if (!isValidObjectId(id)) {
-      return reply.status(400).send({
-        message: 'ID article invalide',
-      });
-    }
-
-    // Utiliser le service pour supprimer l'article
-    try {
-      await PostService.deletePost(id, currentUserId, currentUserRole, soft);
-
-      // Retourner la réponse
-      return reply.status(200).send({
-        message: soft ? 'Article supprimé avec succès' : 'Article supprimé définitivement',
-        data: { soft, deletedAt: new Date() },
-      });
-    } catch (error) {
-      if (error instanceof Error) {
-        const commonErrorResponse = handleCommonErrors(error, reply);
-        if (commonErrorResponse) return commonErrorResponse;
-        
-        if (error.message === 'Article déjà supprimé') {
-          return reply.status(409).send({ message: error.message });
-        }
-        if (error.message === "Vous n'êtes pas autorisé à supprimer cet article" ||
-            error.message === 'Seuls les administrateurs peuvent supprimer définitivement un article') {
-          return reply.status(403).send({ message: error.message });
-        }
-      }
-      throw error;
-    }
-  } catch (error) {
-    request.log.error(error instanceof Error ? error : new Error(String(error)));
-    return reply.status(500).send({
-      message: "Une erreur est survenue lors de la suppression de l'article",
+    return reply.status(200).send({
+      message: soft ? 'Article supprimé avec succès' : 'Article supprimé définitivement',
+      data: { soft, deletedAt: new Date() },
     });
   }
-};
+);
 
 /**
  * Contrôleur pour liker un article
  */
-export const likePost = async (
-  request: FastifyRequest<{ Params: { id: string } }>,
-  reply: FastifyReply
-) => {
-  try {
-    const { id } = request.params;
-    
-    if (!request.user) {
-      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-    }
-
-    const userId = request.user._id;
-
-    // Vérifier si l'ID est valide
-    if (!isValidObjectId(id)) {
-      return reply.status(400).send({
-        message: 'ID article invalide',
-      });
-    }
-
-    // Utiliser le service pour liker l'article
-    try {
-      const result = await PostService.likePost(id, userId);
-
-      // Invalidation du cache lié aux posts
-      try {
-        const { invalidatePostCache } = await import('../utils/cache-invalidation.js');
-        await invalidatePostCache(id);
-      } catch (e) {
-        request.log.warn('Cache invalidation failed (likePost): %s', (e as Error).message);
-      }
-
-      // Retourner la réponse
-      return reply.status(200).send({
-        message: 'Article liké avec succès',
-        likes: result.likes,
-        dislikes: result.dislikes,
-        likeCount: result.likeCount,
-        dislikeCount: result.dislikeCount,
-        isLiked: result.isLiked,
-        isDisliked: result.isDisliked,
-      });
-    } catch (error) {
-      if (error instanceof Error) {
-        const commonErrorResponse = handleCommonErrors(error, reply);
-        if (commonErrorResponse) return commonErrorResponse;
-        
-        if (error.message === 'Vous avez déjà liké cet article') {
-          return reply.status(400).send({ message: error.message });
-        }
-      }
-      throw error;
-    }
-  } catch (error) {
-    request.log.error(error instanceof Error ? error : new Error(String(error)));
-    return reply.status(500).send({
-      message: "Une erreur est survenue lors du like de l'article",
-    });
-  }
-};
+export const likePost = createReactionController(POST_REACTIONS.like);
 
 /**
  * Contrôleur pour unliker un article
  */
-export const unlikePost = async (
-  request: FastifyRequest<{ Params: { id: string } }>,
-  reply: FastifyReply
-) => {
-  try {
-    const { id } = request.params;
-    
-    if (!request.user) {
-      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-    }
-
-    const userId = request.user._id;
-
-    // Vérifier si l'ID est valide
-    if (!isValidObjectId(id)) {
-      return reply.status(400).send({
-        message: 'ID article invalide',
-      });
-    }
-
-    // Utiliser le service pour unliker l'article
-    try {
-      const result = await PostService.unlikePost(id, userId);
-
-      // Invalidation du cache lié aux posts
-      try {
-        const { invalidatePostCache } = await import('../utils/cache-invalidation.js');
-        await invalidatePostCache(id);
-      } catch (e) {
-        request.log.warn('Cache invalidation failed (unlikePost): %s', (e as Error).message);
-      }
-
-      // Retourner la réponse
-      return reply.status(200).send({
-        message: 'Article unliké avec succès',
-        likes: result.likes,
-        dislikes: result.dislikes,
-        likeCount: result.likeCount,
-        dislikeCount: result.dislikeCount,
-        isLiked: result.isLiked,
-        isDisliked: result.isDisliked,
-      });
-    } catch (error) {
-      if (error instanceof Error) {
-        const commonErrorResponse = handleCommonErrors(error, reply);
-        if (commonErrorResponse) return commonErrorResponse;
-        
-        if (error.message === "Vous n'avez pas liké cet article") {
-          return reply.status(400).send({ message: error.message });
-        }
-      }
-      throw error;
-    }
-  } catch (error) {
-    request.log.error(error instanceof Error ? error : new Error(String(error)));
-    return reply.status(500).send({
-      message: "Une erreur est survenue lors du unlike de l'article",
-    });
-  }
-};
+export const unlikePost = createReactionController(POST_REACTIONS.unlike);
 
 /**
  * Contrôleur pour disliker un article
  */
-export const dislikePost = async (
-  request: FastifyRequest<{ Params: { id: string } }>,
-  reply: FastifyReply
-) => {
-  try {
-    const { id } = request.params;
-    
-    if (!request.user) {
-      return reply.status(401).send({ message: 'Non autorisé - Veuillez vous connecter' });
-    }
-
-    const userId = request.user._id;
-
-    // Vérifier si l'ID est valide
-    if (!isValidObjectId(id)) {
-      return reply.status(400).send({
-        message: 'ID article invalide',
-      });
-    }
-
-    // Utiliser le service pour disliker l'article
-    try {
-      const result = await PostService.dislikePost(id, userId);
-
-      // Invalidation du cache lié aux posts
-      try {
-        const { invalidatePostCache } = await import('../utils/cache-invalidation.js');
-        await invalidatePostCache(id);
-      } catch (e) {
-        request.log.warn('Cache invalidation failed (dislikePost): %s', (e as Error).message);
-      }
-
-      // Retourner la réponse
-      return reply.status(200).send({
-        message: 'Article disliké avec succès',
-        likes: result.likes,
-        dislikes: result.dislikes,
-        likeCount: result.likeCount,
-        dislikeCount: result.dislikeCount,
-        isLiked: result.isLiked,
-        isDisliked: result.isDisliked,
-      });
-    } catch (error) {
-      if (error instanceof Error) {
-        const commonErrorResponse = handleCommonErrors(error, reply);
-        if (commonErrorResponse) return commonErrorResponse;
-        
-        if (error.message === 'Vous avez déjà disliké cet article') {
-          return reply.status(400).send({ message: error.message });
-        }
-      }
-      throw error;
-    }
-  } catch (error) {
-    request.log.error(error instanceof Error ? error : new Error(String(error)));
-    return reply.status(500).send({
-      message: "Une erreur est survenue lors du dislike de l'article",
-    });
-  }
-};
+export const dislikePost = createReactionController(POST_REACTIONS.dislike);

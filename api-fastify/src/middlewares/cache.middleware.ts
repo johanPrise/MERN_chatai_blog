@@ -4,6 +4,7 @@ import { cache } from '../services/cache.service.js';
 export const cacheMiddleware = (ttl = 300) => {
   return async (request: FastifyRequest, reply: FastifyReply) => {
     if (request.method !== 'GET') return;
+    if (request.user) return;
 
     const cacheKey = `cache:${request.url}`;
     const cachedData = await cache.get(cacheKey);
@@ -14,7 +15,7 @@ export const cacheMiddleware = (ttl = 300) => {
     }
 
     const originalSend = reply.send;
-    reply.send = function(payload: any) {
+    reply.send = function(payload?: unknown) {
       if (reply.statusCode === 200) {
         cache.set(cacheKey, payload, ttl);
         reply.header('X-Cache', 'MISS');
