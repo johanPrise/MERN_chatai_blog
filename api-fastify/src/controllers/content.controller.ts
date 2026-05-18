@@ -17,9 +17,11 @@ export const getContents = async (
 ) => {
   try {
     const { type, isActive } = request.query;
+    const canViewInactiveContent = request.user?.role === 'admin';
+    const activeFilter = canViewInactiveContent ? isActive : true;
 
     // Utiliser le service pour récupérer le contenu
-    const contents = await ContentService.getAllContent(type, isActive);
+    const contents = await ContentService.getAllContent(type, activeFilter);
 
     // Retourner la réponse
     return reply.status(200).send({
@@ -103,6 +105,26 @@ export const createContent = async (
   }
 };
 
+const ERROR_STATUS_MAP: Record<string, number> = {
+  'ID contenu invalide': 400,
+  'Contenu non trouvé': 404,
+  'Un contenu avec ce slug existe déjà': 400,
+  'Erreur lors de la mise à jour du contenu': 500,
+};
+
+const handleContentError = (error: unknown, reply: FastifyReply): FastifyReply | null => {
+  if (!(error instanceof Error)) {
+    return null;
+  }
+
+  const statusCode = ERROR_STATUS_MAP[error.message];
+  if (!statusCode) {
+    return null;
+  }
+
+  return reply.status(statusCode).send({ message: error.message });
+};
+
 /**
  * Contrôleur pour mettre à jour un contenu
  */
@@ -114,41 +136,20 @@ export const updateContent = async (
     const { id } = request.params;
     const updateData = request.body;
 
-    // Vérifier si l'ID est valide
     if (!isValidObjectId(id)) {
-      return reply.status(400).send({
-        message: 'ID contenu invalide',
-      });
+      return reply.status(400).send({ message: 'ID contenu invalide' });
     }
 
-    // Utiliser le service pour mettre à jour le contenu
     try {
       const result = await ContentService.updateContent(id, updateData);
-
-      // Retourner la réponse
       return reply.status(200).send({
         message: 'Contenu mis à jour avec succès',
         content: result,
       });
     } catch (error) {
-      if (error instanceof Error) {
-        if (error.message === 'ID contenu invalide') {
-          return reply.status(400).send({
-            message: error.message,
-          });
-        } else if (error.message === 'Contenu non trouvé') {
-          return reply.status(404).send({
-            message: error.message,
-          });
-        } else if (error.message === 'Un contenu avec ce slug existe déjà') {
-          return reply.status(400).send({
-            message: error.message,
-          });
-        } else if (error.message === 'Erreur lors de la mise à jour du contenu') {
-          return reply.status(500).send({
-            message: error.message,
-          });
-        }
+      const errorResponse = handleContentError(error, reply);
+      if (errorResponse) {
+        return await errorResponse;
       }
       throw error;
     }
@@ -170,32 +171,17 @@ export const deleteContent = async (
   try {
     const { id } = request.params;
 
-    // Vérifier si l'ID est valide
     if (!isValidObjectId(id)) {
-      return reply.status(400).send({
-        message: 'ID contenu invalide',
-      });
+      return reply.status(400).send({ message: 'ID contenu invalide' });
     }
 
-    // Utiliser le service pour supprimer le contenu
     try {
       await ContentService.deleteContent(id);
-
-      // Retourner la réponse
-      return reply.status(200).send({
-        message: 'Contenu supprimé avec succès',
-      });
+      return reply.status(200).send({ message: 'Contenu supprimé avec succès' });
     } catch (error) {
-      if (error instanceof Error) {
-        if (error.message === 'ID contenu invalide') {
-          return reply.status(400).send({
-            message: error.message,
-          });
-        } else if (error.message === 'Contenu non trouvé') {
-          return reply.status(404).send({
-            message: error.message,
-          });
-        }
+      const errorResponse = handleContentError(error, reply);
+      if (errorResponse) {
+        return await errorResponse;
       }
       throw error;
     }

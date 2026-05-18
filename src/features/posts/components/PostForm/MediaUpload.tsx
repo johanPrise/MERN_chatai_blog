@@ -14,26 +14,46 @@ import { getImageUrl } from '../../../../config/api.config';
 import SafeImage from '../../../../components/SafeImage';
 import { ExternalImageInput } from './ExternalImageInput';
 import { showError } from '../../../../lib/toast-helpers';
+import { devError, devLog, devWarn } from '../../../../lib/devLogger';
+
+const SUPPORTED_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const SUPPORTED_IMAGE_ACCEPT = SUPPORTED_IMAGE_MIME_TYPES.join(',');
+
+// Helper function to extract URL from urls object
+const extractFromUrls = (urls: any): string | null => {
+  const url = urls.optimized || urls.original || null;
+    if (url) devLog('URL extraite depuis urls:', url);
+  return url;
+};
+
+// Helper function to extract URL from data object
+const extractFromData = (data: any): string | null => {
+  if (data?.url) {
+    devLog('URL extraite depuis data:', data.url);
+    return data.url;
+  }
+  if (typeof data === 'string') {
+    devLog('URL extraite comme string:', data);
+    return data;
+  }
+  return null;
+};
 
 // Helper function to extract URL from various response formats
 const getUrlFromResponse = (response: UploadResponse): string | null => {
   if (response.urls) {
-    const url = response.urls.optimized || response.urls.original || null;
-    if (url) console.log('🔗 URL extraite depuis urls:', url);
-    return url;
+    return extractFromUrls(response.urls);
   }
+  
   if (response.url) {
-    console.log('🔗 URL extraite directement:', response.url);
+    devLog('URL extraite directement:', response.url);
     return response.url;
   }
-  if (response.success && response.data?.url) {
-    console.log('🔗 URL extraite depuis data:', response.data.url);
-    return response.data.url;
+  
+  if (response.success && response.data) {
+    return extractFromData(response.data);
   }
-  if (response.data && typeof response.data === 'string') {
-    console.log('🔗 URL extraite comme string:', response.data);
-    return response.data;
-  }
+  
   return null;
 };
 
@@ -44,65 +64,104 @@ const normalizeUrl = (url: string): string => {
   
   if (url.startsWith('http://localhost/')) {
     normalizedUrl = url.replace('http://localhost/', 'http://localhost:4200/');
-    console.log('🔧 URL corrigée (port ajouté):', originalUrl, '->', normalizedUrl);
+    devLog('URL corrigée (port ajouté):', originalUrl, '->', normalizedUrl);
   } else if (url.includes('http://localhost:') && !url.includes('http://localhost:4200')) {
     const urlParts = url.split('/');
     urlParts[2] = 'localhost:4200';
     normalizedUrl = urlParts.join('/');
-    console.log('🔧 URL corrigée (port modifié):', originalUrl, '->', normalizedUrl);
+    devLog('URL corrigée (port modifié):', originalUrl, '->', normalizedUrl);
   } else if (!url.startsWith('http://') && !url.startsWith('https://')) {
     normalizedUrl = getImageUrl(url);
-    console.log('🔧 URL construite depuis chemin relatif:', originalUrl, '->', normalizedUrl);
+    devLog('URL construite depuis chemin relatif:', originalUrl, '->', normalizedUrl);
   }
   
-  console.log('✅ URL finale à utiliser:', normalizedUrl);
+  devLog('URL finale à utiliser:', normalizedUrl);
   return normalizedUrl;
 };
 
-// Helper function to normalize display URLs
-const normalizeDisplayUrl = (raw: any): string | null => {
-  let url: string;
-  
-  if (typeof raw === 'string') {
-    url = raw;
-  } else if (typeof raw === 'object' && raw !== null && 'url' in raw) {
-    url = (raw as any).url;
-  } else {
-    url = String(raw);
+const isRecordWithUrl = (value: unknown): value is { url: unknown } => {
+  return typeof value === 'object' && value !== null && 'url' in value;
+};
+
+const safeJsonStringify = (value: unknown): string => {
+  try {
+    return JSON.stringify(value);
+  } catch (error) {
+    devWarn('Unable to stringify media value:', error);
+    return '';
   }
+};
+
+const stringifyPrimitive = (value: unknown): string => {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return String(value);
+  if (typeof value === 'boolean') return String(value);
+  return '';
+};
+
+// Helper function to extract URL string from raw value
+const extractUrlString = (raw: unknown): string => {
+  if (typeof raw === 'string') {
+    return raw;
+  }
+  if (isRecordWithUrl(raw) && typeof raw.url === 'string') {
+    return raw.url;
+  }
+  if (typeof raw === 'object' && raw !== null) {
+    return safeJsonStringify(raw);
+  }
+
+  return stringifyPrimitive(raw);
+};
+
+// Helper function to check if URL needs image URL conversion
+const needsImageUrlConversion = (url: string): boolean => {
+  if (!url) return false;
+  
+  const hasProtocol = url.startsWith('http://') || url.startsWith('https://');
+  const isDataUrl = url.startsWith('blob:') || url.startsWith('data:');
+  
+  return !hasProtocol && !isDataUrl;
+};
+
+// Helper function to normalize display URLs
+const normalizeDisplayUrl = (raw: unknown): string | null => {
+  const url = extractUrlString(raw);
   
   if (typeof url !== 'string') return null;
-  if (url && !url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('blob:') && !url.startsWith('data:')) {
+  
+  if (needsImageUrlConversion(url)) {
     return getImageUrl(url);
   }
+  
   return url;
 };
 
 // Helper function to get debug URL string
-const getDebugUrlString = (raw: any): string => {
+const getDebugUrlString = (raw: unknown): string => {
   if (typeof raw === 'string') {
     return raw;
   }
-  if (raw && typeof raw === 'object' && 'url' in raw) {
-    return String(raw.url);
+  if (isRecordWithUrl(raw) && typeof raw.url === 'string') {
+    return raw.url;
   }
-  return JSON.stringify(raw);
+  return safeJsonStringify(raw);
 };
 
 interface MediaUploadProps {
-  value: string;
-  onChange: (url: string) => void;
-  accept?: string;
-  maxSize?: number; // in bytes
-  className?: string;
-  isCoverImage?: boolean; // Indique si c'est une image de couverture
-  hasError?: boolean; // Indique s'il y a une erreur de validation
+  readonly value: string;
+  readonly onChange: (url: string) => void;
+  readonly accept?: string;
+  readonly maxSize?: number; // in bytes
+  readonly className?: string;
+  readonly isCoverImage?: boolean; // Indique si c'est une image de couverture
+  readonly hasError?: boolean; // Indique s'il y a une erreur de validation
 }
 
 export function MediaUpload({
   value,
   onChange,
-  accept = '*/*',
+  accept = SUPPORTED_IMAGE_ACCEPT,
   maxSize = 5 * 1024 * 1024, // 5MB default
   className = '',
   isCoverImage = false,
@@ -121,7 +180,7 @@ export function MediaUpload({
 
   // Create preview URL for selected file
   useEffect(() => {
-    if (selectedFile && selectedFile.type.startsWith('image/')) {
+    if (selectedFile?.type.startsWith('image/')) {
       const url = URL.createObjectURL(selectedFile);
       setPreviewUrl(url);
       return () => URL.revokeObjectURL(url);
@@ -139,7 +198,7 @@ export function MediaUpload({
 
   // Show toast when validation error occurs
   useEffect(() => {
-    if (hasError && isCoverImage && (!value || !value.trim())) {
+    if (hasError && isCoverImage && !value?.trim()) {
       showError('Veuillez ajouter une image de couverture avant de publier l\'article', 'Image de couverture requise');
     }
   }, [hasError, isCoverImage, value]);
@@ -154,22 +213,19 @@ export function MediaUpload({
     setIsDragging(false);
   }, []);
 
-  const validateFile = async (file: File): Promise<boolean> => {
-    // Check file type if accept is specified
-    if (accept !== '*/*') {
-      const acceptTypes = accept.split(',').map(type => type.trim());
-      const fileType = file.type;
-      const isValidType = acceptTypes.some(type => {
-        if (type.includes('*')) {
-          return fileType.startsWith(type.replace('*', ''));
-        }
-        return type === fileType;
-      });
+  const getAllowedMimeTypes = useCallback((): string[] => {
+    const requestedTypes = accept.split(',').map(type => type.trim());
+    const shouldUseSupportedImages = requestedTypes.includes('*/*') || requestedTypes.includes('image/*');
 
-      if (!isValidType) {
-        setError(`Type de fichier invalide. Types acceptés: ${accept}`);
-        return false;
-      }
+    return shouldUseSupportedImages ? SUPPORTED_IMAGE_MIME_TYPES : requestedTypes;
+  }, [accept]);
+
+  const validateFile = useCallback((file: File): boolean => {
+    const allowedMimeTypes = getAllowedMimeTypes();
+
+    if (!allowedMimeTypes.includes(file.type)) {
+      setError(`Type de fichier invalide. Types acceptés: ${SUPPORTED_IMAGE_ACCEPT}`);
+      return false;
     }
 
     // Check file size
@@ -178,70 +234,48 @@ export function MediaUpload({
       return false;
     }
 
-    // Specific validation for SVG files
-    if (file.type === 'image/svg+xml') {
-      try {
-        const text = await file.text();
-        const viewBoxMatch = text.match(/viewBox\s*=\s*"([^"]*)"/i);
-        if (!viewBoxMatch) {
-          setError('SVG invalide: attribut viewBox manquant');
-          return false;
-        }
-        const viewBoxValues = viewBoxMatch[1].trim().split(/\s+/);
-        if (viewBoxValues.length !== 4 || !viewBoxValues.every(v => /^-?\d*\.?\d+$/.test(v))) {
-          setError('SVG invalide: viewBox doit contenir 4 nombres (ex: "0 0 100 100")');
-          return false;
-        }
-      } catch (error) {
-        console.error('SVG validation error:', error);
-        setError(`Erreur lors de la validation du fichier SVG: ${error instanceof Error ? error.message : 'Format invalide'}`);
-        return false;
-      }
-    }
-
     return true;
-  };
+  }, [getAllowedMimeTypes, maxSize]);
 
-  const extractUrlFromResponse = (response: UploadResponse): string | null => {
-    console.log('📥 Réponse d\'upload reçue:', response);
+  const extractUrlFromResponse = useCallback((response: UploadResponse): string | null => {
+    devLog('Réponse d\'upload reçue:', response);
     const extractedUrl = getUrlFromResponse(response);
     return extractedUrl ? normalizeUrl(extractedUrl) : null;
-  };
+  }, []);
 
-  const uploadFile = async (file: File) => {
+  const uploadFile = useCallback(async (file: File) => {
     setIsUploading(true);
     setError(null);
     setUploadProgress(null);
 
     try {
-      const isValid = await validateFile(file);
+      const isValid = validateFile(file);
       if (!isValid) {
         setIsUploading(false);
         setSelectedFile(null);
         return;
       }
 
-      console.log('📤 Début de l\'upload du fichier:', file.name);
+      devLog('Début de l\'upload du fichier:', file.name);
 
-      // Cast la réponse selon notre interface UploadResponse
       const response = await apiService.uploadFile(file, (progress) => {
         setUploadProgress(progress);
-        console.log('📊 Progression upload:', `${progress.percentage}%`);
-      }) as UploadResponse;
+        devLog('Progression upload:', `${progress.percentage}%`);
+      });
 
-      console.log('📥 Réponse complète du serveur:', response);
+      devLog('Réponse complète du serveur:', response);
 
       const fileUrl = extractUrlFromResponse(response);
 
       if (!fileUrl) {
-        console.error('❌ Impossible d\'extraire l\'URL de la réponse:', response);
+        devError('Impossible d\'extraire l\'URL de la réponse:', response);
         setError(response.message || 'Échec du téléchargement - URL manquante');
         setIsUploading(false);
         setSelectedFile(null);
         return;
       }
 
-      console.log('✅ Upload réussi, URL utilisée:', fileUrl);
+      devLog('Upload réussi, URL utilisée:', fileUrl);
       onChange(fileUrl);
       setIsUploading(false);
       setSelectedFile(null);
@@ -252,31 +286,31 @@ export function MediaUpload({
       }, 1000);
 
     } catch (error) {
-      console.error('❌ Erreur lors de l\'upload:', error);
+      devError('Erreur lors de l\'upload:', error);
       setError(error instanceof Error ? error.message : 'Échec du téléchargement');
       setIsUploading(false);
       setSelectedFile(null);
       setUploadProgress(null);
     }
-  };
+  }, [apiService, extractUrlFromResponse, onChange, validateFile]);
 
   const handleDrop = useCallback(
     async (e: React.DragEvent<HTMLButtonElement>) => {
       e.preventDefault();
       setIsDragging(false);
 
-      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      if (e.dataTransfer.files?.length > 0) {
         const file = e.dataTransfer.files[0];
         setSelectedFile(file);
         await uploadFile(file);
       }
     },
-    [onChange]
+    [uploadFile]
   );
 
   const handleFileChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files && e.target.files.length > 0) {
+      if (e.target.files?.length > 0) {
         const file = e.target.files[0];
         setSelectedFile(file);
         await uploadFile(file);
@@ -284,7 +318,7 @@ export function MediaUpload({
         e.target.value = '';
       }
     },
-    [onChange]
+    [uploadFile]
   );
 
   const handleButtonClick = useCallback(() => {
@@ -310,18 +344,40 @@ export function MediaUpload({
   }, []);
 
   const isImage = (url: string) => {
-    return url.match(/\.(jpeg|jpg|gif|png|svg|webp)$/i);
+    return /\.(jpeg|jpg|gif|png|svg|webp)$/i.exec(url);
   };
 
   const getDisplayImageUrl = () => {
-    const raw = (value as any) || previewUrl;
-    if (!raw) return raw as any;
+    const raw = value || previewUrl;
+    if (!raw) return null;
     return normalizeDisplayUrl(raw);
   };
 
   const hasImageToShow = () => {
     return value || (previewUrl && !isUploading);
   };
+
+  const getUploadTabClass = (isActive: boolean) => (
+    isActive
+      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+  );
+
+  const getDropzoneBorderClass = () => {
+    if (isDragging) {
+      return 'border-blue-500 bg-blue-50 dark:bg-blue-950/20 scale-105';
+    }
+
+    if (hasError) {
+      return 'border-red-300 dark:border-red-600 hover:border-red-400 dark:hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-900/20';
+    }
+
+    return 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-gray-50 dark:hover:bg-gray-800/50';
+  };
+
+  const getAcceptedFormatsLabel = () => `Formats acceptés: ${SUPPORTED_IMAGE_ACCEPT}`;
+  const displayImageUrl = getDisplayImageUrl();
+  const shouldShowDisplayImage = Boolean(displayImageUrl && isImage(displayImageUrl));
 
   return (
     <div className={cn('w-full space-y-4', className)}>
@@ -330,7 +386,7 @@ export function MediaUpload({
         type="file"
         ref={fileInputRef}
         onChange={handleFileChange}
-        accept={accept}
+        accept={SUPPORTED_IMAGE_ACCEPT}
         className="hidden"
       />
 
@@ -342,9 +398,7 @@ export function MediaUpload({
             onClick={() => setShowExternalInput(false)}
             className={cn(
               'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
-              !showExternalInput
-                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              getUploadTabClass(!showExternalInput)
             )}
           >
             <Upload className="h-4 w-4 mr-2 inline" />
@@ -355,9 +409,7 @@ export function MediaUpload({
             onClick={() => setShowExternalInput(true)}
             className={cn(
               'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
-              showExternalInput
-                ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              getUploadTabClass(showExternalInput)
             )}
           >
             <Link className="h-4 w-4 mr-2 inline" />
@@ -382,11 +434,7 @@ export function MediaUpload({
           type="button"
           className={cn(
             'border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-300 w-full',
-            isDragging
-              ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20 scale-105'
-              : hasError
-              ? 'border-red-300 dark:border-red-600 hover:border-red-400 dark:hover:border-red-500 hover:bg-red-50 dark:hover:bg-red-900/20'
-              : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 hover:bg-gray-50 dark:hover:bg-gray-800/50',
+            getDropzoneBorderClass(),
             'flex flex-col items-center justify-center gap-4 min-h-[250px]'
           )}
           onDragOver={handleDragOver}
@@ -419,7 +467,7 @@ export function MediaUpload({
           </div>
 
           <div className="flex flex-col gap-2 text-sm text-gray-500 dark:text-gray-400">
-            <div>{accept !== '*/*' ? `Formats acceptés: ${accept}` : 'Tous les types de fichiers acceptés'}</div>
+            <div>{getAcceptedFormatsLabel()}</div>
             <div>Taille maximum: {Math.round(maxSize / 1024 / 1024)}MB</div>
           </div>
 
@@ -489,7 +537,7 @@ export function MediaUpload({
         </div>
       )}
       {/* Enlarged preview modal */}
-      {previewMode && getDisplayImageUrl() && isImage(getDisplayImageUrl()!) && (
+      {previewMode && displayImageUrl && shouldShowDisplayImage && (
         <button 
           type="button"
           className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-8 border-0" 
@@ -498,7 +546,7 @@ export function MediaUpload({
         >
           <div className="relative max-w-7xl max-h-[90vh] overflow-auto">
             <img 
-              src={getDisplayImageUrl()!} 
+              src={displayImageUrl} 
               alt="Aperçu agrandi" 
               className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" 
             />
@@ -520,10 +568,10 @@ export function MediaUpload({
         <div className="space-y-4">
           {/* Image preview */}
           <div className="border rounded-xl overflow-hidden bg-white dark:bg-gray-800 shadow-sm">
-            {isImage(getDisplayImageUrl()!) ? (
+            {shouldShowDisplayImage && displayImageUrl ? (
               <div className="h-64 relative overflow-hidden bg-gray-100 dark:bg-gray-700">
                 <img
-                  src={getDisplayImageUrl()!}
+                  src={displayImageUrl}
                   alt="Media téléchargé"
                   className="w-full h-full object-cover"
                 />
@@ -551,7 +599,7 @@ export function MediaUpload({
                     <Image className="h-6 w-6 text-gray-500" />
                   </div>
                   <span className="text-base font-medium text-gray-900 dark:text-gray-100">
-                    {getDisplayImageUrl()!.split('/').pop()}
+                    {displayImageUrl?.split('/').pop()}
                   </span>
                 </div>
               </div>

@@ -9,9 +9,44 @@ import {
   IPost,
   PostResponse,
 } from '../types/post.types.js';
+import type { FilterQuery } from 'mongoose';
+import { ValidationError, NotFoundError, ForbiddenError, ConflictError } from '../utils/errors.js';
+import type { PostDTO } from '../types/dto/post.dto.js';
 
-// Helper: extract text from a single block
-const extractTextFromBlock = (block: any): string => {
+const MAX_SEARCH_LENGTH = 100;
+
+
+type CreatePostPayload = CreatePostInput & {
+  summary?: string;
+  category?: string;
+};
+
+type PostQuery = FilterQuery<IPost>;
+
+type CleanUpdateData = UpdatePostInput & {
+  slug?: string;
+  excerpt?: string;
+  publishedAt?: Date;
+  categories?: string[];
+};
+
+type ContentBlock = {
+  type: string;
+  data?: Record<string, unknown>;
+  text?: string;
+  items?: string[];
+  code?: string;
+};
+
+const escapeRegExp = (value: string): string => {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+};
+
+const normalizeSearchTerm = (search?: string): string => {
+  return (search || '').trim().slice(0, MAX_SEARCH_LENGTH);
+};
+
+const extractTextFromBlock = (block: ContentBlock): string => {
   if (!block) return '';
   const type = block.type;
   const data = block.data ?? block;
@@ -28,8 +63,7 @@ const extractTextFromBlock = (block: any): string => {
   return '';
 };
 
-// Helper: convert block-based content to plain text for excerpt/search
-const blocksToPlainText = (blocks: any[] | undefined | null): string => {
+const blocksToPlainText = (blocks: ContentBlock[] | undefined | null): string => {
   if (!Array.isArray(blocks)) return '';
   return blocks.map(extractTextFromBlock).filter(Boolean).join(' ').trim();
 };
@@ -67,23 +101,46 @@ const buildStatusQuery = (status?: PostStatus, currentUserId?: string, currentUs
   };
 };
 
-// Helper: build query for posts
-const buildPostQuery = (options: GetPostsOptions) => {
+const buildPostQuery = (options: GetPostsOptions): PostQuery => {
   const { search, category, tag, author, status, currentUserId, currentUserRole } = options;
-  let query: any = { isDeleted: { $ne: true } };
+  const filters: PostQuery[] = [
+    { isDeleted: { $ne: true } },
+    buildStatusQuery(status, currentUserId, currentUserRole),
+  ];
 
-  Object.assign(query, buildStatusQuery(status, currentUserId, currentUserRole));
+  const normalizedSearch = normalizeSearchTerm(search);
+  if (normalizedSearch) {
+    const safeSearchRegex = escapeRegExp(normalizedSearch);
+    filters.push({
+      $or: [
+        { title: { $regex: safeSearchRegex, $options: 'i' } },
+        { content: { $regex: safeSearchRegex, $options: 'i' } },
+      ],
+    });
+  }
+  if (category) filters.push({ categories: category });
+  if (tag) filters.push({ tags: tag });
+  if (author) filters.push({ author });
 
-  if (search) query.$or = [{ title: { $regex: search, $options: 'i' } }, { content: { $regex: search, $options: 'i' } }];
-  if (category) query.categories = category;
-  if (tag) query.tags = tag;
-  if (author) query.author = author;
-
-  return query;
+  return { $and: filters };
 };
 
-// Helper: normalize post object for frontend
-const normalizePostForFrontend = (post: any, currentUserId?: string): PostResponse => {
+const normalizeCoverImage = (
+  coverImage?: { url: string; alt?: string } | string
+): { url: string; alt: string } | undefined => {
+  if (!coverImage) return undefined;
+
+  if (typeof coverImage === 'string') {
+    return { url: coverImage, alt: '' };
+  }
+
+  return {
+    url: coverImage.url,
+    alt: coverImage.alt || '',
+  };
+};
+
+const normalizePostForFrontend = (post: IPost, currentUserId?: string): PostDTO => {
   const postObj = post.toObject() as PostResponse;
   const likedBy = Array.isArray(post.likedBy) ? post.likedBy : [];
   const dislikedBy = Array.isArray(post.dislikedBy) ? post.dislikedBy : [];
@@ -96,31 +153,303 @@ const normalizePostForFrontend = (post: any, currentUserId?: string): PostRespon
   postObj.category = Array.isArray(postObj.categories) && postObj.categories.length > 0 
     ? postObj.categories[0] : null;
   
-  postObj.likes = likedBy.map((id: unknown) => String(id));
-  postObj.dislikes = dislikedBy.map((id: unknown) => String(id));
-  
-  (postObj as any).summary = postObj.excerpt ?? null;
-  (postObj as any).views = postObj.viewCount ?? 0;
-
-  // Add stats object for frontend compatibility
-  (postObj as any).stats = {
+  const frontendPost: PostDTO = {
+    _id: String(postObj._id),
+    title: postObj.title,
+    content: postObj.content,
+    contentBlocks: postObj.contentBlocks,
+    excerpt: postObj.excerpt,
+    slug: postObj.slug,
+    author: postObj.author,
+    categories: postObj.categories,
+    category: postObj.category,
+    tags: postObj.tags,
+    featuredImage: postObj.featuredImage,
+    coverImage: normalizeCoverImage(postObj.coverImage),
+    images: postObj.images,
+    status: postObj.status,
     viewCount: postObj.viewCount ?? 0,
-    likeCount: likedBy.length ?? 0,
+    likeCount: likedBy.length,
+    dislikeCount: dislikedBy.length,
     commentCount: postObj.commentCount ?? 0,
-    shareCount: 0
+    isLiked: postObj.isLiked,
+    isDisliked: postObj.isDisliked,
+    likes: likedBy.map(String),
+    dislikes: dislikedBy.map(String),
+    views: postObj.viewCount ?? 0,
+    stats: {
+      viewCount: postObj.viewCount ?? 0,
+      likeCount: likedBy.length,
+      commentCount: postObj.commentCount ?? 0,
+      shareCount: 0
+    },
+    createdAt: postObj.createdAt,
+    updatedAt: postObj.updatedAt,
+    publishedAt: postObj.publishedAt,
+    isDeleted: postObj.isDeleted ?? false
   };
 
-  // Normalize coverImage
-  if (postObj && (postObj as any).coverImage) {
-    if (typeof (postObj as any).coverImage === 'string') {
-      (postObj as any).coverImage = { url: (postObj as any).coverImage, alt: '' };
-    }
-    if (typeof (postObj as any).coverImage === 'object' && !(postObj as any).coverImage.alt) {
-      (postObj as any).coverImage.alt = '';
+  return frontendPost;
+};
+
+const addAuthorIdAlias = (post: PostDTO): void => {
+  const author = post.author;
+  if (!author || typeof author !== 'object') return;
+  if (!('_id' in author) || 'id' in author) return;
+  (author as unknown as Record<string, unknown>).id = String(author._id);
+};
+
+const ensureCanDeletePost = (
+  post: IPost,
+  currentUserId: string,
+  currentUserRole: string
+): void => {
+  const authorId = String(post.author);
+  const isAuthor = authorId === currentUserId;
+  const isAdminOrEditor = currentUserRole === 'admin' || currentUserRole === 'editor';
+
+  if (!isAuthor && !isAdminOrEditor) {
+    throw new ForbiddenError("Vous n'êtes pas autorisé à supprimer cet article");
+  }
+};
+
+const formatPostReactionResult = (post: IPost, userId: string) => {
+  const likedBy = post.likedBy || [];
+  const dislikedBy = post.dislikedBy || [];
+
+  return {
+    likes: likedBy.map(String),
+    dislikes: dislikedBy.map(String),
+    likeCount: likedBy.length,
+    dislikeCount: dislikedBy.length,
+    isLiked: likedBy.some((id: unknown) => String(id) === userId),
+    isDisliked: dislikedBy.some((id: unknown) => String(id) === userId),
+  };
+};
+
+const ensureValidPostId = (id: string): void => {
+  if (!isValidObjectId(id)) {
+    throw new ValidationError('ID article invalide');
+  }
+};
+
+const ensurePostExists: (post: IPost | null) => asserts post is IPost = (post) => {
+  if (!post || post.isDeleted) {
+    throw new NotFoundError('Article non trouvé');
+  }
+};
+
+const ensureCanEditPost = (post: IPost & { author: { _id: string } }, currentUserId: string, currentUserRole: string): void => {
+  const authorId = post.author._id.toString();
+  const isAuthor = authorId === currentUserId;
+  const isAdminOrEditor = currentUserRole === 'admin' || currentUserRole === 'editor';
+
+  if (!isAuthor && !isAdminOrEditor) {
+    throw new ForbiddenError("Vous n'êtes pas autorisé à mettre à jour cet article");
+  }
+};
+
+const prepareSlugUpdate = (updateData: UpdatePostInput, currentTitle: string): string | undefined => {
+  if (updateData.title && updateData.title !== currentTitle) {
+    return generateSlug(updateData.title);
+  }
+  return undefined;
+};
+
+const prepareSummaryUpdate = (updateData: UpdatePostInput & { summary?: string }): string | undefined => {
+  return updateData.summary;
+};
+
+const prepareExcerptUpdate = (
+  updateData: UpdatePostInput,
+  currentContent?: string,
+  contentBlocks?: ContentBlock[]
+): string | undefined => {
+  if (updateData.content?.trim() && updateData.content !== currentContent) {
+    return extractExcerpt(updateData.content);
+  }
+
+  if (contentBlocks?.length) {
+    const plain = blocksToPlainText(contentBlocks);
+    if (plain) {
+      return extractExcerpt(plain);
     }
   }
 
-  return postObj;
+  return undefined;
+};
+
+const preparePublishedAtUpdate = (newStatus: PostStatus | undefined, currentStatus: PostStatus): Date | undefined => {
+  if (newStatus === PostStatus.PUBLISHED && currentStatus !== PostStatus.PUBLISHED) {
+    return new Date();
+  }
+  return undefined;
+};
+
+const prepareCategoriesUpdate = (updateData: UpdatePostInput & { category?: string }): string[] | undefined => {
+  if (updateData.category && typeof updateData.category === 'string') {
+    return [updateData.category];
+  }
+  return undefined;
+};
+
+const validateCategories = async (categories: string[]): Promise<void> => {
+  const categoryCount = await Category.countDocuments({ _id: { $in: categories } });
+  if (categoryCount !== categories.length) {
+    throw new ValidationError("Une ou plusieurs catégories n'existent pas");
+  }
+};
+
+const removeUndefinedFields = <T extends Record<string, unknown>>(data: T): T => {
+  Object.keys(data).forEach(key => {
+    if (data[key] === undefined) {
+      delete data[key];
+    }
+  });
+  return data;
+};
+
+const applySlugUpdate = (cleanData: CleanUpdateData, updateData: UpdatePostInput, post: IPost): void => {
+  const slug = prepareSlugUpdate(updateData, post.title);
+  if (slug) cleanData.slug = slug;
+};
+
+const applySummaryUpdate = (cleanData: CleanUpdateData, updateData: UpdatePostInput & { summary?: string }): void => {
+  const summary = prepareSummaryUpdate(updateData);
+  if (summary) {
+    cleanData.excerpt = summary;
+    delete (cleanData as Record<string, unknown>).summary;
+  }
+};
+
+const applyExcerptUpdate = (cleanData: CleanUpdateData, updateData: UpdatePostInput, post: IPost): void => {
+  if (!cleanData.excerpt) {
+    const excerpt = prepareExcerptUpdate(updateData, post.content, updateData.contentBlocks);
+    if (excerpt) cleanData.excerpt = excerpt;
+  }
+};
+
+const applyPublishedAtUpdate = (cleanData: CleanUpdateData, updateData: UpdatePostInput, post: IPost): void => {
+  const publishedAt = preparePublishedAtUpdate(updateData.status, post.status);
+  if (publishedAt) cleanData.publishedAt = publishedAt;
+};
+
+const applyCategoriesUpdate = async (cleanData: CleanUpdateData, updateData: UpdatePostInput & { category?: string }): Promise<void> => {
+  const categories = prepareCategoriesUpdate(updateData);
+  if (categories) {
+    cleanData.categories = categories;
+    delete (cleanData as Record<string, unknown>).category;
+  }
+
+  if (cleanData.categories?.length) {
+    await validateCategories(cleanData.categories);
+  }
+};
+
+const preparePostUpdateData = async (
+  updateData: UpdatePostInput & { slug?: string; publishedAt?: Date; summary?: string; category?: string },
+  post: IPost
+): Promise<CleanUpdateData> => {
+  const cleanData: CleanUpdateData = { ...updateData };
+
+  applySlugUpdate(cleanData, updateData, post);
+  applySummaryUpdate(cleanData, updateData);
+  applyExcerptUpdate(cleanData, updateData, post);
+  applyPublishedAtUpdate(cleanData, updateData, post);
+  await applyCategoriesUpdate(cleanData, updateData);
+
+  return removeUndefinedFields(cleanData);
+};
+
+const populatePost = async (postId: string) => {
+  return Post.findById(postId)
+    .populate('author', '_id username profilePicture role')
+    .populate('categories', '_id name slug');
+};
+
+const extractContentData = (postData: CreatePostPayload) => {
+  const { content, contentBlocks, excerpt, summary } = postData;
+  const extractedExcerpt = excerpt || summary;
+  return { content, contentBlocks, excerpt: extractedExcerpt };
+};
+
+const extractCategoriesData = (postData: CreatePostPayload) => {
+  const { categories, category } = postData;
+  if (categories) return categories;
+  if (category) return [category];
+  return undefined;
+};
+
+const generateExcerptFromContent = (content?: string, contentBlocks?: ContentBlock[], excerpt?: string): string => {
+  if (excerpt) return excerpt;
+  
+  if (content?.trim()) {
+    return extractExcerpt(content);
+  }
+  
+  if (contentBlocks?.length) {
+    const plain = blocksToPlainText(contentBlocks);
+    return extractExcerpt(plain);
+  }
+  
+  return '';
+};
+
+const normalizeContentFromBlocks = (content?: string, contentBlocks?: ContentBlock[]): string => {
+  if (content?.trim()) return content;
+  if (contentBlocks?.length) {
+    return blocksToPlainText(contentBlocks);
+  }
+  return '';
+};
+
+const createPostNotification = async (post: IPost, authorId: string): Promise<void> => {
+  try {
+    const author = await User.findById(authorId).select('username');
+    if (!author) return;
+
+    const { createNotification } = await import('./notification.service.js');
+    const isPublished = post.status === PostStatus.PUBLISHED;
+    
+    await createNotification({
+      type: isPublished ? 'post_published' : 'user_activity',
+      title: isPublished ? 'Nouveau post publié' : 'Nouveau post créé',
+      message: isPublished 
+        ? `${author.username} a publié un nouveau post: "${post.title}".`
+        : `${author.username} a créé un nouveau brouillon: "${post.title}".`,
+      priority: isPublished ? 'low' : 'medium',
+      actionUrl: `/admin/posts/${post._id}`,
+      metadata: {
+        postId: String(post._id),
+        postTitle: post.title,
+        username: author.username
+      },
+    });
+  } catch (error) {
+    console.error('Failed to create post notification:', error);
+  }
+};
+
+const checkPostViewPermission = (post: IPost & { author: { _id: string } }, currentUserId?: string, currentUserRole?: string): void => {
+  if (post.status === PostStatus.PUBLISHED) return;
+  
+  if (!currentUserId) {
+    throw new NotFoundError('Article non trouvé');
+  }
+
+  const isAuthor = post.author._id.toString() === currentUserId;
+  const isAdminOrEditor = currentUserRole === 'admin' || currentUserRole === 'editor';
+
+  if (!isAuthor && !isAdminOrEditor) {
+    throw new NotFoundError('Article non trouvé');
+  }
+};
+
+const incrementViewCount = async (post: IPost & { author: { _id: string } }, currentUserId?: string): Promise<void> => {
+  if (!currentUserId || currentUserId !== post.author._id.toString()) {
+    post.viewCount += 1;
+    await post.save();
+  }
 };
 
 /**
@@ -153,62 +482,23 @@ export const getPostByIdOrSlug = async (
   currentUserId?: string,
   currentUserRole?: string
 ) => {
-  // Construire la requête
-  let query: any = {};
+  const query: PostQuery = {
+    isDeleted: { $ne: true },
+    ...(isValidObjectId(idOrSlug) ? { _id: idOrSlug } : { slug: idOrSlug })
+  };
 
-  // Exclure les articles supprimés (soft delete)
-  query.isDeleted = { $ne: true };
-
-  // Vérifier si l'identifiant est un ID MongoDB ou un slug
-  if (isValidObjectId(idOrSlug)) {
-    query._id = idOrSlug;
-  } else {
-    query.slug = idOrSlug;
-  }
-
-  // Récupérer l'article
-  const post = (await Post.findOne(query)
+  const post = await Post.findOne(query)
     .populate('author', '_id username profilePicture')
-    .populate('categories', '_id name slug')) as IPost & {
+    .populate('categories', '_id name slug') as IPost & {
     author: { _id: string; username: string; profilePicture?: string };
   };
 
-  // Vérifier si l'article existe
   if (!post) {
-    throw new Error('Article non trouvé');
+    throw new NotFoundError('Article non trouvé');
   }
 
-  // Vérifier si l'utilisateur a le droit de voir cet article
-  if (post.status !== PostStatus.PUBLISHED) {
-    // Si l'article n'est pas publié, seul l'auteur, les éditeurs et les admins peuvent le voir
-    if (!currentUserId) {
-      throw new Error('Article non trouvé');
-    }
-
-    const isAuthor = post.author._id.toString() === currentUserId;
-    const isAdminOrEditor = currentUserRole === 'admin' || currentUserRole === 'editor';
-
-    if (!isAuthor && !isAdminOrEditor) {
-      throw new Error('Article non trouvé');
-    }
-  }
-
-  // Incrémenter le compteur de vues
-  // Ne pas incrémenter si c'est l'auteur qui consulte son propre article
-  console.log('[getPostByIdOrSlug] View count logic:', {
-    currentUserId,
-    authorId: post.author._id.toString(),
-    isAuthor: currentUserId === post.author._id.toString(),
-    currentViewCount: post.viewCount
-  });
-  
-  if (!currentUserId || currentUserId !== post.author._id.toString()) {
-    post.viewCount += 1;
-    await post.save();
-    console.log('[getPostByIdOrSlug] View count incremented to:', post.viewCount);
-  } else {
-    console.log('[getPostByIdOrSlug] View count not incremented (author viewing own post)');
-  }
+  checkPostViewPermission(post, currentUserId, currentUserRole);
+  await incrementViewCount(post, currentUserId);
 
   return normalizePostForFrontend(post, currentUserId);
 };
@@ -216,54 +506,19 @@ export const getPostByIdOrSlug = async (
 /**
  * Service pour créer un nouvel article
  */
-export const createPost = async (postData: CreatePostInput, authorId: string) => {
-  const { title, categories, tags, featuredImage, coverImage, images, status } = postData;
-  let { content, contentBlocks, excerpt } = postData as any;
+export const createPost = async (postData: CreatePostPayload, authorId: string) => {
+  const { title, tags, featuredImage, coverImage, images, status } = postData;
+  const { content: rawContent, contentBlocks, excerpt: rawExcerpt } = extractContentData(postData);
+  const finalCategories = extractCategoriesData(postData);
 
-  // Compatibilité: accepter 'summary' depuis le frontend et le mapper à 'excerpt'
-  if (!excerpt && (postData as any).summary) {
-    excerpt = (postData as any).summary;
-  }
-
-  // Compatibilité avec le frontend: si on reçoit 'category' au lieu de 'categories'
-  let finalCategories = categories;
-  if (!finalCategories && (postData as any).category) {
-    // Si on reçoit une catégorie unique, la convertir en tableau
-    finalCategories = [(postData as any).category];
-    console.log('Converted single category to array:', finalCategories);
-  }
-
-  // Générer un slug à partir du titre
   const slug = generateSlug(title);
+  const finalExcerpt = generateExcerptFromContent(rawContent, contentBlocks, rawExcerpt);
+  const content = normalizeContentFromBlocks(rawContent, contentBlocks);
 
-  // Générer un extrait si non fourni
-  let finalExcerpt = excerpt;
-  if (!finalExcerpt) {
-    if (content && content.trim()) {
-      finalExcerpt = extractExcerpt(content);
-    } else if (contentBlocks && contentBlocks.length > 0) {
-      const plain = blocksToPlainText(contentBlocks as any);
-      finalExcerpt = extractExcerpt(plain);
-      // Compat: si aucun content (markdown) fourni, remplir avec le texte brut issu des blocks
-      if (!content || !content.trim()) {
-        content = plain;
-      }
-    }
-  }
-
-  // Vérifier si les catégories existent
   if (finalCategories && finalCategories.length > 0) {
-    console.log('Checking categories:', finalCategories);
-    const categoryCount = await Category.countDocuments({
-      _id: { $in: finalCategories },
-    });
-
-    if (categoryCount !== finalCategories.length) {
-      throw new Error("Une ou plusieurs catégories n'existent pas");
-    }
+    await validateCategories(finalCategories);
   }
 
-  // Créer un nouvel article
   const newPost = new Post({
     title,
     content,
@@ -279,45 +534,18 @@ export const createPost = async (postData: CreatePostInput, authorId: string) =>
     status: status || PostStatus.DRAFT,
   });
 
-  // Si le statut est PUBLISHED, définir la date de publication
   if (newPost.status === PostStatus.PUBLISHED) {
     newPost.publishedAt = new Date();
   }
 
-  // Sauvegarder l'article
   await newPost.save();
+  await createPostNotification(newPost, authorId);
 
-  // Créer une notification pour tout nouveau post (brouillon ou publié)
-  try {
-    const author = await User.findById(authorId).select('username');
-    if (author) {
-      const { createNotification } = await import('./notification.service.js');
-      await createNotification({
-        type: newPost.status === PostStatus.PUBLISHED ? 'post_published' : 'user_activity',
-        title: newPost.status === PostStatus.PUBLISHED ? 'Nouveau post publié' : 'Nouveau post créé',
-        message: newPost.status === PostStatus.PUBLISHED 
-          ? `${author.username} a publié un nouveau post: "${newPost.title}".`
-          : `${author.username} a créé un nouveau brouillon: "${newPost.title}".`,
-        priority: newPost.status === PostStatus.PUBLISHED ? 'low' : 'medium',
-        actionUrl: `/admin/posts/${newPost._id}`,
-        metadata: {
-          postId: String(newPost._id),
-          postTitle: newPost.title,
-          username: author.username
-        },
-      });
-    }
-  } catch (error) {
-    console.error('Failed to create post notification:', error);
-  }
-
-  // Retourner l'article complet peuplé pour inclure contentBlocks et autres champs
   const populated = await Post.findById(newPost._id)
     .populate('author', '_id username profilePicture')
     .populate('categories', '_id name slug');
 
   if (!populated) {
-    // Fallback minimal si la récupération échoue pour une raison quelconque
     return {
       _id: newPost._id,
       title: newPost.title,
@@ -338,189 +566,30 @@ export const updatePost = async (
   currentUserId: string,
   currentUserRole: string
 ) => {
-  console.log('[updatePost] Service called', {
-    id,
-    currentUserId,
-    currentUserRole,
-    updateDataKeys: Object.keys(updateData),
-    status: updateData.status,
-    title: updateData.title?.substring(0, 50) + '...',
-  });
+  ensureValidPostId(id);
 
-  // Vérifier si l'ID est valide
-  if (!isValidObjectId(id)) {
-    console.log('[updatePost] Invalid ID', { id });
-    throw new Error('ID article invalide');
-  }
-
-  // Récupérer l'article avec populate pour avoir les infos complètes
-  const post = (await Post.findById(id).populate('author', '_id username role')) as IPost & {
+  const post = await Post.findById(id).populate('author', '_id username role') as IPost & {
     author: { _id: string; username: string; role: string };
   };
 
-  // Vérifier si l'article existe
-  if (!post) {
-    console.log('[updatePost] Post not found', { id });
-    throw new Error('Article non trouvé');
-  }
+  ensurePostExists(post);
+  ensureCanEditPost(post, currentUserId, currentUserRole);
 
-  // Vérifier si l'article est supprimé
-  if (post.isDeleted) {
-    console.log('[updatePost] Post is deleted', { id });
-    throw new Error('Article non trouvé');
-  }
+  const cleanUpdateData = await preparePostUpdateData(updateData, post);
 
-  console.log('[updatePost] Post found', {
-    postId: post._id,
-    postTitle: post.title,
-    postAuthor: post.author._id,
-    postStatus: post.status,
-    currentUserId,
-    currentUserRole,
-  });
-
-  // Vérifier si l'utilisateur actuel est autorisé à mettre à jour cet article
-  const authorId = post.author._id.toString();
-  const isAuthor = authorId === currentUserId;
-  const isAdminOrEditor = currentUserRole === 'admin' || currentUserRole === 'editor';
-
-  console.log('[updatePost] Permission check', {
-    authorId,
-    currentUserId,
-    isAuthor,
-    isAdminOrEditor,
-    currentUserRole,
-  });
-
-  if (!isAuthor && !isAdminOrEditor) {
-    console.log('[updatePost] Permission denied', { authorId, currentUserId, currentUserRole });
-    throw new Error("Vous n'êtes pas autorisé à mettre à jour cet article");
-  }
-
-  // Préparer les données de mise à jour
-  const cleanUpdateData: any = { ...updateData };
-
-  // Si le titre est modifié, générer un nouveau slug
-  if (cleanUpdateData.title && cleanUpdateData.title !== post.title) {
-    cleanUpdateData.slug = generateSlug(cleanUpdateData.title);
-    console.log('[updatePost] Generated new slug', {
-      oldTitle: post.title,
-      newTitle: cleanUpdateData.title,
-      slug: cleanUpdateData.slug,
-    });
-  }
-
-  // Gérer le champ summary (compatibilité avec le frontend)
-  if (cleanUpdateData.summary) {
-    cleanUpdateData.excerpt = cleanUpdateData.summary;
-    delete cleanUpdateData.summary;
-    console.log('[updatePost] Converted summary to excerpt');
-  }
-
-  // Si le contenu est modifié et qu'il n'y a pas d'extrait fourni, générer un nouvel extrait
-  if (!cleanUpdateData.excerpt) {
-    if (cleanUpdateData.content && cleanUpdateData.content !== post.content) {
-      cleanUpdateData.excerpt = extractExcerpt(cleanUpdateData.content);
-      console.log('[updatePost] Generated excerpt from content');
-    } else if (cleanUpdateData.contentBlocks && Array.isArray(cleanUpdateData.contentBlocks)) {
-      const plain = blocksToPlainText(cleanUpdateData.contentBlocks as any);
-      if (plain) {
-        cleanUpdateData.excerpt = extractExcerpt(plain);
-        console.log('[updatePost] Generated excerpt from contentBlocks');
-      }
-    }
-  }
-
-  // Gestion de la date de publication
-  if (cleanUpdateData.status === PostStatus.PUBLISHED) {
-    if (post.status !== PostStatus.PUBLISHED) {
-      // Premier passage en statut publié : définir publishedAt
-      cleanUpdateData.publishedAt = new Date();
-      console.log('[updatePost] Setting publishedAt for first publication');
-    }
-    // Si déjà publié et qu'on reste publié, garder la date de publication originale
-  }
-
-  // Compatibilité avec le frontend: si on reçoit 'category' au lieu de 'categories'
-  if (!cleanUpdateData.categories && (cleanUpdateData as any).category) {
-    // Si on reçoit une catégorie unique, la convertir en tableau
-    const categoryId = (cleanUpdateData as any).category;
-    if (typeof categoryId === 'string') {
-      cleanUpdateData.categories = [categoryId];
-      console.log('[updatePost] Converted single category to array:', cleanUpdateData.categories);
-    }
-    delete (cleanUpdateData as any).category;
-  }
-
-  // Vérifier si les catégories existent
-  if (cleanUpdateData.categories && cleanUpdateData.categories.length > 0) {
-    console.log('[updatePost] Checking categories:', cleanUpdateData.categories);
-    const categoryCount = await Category.countDocuments({
-      _id: { $in: cleanUpdateData.categories },
-    });
-
-    if (categoryCount !== cleanUpdateData.categories.length) {
-      console.log('[updatePost] Invalid categories', {
-        provided: cleanUpdateData.categories,
-        found: categoryCount,
-      });
-      throw new Error("Une ou plusieurs catégories n'existent pas");
-    }
-  }
-
-  // Nettoyer les champs undefined/null pour éviter les problèmes
-  Object.keys(cleanUpdateData).forEach(key => {
-    if (cleanUpdateData[key] === undefined) {
-      delete cleanUpdateData[key];
-    }
-  });
-
-  console.log('[updatePost] Final update data', {
-    keys: Object.keys(cleanUpdateData),
-    hasTitle: !!cleanUpdateData.title,
-    hasContent: !!cleanUpdateData.content,
-    hasExcerpt: !!cleanUpdateData.excerpt,
-    status: cleanUpdateData.status,
-    categories: cleanUpdateData.categories,
-  });
-
-  // Mettre à jour l'article
-  const updatedPost = (await Post.findByIdAndUpdate(
+  const updatedPost = await Post.findByIdAndUpdate(
     id,
-    {
-      $set: {
-        ...cleanUpdateData,
-        updatedAt: new Date(),
-      },
-    },
-    {
-      new: true,
-      runValidators: true,
-    }
-  )) as IPost | null;
+    { $set: { ...cleanUpdateData, updatedAt: new Date() } },
+    { new: true, runValidators: true }
+  );
 
-  // Vérifier si l'article a bien été mis à jour
   if (!updatedPost) {
-    console.log('[updatePost] Update failed - no result');
-    throw new Error("Erreur lors de la mise à jour de l'article");
+    throw new NotFoundError("Erreur lors de la mise à jour de l'article");
   }
 
-  console.log('[updatePost] Post updated successfully', {
-    id: updatedPost._id,
-    title: updatedPost.title,
-    status: updatedPost.status,
-  });
-
-
-
-  // Retourner l'article complet peuplé pour inclure contentBlocks et autres champs
-  const populated = await Post.findById(updatedPost._id)
-    .populate('author', '_id username profilePicture role')
-    .populate('categories', '_id name slug');
+  const populated = await populatePost(String(updatedPost._id));
 
   if (!populated) {
-    console.log('[updatePost] Failed to populate updated post');
-    // Fallback minimal si la récupération échoue - utilisation de String() pour conversion sûre
     return {
       _id: updatedPost._id,
       id: String(updatedPost._id),
@@ -531,19 +600,8 @@ export const updatePost = async (
   }
 
   const normalizedPost = normalizePostForFrontend(populated);
-  (normalizedPost as any).id = normalizedPost._id.toString();
-  
-  if (normalizedPost.author && (normalizedPost.author as any)._id && !(normalizedPost.author as any).id) {
-    (normalizedPost.author as any).id = (normalizedPost.author as any)._id.toString();
-  }
-
-  console.log('[updatePost] Returning normalized post', {
-    id: (normalizedPost as any).id,
-    title: normalizedPost.title,
-    status: normalizedPost.status,
-    hasAuthor: !!normalizedPost.author,
-    hasCategories: Array.isArray(normalizedPost.categories) && normalizedPost.categories.length > 0,
-  });
+  (normalizedPost as PostDTO & { id: string }).id = String(normalizedPost._id);
+  addAuthorIdAlias(normalizedPost);
 
   return normalizedPost;
 };
@@ -557,32 +615,19 @@ export const deletePost = async (
   currentUserRole: string,
   soft: boolean = true
 ) => {
-  // Vérifier si l'ID est valide
-  if (!isValidObjectId(id)) {
-    throw new Error('ID article invalide');
-  }
+  ensureValidPostId(id);
 
-  // Récupérer l'article
-  const post = (await Post.findById(id)) as IPost;
+  const post = await Post.findById(id);
 
-  // Vérifier si l'article existe
   if (!post) {
-    throw new Error('Article non trouvé');
+    throw new NotFoundError('Article non trouvé');
   }
 
-  // Vérifier si l'article est déjà supprimé (soft delete)
   if (post.isDeleted) {
-    throw new Error('Article déjà supprimé');
+    throw new ConflictError('Article déjà supprimé');
   }
 
-  // Vérifier si l'utilisateur actuel est autorisé à supprimer cet article
-  const authorId = (post.author as unknown as { toString(): string }).toString();
-  const isAuthor = authorId === currentUserId;
-  const isAdminOrEditor = currentUserRole === 'admin' || currentUserRole === 'editor';
-
-  if (!isAuthor && !isAdminOrEditor) {
-    throw new Error("Vous n'êtes pas autorisé à supprimer cet article");
-  }
+  ensureCanDeletePost(post, currentUserId, currentUserRole);
 
   if (soft) {
     // Soft delete - marquer comme supprimé
@@ -592,12 +637,11 @@ export const deletePost = async (
       deletedBy: currentUserId,
     });
   } else {
-    // Hard delete - supprimer définitivement (admin uniquement)
     if (currentUserRole !== 'admin') {
-      throw new Error('Seuls les administrateurs peuvent supprimer définitivement un article');
+      throw new ForbiddenError('Seuls les administrateurs peuvent supprimer définitivement un article');
     }
     await Post.findByIdAndDelete(id);
-    // TODO: Supprimer également les commentaires associés à cet article
+    // NOTE: Consider implementing cascade delete for associated comments
   }
 
   return true;
@@ -607,132 +651,85 @@ export const deletePost = async (
  * Service pour liker un article
  */
 export const likePost = async (id: string, userId: string) => {
-  // Vérifier si l'ID est valide
   if (!isValidObjectId(id)) {
-    throw new Error('ID article invalide');
+    throw new ValidationError('ID article invalide');
   }
 
-  // Récupérer l'article
-  const post = (await Post.findById(id)) as IPost;
+  const post = await Post.findOne({ _id: id, isDeleted: { $ne: true } }).select('likedBy dislikedBy');
 
-  // Vérifier si l'article existe
   if (!post) {
-    throw new Error('Article non trouvé');
+    throw new NotFoundError('Article non trouvé');
   }
 
-  // Initialiser les tableaux s'ils n'existent pas
-  if (!post.likedBy) post.likedBy = [];
-  if (!post.dislikedBy) post.dislikedBy = [];
+  const userHasLiked = post.likedBy.some((likeId: unknown) => String(likeId) === userId);
+  const update = userHasLiked
+    ? { $pull: { likedBy: userId } }
+    : { $addToSet: { likedBy: userId }, $pull: { dislikedBy: userId } };
 
-  const userHasLiked = post.likedBy.some((id: any) => id.toString() === userId);
-  const userHasDisliked = post.dislikedBy.some((id: any) => id.toString() === userId);
-
-  // Si l'utilisateur avait disliké, on retire le dislike
-  if (userHasDisliked) {
-    post.dislikedBy = post.dislikedBy.filter((id: any) => id.toString() !== userId);
+  const updatedPost = await Post.findOneAndUpdate(
+    { _id: id, isDeleted: { $ne: true } },
+    update,
+    { new: true }
+  ).select('likedBy dislikedBy');
+  if (!updatedPost) {
+    throw new NotFoundError('Article non trouvé');
   }
 
-  if (userHasLiked) {
-    // Si déjà liké, on retire le like (toggle)
-    post.likedBy = post.likedBy.filter((id: any) => id.toString() !== userId);
-  } else {
-    // Sinon, on ajoute le like
-    post.likedBy.push(userId as any);
-  }
-
-  await post.save();
-
-  return {
-    likes: (post.likedBy || []).map((id: unknown) => String(id)),
-    dislikes: (post.dislikedBy || []).map((id: unknown) => String(id)),
-    likeCount: post.likedBy.length, // Utiliser la longueur réelle du tableau
-    dislikeCount: post.dislikedBy.length, // Utiliser la longueur réelle du tableau
-    isLiked: !userHasLiked,
-    isDisliked: false,
-  };
+  return formatPostReactionResult(updatedPost, userId);
 };
 
 /**
  * Service pour unliker un article
  */
 export const unlikePost = async (id: string, userId: string) => {
-  // Vérifier si l'ID est valide
   if (!isValidObjectId(id)) {
-    throw new Error('ID article invalide');
+    throw new ValidationError('ID article invalide');
   }
 
-  // Récupérer l'article
-  const post = (await Post.findById(id)) as IPost;
+  const updatedPost = await Post.findOneAndUpdate(
+    { _id: id, likedBy: userId, isDeleted: { $ne: true } },
+    { $pull: { likedBy: userId } },
+    { new: true }
+  ).select('likedBy dislikedBy');
 
-  // Vérifier si l'article existe
-  if (!post) {
-    throw new Error('Article non trouvé');
+  if (!updatedPost) {
+    const postExists = await Post.exists({ _id: id, isDeleted: { $ne: true } });
+    if (!postExists) {
+      throw new NotFoundError('Article non trouvé');
+    }
+    throw new ValidationError("Vous n'avez pas liké cet article");
   }
 
-  // Vérifier si l'utilisateur a liké l'article (comparer en chaînes pour supporter ObjectId)
-  if (!post.likedBy.some((id: any) => id.toString() === userId)) {
-    throw new Error("Vous n'avez pas liké cet article");
-  }
-
-  // Retirer l'utilisateur de la liste des likes
-  post.likedBy = post.likedBy.filter((likeId: any) => likeId.toString() !== userId);
-  await post.save();
-
-  return {
-    likes: (post.likedBy || []).map((id: unknown) => String(id)),
-    dislikes: (post.dislikedBy || []).map((id: unknown) => String(id)),
-    likeCount: post.likedBy.length,
-    dislikeCount: post.dislikedBy.length,
-    isLiked: false,
-    isDisliked: post.dislikedBy.some((id: any) => id.toString() === userId),
-  };
+  return formatPostReactionResult(updatedPost, userId);
 };
 
 /**
  * Service pour disliker un article
  */
 export const dislikePost = async (id: string, userId: string) => {
-  // Vérifier si l'ID est valide
   if (!isValidObjectId(id)) {
-    throw new Error('ID article invalide');
+    throw new ValidationError('ID article invalide');
   }
 
-  // Récupérer l'article
-  const post = (await Post.findById(id)) as IPost;
+  const post = await Post.findOne({ _id: id, isDeleted: { $ne: true } }).select('likedBy dislikedBy');
 
-  // Vérifier si l'article existe
   if (!post) {
-    throw new Error('Article non trouvé');
+    throw new NotFoundError('Article non trouvé');
   }
 
-  // Initialiser les tableaux s'ils n'existent pas
-  if (!post.likedBy) post.likedBy = [];
-  if (!post.dislikedBy) post.dislikedBy = [];
+  const userHasDisliked = post.dislikedBy.some((dislikeId: unknown) => String(dislikeId) === userId);
+  const update = userHasDisliked
+    ? { $pull: { dislikedBy: userId } }
+    : { $addToSet: { dislikedBy: userId }, $pull: { likedBy: userId } };
 
-  const userHasLiked = post.likedBy.some((id: any) => id.toString() === userId);
-  const userHasDisliked = post.dislikedBy.some((id: any) => id.toString() === userId);
-
-  // Si l'utilisateur avait liké, on retire le like
-  if (userHasLiked) {
-    post.likedBy = post.likedBy.filter((id: any) => id.toString() !== userId);
+  const updatedPost = await Post.findOneAndUpdate(
+    { _id: id, isDeleted: { $ne: true } },
+    update,
+    { new: true }
+  ).select('likedBy dislikedBy');
+  if (!updatedPost) {
+    throw new NotFoundError('Article non trouvé');
   }
 
-  if (userHasDisliked) {
-    // Si déjà disliké, on retire le dislike (toggle)
-    post.dislikedBy = post.dislikedBy.filter((id: any) => id.toString() !== userId);
-  } else {
-    // Sinon, on ajoute le dislike
-    post.dislikedBy.push(userId as any);
-  }
-
-  await post.save();
-
-  return {
-    likes: (post.likedBy || []).map((id: unknown) => String(id)),
-    dislikes: (post.dislikedBy || []).map((id: unknown) => String(id)),
-    likeCount: post.likedBy.length, // Utiliser la longueur réelle du tableau
-    dislikeCount: post.dislikedBy.length, // Utiliser la longueur réelle du tableau
-    isLiked: false,
-    isDisliked: !userHasDisliked,
-  };
+  return formatPostReactionResult(updatedPost, userId);
 };

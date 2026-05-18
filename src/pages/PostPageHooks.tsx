@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useCallback } from "react"
+import type React from "react"
 import { API_ENDPOINTS } from "../config/api.config"
 import { processCommentsResponse, handleCommentSubmission, sanitizeCommentPayload } from './PostHelpers'
 import { Comment } from "../types/PostType"
+import { showError } from '../lib/toast-helpers'
 
 // Custom hook for comment management
 export const useCommentManagement = (
@@ -74,8 +76,6 @@ export const useCommentManagement = (
 
       if (!response.ok) {
         const errorMsg = responseData.message || "Failed to post comment"
-        // Import toast helper
-        const { showError } = await import('../lib/toast-helpers')
         showError(errorMsg)
         throw new Error(errorMsg)
       }
@@ -93,12 +93,19 @@ export const useCommentManagement = (
 
   const handleUpdateComment = async (commentId: string, editedContent: string) => {
     try {
+      const filterResult = filterContent(editedContent)
+      
+      if (filterResult.wasFiltered) {
+        setSuccessMessage("Your comment has been filtered for inappropriate content")
+        setTimeout(() => setSuccessMessage(null), 5000)
+      }
+
       const response = await fetch(`${API_ENDPOINTS.comments.update(commentId)}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ content: editedContent }),
+        body: JSON.stringify({ content: filterResult.filteredContent }),
         credentials: "include",
       })
 
@@ -171,8 +178,6 @@ export const useCommentManagement = (
     } catch (error) {
       console.error("Error posting reply:", error)
       const errorMsg = error instanceof Error ? error.message : "Failed to post reply"
-      // Import toast helper
-      const { showError } = await import('../lib/toast-helpers')
       showError(errorMsg)
       setErrorMessage(errorMsg)
     } finally {

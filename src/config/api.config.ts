@@ -1,4 +1,4 @@
-// @ts-ignore
+/// <reference types="vite/client" />
 /**
  * Configuration des URLs de l'API
  */
@@ -17,7 +17,7 @@ export const API_ENDPOINTS = {
     register: `${API_BASE_URL}/auth/register`,
     logout: `${API_BASE_URL}/auth/logout`,
     forgotPassword: `${API_BASE_URL}/auth/forgot-password`,
-    resetPassword: (token: string) => `${API_BASE_URL}/auth/reset-password/${token}`,
+    resetPassword: `${API_BASE_URL}/auth/reset-password`,
     verifyEmail: (token: string) => `${API_BASE_URL}/auth/verify-email/${token}`,
     me: `${API_BASE_URL}/auth/me`,
     checkAdmin: `${API_BASE_URL}/auth/check-admin`,
@@ -43,13 +43,11 @@ export const API_ENDPOINTS = {
     create: `${API_BASE_URL}/posts`,
     update: (id: string) => `${API_BASE_URL}/posts/${id}`,
     delete: (id: string) => `${API_BASE_URL}/posts/${id}`,
-    search: `${API_BASE_URL}/posts/search`,
+    search: `${API_BASE_URL}/posts`,
     like: (id: string) => `${API_BASE_URL}/posts/${id}/like`,
     dislike: (id: string) => `${API_BASE_URL}/posts/${id}/dislike`,
     unlike: (id: string) => `${API_BASE_URL}/posts/${id}/unlike`,
-    stats: (id: string) => `${API_BASE_URL}/posts/${id}/stats`,
     drafts: `${API_BASE_URL}/posts?status=draft`,
-    publish: (id: string) => `${API_BASE_URL}/posts/${id}/publish`,
   },
 
 // Commentaires
@@ -200,8 +198,10 @@ export function getOptimizedImageUrl(imagePath?: string | null, options?: ImageO
   }
   
   // Si c'est une URL externe complète, retourner tel quel
-  if (baseUrl.startsWith('http://') && !baseUrl.includes('localhost') || 
-      baseUrl.startsWith('https://')) {
+  const isHttpRemote = baseUrl.startsWith('http://') && !baseUrl.includes('localhost');
+  const isHttpsRemote = baseUrl.startsWith('https://');
+  
+  if (isHttpRemote || isHttpsRemote) {
     return baseUrl;
   }
   

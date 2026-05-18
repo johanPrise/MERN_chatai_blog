@@ -20,6 +20,14 @@ interface Base64UploadRequest extends FastifyRequest<{
   };
 }> {}
 
+const isUploadValidationError = (error: unknown): error is Error => {
+  return error instanceof Error && [
+    'Format d\'image non autorisé',
+    'Format d\'image base64 invalide',
+    'Image invalide ou non autorisée',
+  ].includes(error.message);
+};
+
 /**
  * Contrôleur pour l'upload de fichier
  */
@@ -36,9 +44,9 @@ export const uploadFile = async (request: FileUploadRequest, reply: FastifyReply
 
     // Vérifier le type MIME
     const mimeType = file.mimetype;
-    if (!mimeType.startsWith('image/')) {
+    if (!UploadService.isAllowedImageMimeType(mimeType)) {
       return reply.status(400).send({
-        message: 'Seules les images sont autorisées',
+        message: 'Seules les images JPEG, PNG et WebP sont autorisées',
       });
     }
 
@@ -64,6 +72,12 @@ export const uploadFile = async (request: FileUploadRequest, reply: FastifyReply
       },
     });
   } catch (error) {
+    if (isUploadValidationError(error)) {
+      return reply.status(400).send({
+        message: error.message,
+      });
+    }
+
     request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: "Une erreur est survenue lors de l'upload du fichier",
@@ -113,6 +127,12 @@ export const uploadBase64Image = async (request: Base64UploadRequest, reply: Fas
       },
     });
   } catch (error) {
+    if (isUploadValidationError(error)) {
+      return reply.status(400).send({
+        message: error.message,
+      });
+    }
+
     request.log.error(error instanceof Error ? error : new Error(String(error)));
     return reply.status(500).send({
       message: "Une erreur est survenue lors de l'upload de l'image",

@@ -1,3 +1,5 @@
+import { sanitizeHtml } from './sanitizeHtml';
+
 /**
  * Utility function to convert Markdown to HTML for ReactQuill editor
  * This handles the conversion from stored markdown to editor-friendly HTML
@@ -9,9 +11,9 @@ export function markdownToHtml(markdown: string): string {
 
   // Escape HTML entities first to prevent conflicts
   html = html
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
 
   // Convert headers
   html = html.replace(/^######\s+(.*$)/gm, '<h6>$1</h6>');
@@ -48,7 +50,7 @@ export function markdownToHtml(markdown: string): string {
   html = html.replace(/^>\s+(.*$)/gm, '<blockquote>$1</blockquote>');
 
   // Convert unordered lists
-  html = html.replace(/^[\*\-\+]\s+(.*$)/gm, '<li>$1</li>');
+  html = html.replace(/^[*+-]\s+(.*$)/gm, '<li>$1</li>');
   html = html.replace(/(<li>.*<\/li>)/g, '<ul>$1</ul>');
 
   // Convert ordered lists
@@ -59,8 +61,8 @@ export function markdownToHtml(markdown: string): string {
   html = html.replace(/^---+$/gm, '<hr />');
 
   // Convert line breaks and paragraphs
-  html = html.replace(/\n\n/g, '</p><p>');
-  html = html.replace(/\n/g, '<br />');
+  html = html.replaceAll('\n\n', '</p><p>');
+  html = html.replaceAll('\n', '<br />');
 
   // Wrap in paragraphs if not already wrapped
   if (!html.startsWith('<') && html.trim()) {
@@ -68,13 +70,10 @@ export function markdownToHtml(markdown: string): string {
   }
 
   // Clean up empty paragraphs
-  html = html.replace(/<p><\/p>/g, '');
+  html = html.replaceAll('<p></p>', '');
   html = html.replace(/<p>\s*<\/p>/g, '');
 
-  // Unescape HTML entities in attributes
-  html = html.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-
-  return html;
+  return sanitizeHtml(html);
 }
 
 /**
@@ -92,7 +91,7 @@ export function isMarkdown(content: string): boolean {
     /`.*?`/,            // Inline code
     /^\*\s/m,           // Unordered list
     /^\d+\.\s/m,        // Ordered list
-    /^\>\s/m,           // Blockquote
+    /^>\s/m,            // Blockquote
     /\[.*?\]\(.*?\)/,   // Links
     /!\[.*?\]\(.*?\)/,  // Images
   ];

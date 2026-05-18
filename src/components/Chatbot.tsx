@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { nanoid } from "nanoid"
-import { MessageCircle, X, Send, Bot, User, Loader2, LogIn } from "lucide-react"
+import { MessageCircle, X, Send, Bot, Loader2 } from "lucide-react"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { Badge } from "./ui/badge"
@@ -19,7 +19,6 @@ import {
 } from "../lib/chatUtils"
 import { API_ENDPOINTS } from "../config/api.config"
 import { UserContext } from "../UserContext"
-import { Link } from "react-router-dom"
 
 
 /**
@@ -53,16 +52,9 @@ const Chatbot: React.FC<ChatbotProps> = ({
 
   // Initialize session and load saved messages
   useEffect(() => {
-    // Initialize session ID
-    if (!localStorage.getItem("chatSessionId")) {
-      const newSessionId = nanoid()
-      setSessionId(newSessionId)
-      localStorage.setItem("chatSessionId", newSessionId)
-
-      // Add welcome message for new sessions
-      const welcomeMsg = generateWelcomeMessage(nanoid())
-      setMessages([welcomeMsg])
-    } else {
+    const existingSessionId = localStorage.getItem("chatSessionId")
+    
+    if (existingSessionId) {
       // Load saved messages
       const savedMessages = loadMessagesFromStorage()
       if (savedMessages.length > 0) {
@@ -72,6 +64,15 @@ const Chatbot: React.FC<ChatbotProps> = ({
         const welcomeMsg = generateWelcomeMessage(nanoid())
         setMessages([welcomeMsg])
       }
+    } else {
+      // Initialize session ID
+      const newSessionId = nanoid()
+      setSessionId(newSessionId)
+      localStorage.setItem("chatSessionId", newSessionId)
+
+      // Add welcome message for new sessions
+      const welcomeMsg = generateWelcomeMessage(nanoid())
+      setMessages([welcomeMsg])
     }
   }, [])
 
@@ -112,66 +113,78 @@ const Chatbot: React.FC<ChatbotProps> = ({
   }
 
   /**
+   * Create a new chat message
+   */
+  const createUserMessage = (text: string): ChatMessage => ({
+    id: nanoid(),
+    text,
+    sender: "user",
+    timestamp: new Date()
+  })
+
+  /**
+   * Create bot response message
+   */
+  const createBotMessage = (text: string): ChatMessage => ({
+    id: nanoid(),
+    text: formatMessage(text),
+    sender: "model",
+    timestamp: new Date()
+  })
+
+  /**
+   * Validate response and throw error if needed
+   */
+  const validateResponse = (response: Response) => {
+    if (response.ok) return
+    
+    if (response.status === 401) {
+      throw new Error("Vous devez être connecté pour utiliser le chat. Veuillez vous connecter.")
+    }
+    throw new Error(`Erreur serveur: ${response.status}`)
+  }
+
+  /**
+   * Send message to API
+   */
+  const sendMessageToApi = async (message: string): Promise<string> => {
+    const response = await fetch(apiEndpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ input: message, sessionId }),
+      credentials: "include"
+    })
+
+    validateResponse(response)
+    const data: ChatApiResponse = await response.json()
+
+    if (!data.success) {
+      throw new Error(data.error || "Erreur lors de la génération de la réponse")
+    }
+
+    return data.response
+  }
+
+  /**
    * Send message to API and handle response
    */
   const handleSend = async () => {
     if (input.trim() === "") return
 
-    // Check if user is authenticated
     if (!userInfo) {
       setError("Vous devez être connecté pour utiliser le chat. Veuillez vous connecter.")
       return
     }
 
-    // Clear error
     setError(null)
-
-    // Create new message
-    const newUserMessage: ChatMessage = {
-      id: nanoid(),
-      text: input,
-      sender: "user",
-      timestamp: new Date()
-    }
-
-    // Add user message to chat
-    setMessages(prev => [...prev, newUserMessage])
+    const userMessage = createUserMessage(input)
+    setMessages(prev => [...prev, userMessage])
     setInput("")
     setIsThinking(true)
 
     try {
-      const response = await fetch(apiEndpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ input, sessionId }),
-        credentials: "include", // Inclure les cookies pour l'authentification si nécessaire
-      })
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error("Vous devez être connecté pour utiliser le chat. Veuillez vous connecter.")
-        } else {
-          throw new Error(`Erreur serveur: ${response.status}`)
-        }
-      }
-
-      const data: ChatApiResponse = await response.json()
-
-      if (!data.success) {
-        throw new Error(data.error || "Erreur lors de la génération de la réponse")
-      }
-
-      // Create bot response message
-      const botMessage: ChatMessage = {
-        id: nanoid(),
-        text: formatMessage(data.response),
-        sender: "model",
-        timestamp: new Date()
-      }
-
-      // Add bot message to chat
+      const responseText = await sendMessageToApi(input)
+      const botMessage = createBotMessage(responseText)
       setMessages(prev => [...prev, botMessage])
     } catch (error) {
       console.error("Error:", error)
@@ -289,13 +302,16 @@ const Chatbot: React.FC<ChatbotProps> = ({
                     </Badge>
                     <span className="text-[10px] opacity-70">{getMessageTime(msg.timestamp)}</span>
                   </div>
-                  <div
-                    className={cn(
-                      "text-sm",
-                      msg.sender === "model" && "dark:text-gray-200"
-                    )}
-                    dangerouslySetInnerHTML={{ __html: msg.text }}
-                  />
+                  {msg.sender === "user" ? (
+                    <div className="text-sm whitespace-pre-wrap break-words">
+                      {msg.text}
+                    </div>
+                  ) : (
+                    <div
+                      className="text-sm dark:text-gray-200"
+                      dangerouslySetInnerHTML={{ __html: msg.text }}
+                    />
+                  )}
                 </div>
               ))
             )}

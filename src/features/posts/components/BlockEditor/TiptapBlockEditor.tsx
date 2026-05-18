@@ -8,11 +8,15 @@ import CharacterCount from '@tiptap/extension-character-count';
 import { PostApiService } from '../../services/postApi';
 import type { ContentBlock } from '../../types/post.types';
 import { Upload } from 'lucide-react';
+import { devError, devLog, devWarn } from '../../../../lib/devLogger';
+
+const SUPPORTED_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const SUPPORTED_IMAGE_ACCEPT = SUPPORTED_IMAGE_MIME_TYPES.join(',');
 
 export interface TiptapBlockEditorProps {
-  value?: ContentBlock[];
-  onChange?: (blocks: ContentBlock[]) => void;
-  placeholder?: string;
+  readonly value?: ContentBlock[];
+  readonly onChange?: (blocks: ContentBlock[]) => void;
+  readonly placeholder?: string;
 }
 
 // We store the full Tiptap JSON doc in a single block for now to keep mapping simple
@@ -24,9 +28,9 @@ export default function TiptapBlockEditor({ value, onChange, placeholder = 'Writ
 
   const initialJSON = useMemo(() => {
     const tiptapBlock = value?.find(b => b.type === 'tiptap');
-    if (tiptapBlock && tiptapBlock.data && typeof tiptapBlock.data === 'object') {
+    if (typeof tiptapBlock?.data === 'object' && tiptapBlock.data !== null) {
       // support both { doc } and direct doc
-      return (tiptapBlock.data.doc ?? tiptapBlock.data) as any;
+      return (tiptapBlock.data.doc ?? tiptapBlock.data);
     }
     return undefined;
   }, [value]);
@@ -63,7 +67,7 @@ export default function TiptapBlockEditor({ value, onChange, placeholder = 'Writ
     if (!value) return;
     
     const jb = value.find(b => b.type === 'tiptap');
-    const next = (jb && (jb.data?.doc ?? jb.data)) as any;
+    const next = jb?.data?.doc ?? jb?.data;
     
     if (next) {
       // Only update content if it's actually different to prevent cursor jumping
@@ -85,7 +89,7 @@ export default function TiptapBlockEditor({ value, onChange, placeholder = 'Writ
             }
           } catch (e) {
             // Fallback to end of document if position is invalid
-            console.warn('Could not restore cursor position:', e);
+            devWarn('Could not restore cursor position:', e);
           }
         }, 0);
       }
@@ -101,10 +105,14 @@ export default function TiptapBlockEditor({ value, onChange, placeholder = 'Writ
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
+    if (!SUPPORTED_IMAGE_MIME_TYPES.includes(file.type)) {
+      devError('[TiptapEditor] Unsupported image type:', file.type);
+      return;
+    }
     try {
       setIsUploading(true);
       const res = await api.uploadFile(file);
-      console.log('[TiptapEditor] Upload response:', res);
+      devLog('[TiptapEditor] Upload response:', res);
       
       let url = (res.urls && (res.urls.optimized || res.urls.original)) || res.url || res.data?.url;
       
@@ -114,10 +122,10 @@ export default function TiptapBlockEditor({ value, onChange, placeholder = 'Writ
         url = url.startsWith('/') ? `${baseUrl}${url}` : `${baseUrl}/${url}`;
       }
       
-      console.log('[TiptapEditor] Final image URL:', url);
+      devLog('[TiptapEditor] Final image URL:', url);
       
       if (!url) {
-        console.error('[TiptapEditor] No valid URL found in upload response');
+        devError('[TiptapEditor] No valid URL found in upload response');
         return;
       }
       
@@ -130,7 +138,7 @@ export default function TiptapBlockEditor({ value, onChange, placeholder = 'Writ
   const setLink = useCallback(() => {
     if (!editor) return;
     const previousUrl = editor.getAttributes('link').href as string | undefined;
-    const url = window.prompt('Set link URL', previousUrl || 'https://');
+    const url = globalThis.prompt('Set link URL', previousUrl || 'https://');
     if (url === null) return; // cancelled
     if (url === '') {
       editor.chain().focus().unsetLink().run();
@@ -188,7 +196,7 @@ export default function TiptapBlockEditor({ value, onChange, placeholder = 'Writ
             <Upload className="w-4 h-4" />
             {isUploading ? 'Uploading…' : 'Insert image'}
           </button>
-          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onFileSelected} />
+          <input ref={fileInputRef} type="file" accept={SUPPORTED_IMAGE_ACCEPT} className="hidden" onChange={onFileSelected} />
         </div>
         {editor?.isActive('codeBlock') && (
           <button type="button" className="px-2 py-1 text-sm rounded border" onClick={copySelectedCode}>
@@ -199,7 +207,6 @@ export default function TiptapBlockEditor({ value, onChange, placeholder = 'Writ
 
       {/* Editor */}
       <div className="border rounded-md p-3 bg-white dark:bg-gray-900 resize-y overflow-auto">
-        {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
         <EditorContent editor={editor} />
       </div>
 
