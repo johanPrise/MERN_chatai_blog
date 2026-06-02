@@ -1,48 +1,16 @@
 import { Client } from '@gradio/client';
 import { IMessage } from '../types/conversation.types.js';
+import { cache } from './cache.service.js';
 
-// Interface pour la session de chat
-interface ChatSession {
-  messages: IMessage[];
-  lastUpdated: Date;
-}
+const SESSION_TTL = 30 * 60; // 30 minutes en secondes
 
-// Map pour stocker les sessions de chat
-const chatSessions = new Map<string, ChatSession>();
+const sessionKey = (sessionId: string) => `ai:session:${sessionId}`;
 
-// Durée de vie d'une session en millisecondes (24 heures)
-const SESSION_TTL = 24 * 60 * 60 * 1000;
+const getSessionMessages = async (sessionId: string): Promise<IMessage[]> =>
+  (await cache.get<IMessage[]>(sessionKey(sessionId))) ?? [];
 
-/**
- * Nettoie les sessions expirées
- */
-const cleanupSessions = () => {
-  const now = new Date();
-  for (const [sessionId, session] of chatSessions.entries()) {
-    if (now.getTime() - session.lastUpdated.getTime() > SESSION_TTL) {
-      chatSessions.delete(sessionId);
-    }
-  }
-};
-
-// Nettoyer les sessions toutes les heures
-setInterval(cleanupSessions, 60 * 60 * 1000);
-
-/**
- * Récupère ou crée une session de chat
- */
-const getOrCreateSession = (sessionId: string): ChatSession => {
-  if (!chatSessions.has(sessionId)) {
-    chatSessions.set(sessionId, {
-      messages: [],
-      lastUpdated: new Date(),
-    });
-  }
-
-  const session = chatSessions.get(sessionId)!;
-  session.lastUpdated = new Date();
-  return session;
-};
+const saveSessionMessages = (sessionId: string, messages: IMessage[]) =>
+  cache.set(sessionKey(sessionId), messages, SESSION_TTL);
 
 /**
  * Génère une réponse à partir du modèle d'IA
@@ -172,22 +140,17 @@ const generateResponse = async (messages: IMessage[]): Promise<string> => {
  */
 export const sendMessage = async (input: string, sessionId: string): Promise<string> => {
   try {
-    // Récupérer la session
-    const session = getOrCreateSession(sessionId);
+    const messages = await getSessionMessages(sessionId);
 
-    // Ajouter le message de l'utilisateur à l'historique
-    session.messages.push({ content: input, sender: 'user' });
+    messages.push({ content: input, sender: 'user' });
 
     // Limiter l'historique à 10 messages pour éviter de dépasser les limites de l'API
-    if (session.messages.length > 10) {
-      session.messages = session.messages.slice(-10);
-    }
+    const trimmed = messages.length > 10 ? messages.slice(-10) : messages;
 
-    // Générer une réponse
-    const aiResponse = await generateResponse(session.messages);
+    const aiResponse = await generateResponse(trimmed);
 
-    // Ajouter la réponse de l'IA à l'historique
-    session.messages.push({ content: aiResponse, sender: 'assistant' });
+    trimmed.push({ content: aiResponse, sender: 'assistant' });
+    await saveSessionMessages(sessionId, trimmed);
 
     return aiResponse;
   } catch {
