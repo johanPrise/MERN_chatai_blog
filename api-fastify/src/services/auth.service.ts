@@ -1,4 +1,5 @@
 import { User } from '../models/user.model.js';
+import { cache } from './cache.service.js';
 import { generateToken } from '../utils/index.js';
 import {
   LoginInput,
@@ -224,10 +225,8 @@ export const getCurrentUser = async (userId: string) => {
  * Note: Avec JWT, la déconnexion côté serveur est principalement symbolique
  * car les tokens JWT sont stateless. Le client doit supprimer le token.
  */
-export const logoutUser = async () => {
-  // Dans une implémentation plus avancée, on pourrait:
-  // 1. Ajouter le token à une liste noire (nécessite Redis ou une autre solution de cache)
-  // 2. Réduire la durée de vie des tokens et utiliser des refresh tokens
-
+export const logoutUser = async (token: string, expiresAt: number) => {
+  const ttl = Math.max(expiresAt - Math.floor(Date.now() / 1000), 1);
+  await cache.set(`blacklist:${token}`, 1, ttl);
   return true;
 };

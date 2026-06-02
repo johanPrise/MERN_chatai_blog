@@ -116,10 +116,18 @@ export const checkAdmin = async (
 };
 
 export const logout = async (
-  _request: FastifyRequest,
+  request: FastifyRequest,
   reply: FastifyReply
 ) => {
-  await AuthService.logoutUser();
+  const token = request.cookies?.token
+    ?? request.headers.authorization?.replace(/^Bearer\s+/i, '');
+
+  if (token) {
+    const decoded = request.server.jwt.decode<{ exp?: number }>(token);
+    const expiresAt = decoded?.exp ?? Math.floor(Date.now() / 1000) + 30 * 24 * 3600;
+    await AuthService.logoutUser(token, expiresAt);
+  }
+
   reply.clearCookie('token', { path: '/' });
   return reply.status(200).send({ message: 'Déconnexion réussie' });
 };
