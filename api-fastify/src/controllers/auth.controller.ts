@@ -66,17 +66,13 @@ export const login = async (
       }
     );
 
-    // Définir le cookie avec le token JWT
     reply.setCookie('token', token, {
       path: '/',
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // Secure en production seulement
-      sameSite: 'lax', // Protection contre CSRF
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 jours en millisecondes
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60, // 30 jours en secondes (spec Set-Cookie)
     });
-
-    // Afficher les informations pour le débogage
-    console.log('Cookie token défini avec succès');
 
     // Retourner la réponse
     return reply.status(200).send({

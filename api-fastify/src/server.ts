@@ -62,7 +62,10 @@ export async function buildServer(): Promise<FastifyInstance> {
 
         // Gérer les correspondances avec joker
         if (allowedOrigin.includes('*')) {
-          const pattern = new RegExp(allowedOrigin.replace('*', '.*'));
+          const escaped = allowedOrigin
+            .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+            .replace('\\*', '.*');
+          const pattern = new RegExp(`^${escaped}$`);
           return pattern.test(origin);
         }
 
@@ -85,8 +88,13 @@ export async function buildServer(): Promise<FastifyInstance> {
   await server.register(cookie);
 
   // Configurer JWT
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) {
+    throw new Error('JWT_SECRET environment variable is required');
+  }
+
   await server.register(jwt, {
-    secret: process.env.JWT_SECRET || 'default_secret_change_in_production',
+    secret: jwtSecret,
     sign: {
       expiresIn: process.env.JWT_EXPIRES_IN || '30d',
     },
