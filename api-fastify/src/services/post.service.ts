@@ -447,8 +447,7 @@ const checkPostViewPermission = (post: IPost & { author: { _id: string } }, curr
 
 const incrementViewCount = async (post: IPost & { author: { _id: string } }, currentUserId?: string): Promise<void> => {
   if (!currentUserId || currentUserId !== post.author._id.toString()) {
-    post.viewCount += 1;
-    await post.save();
+    await Post.findByIdAndUpdate(post._id, { $inc: { viewCount: 1 } });
   }
 };
 
