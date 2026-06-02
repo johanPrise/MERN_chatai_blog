@@ -1,4 +1,5 @@
 import { User } from '../models/user.model.js';
+import { cache } from './cache.service.js';
 import { generateToken } from '../utils/index.js';
 import {
   LoginInput,
@@ -10,6 +11,7 @@ import {
 import { IUser } from '../types/user.types.js';
 import * as EmailService from './email.service.js';
 import { onUserRegistered } from './notification-hooks.service.js';
+import { ConflictError, NotFoundError, UnauthorizedError, ValidationError } from '../utils/errors.js';
 
 /**
  * Service pour l'inscription d'un nouvel utilisateur
@@ -23,7 +25,7 @@ export const registerUser = async (userData: RegisterInput) => {
   });
 
   if (existingUser) {
-    throw new Error(
+    throw new ConflictError(
       existingUser.email === email
         ? 'Cet email est déjà utilisé'
         : 'Ce nom d\'utilisateur est déjà utilisé'
@@ -49,9 +51,8 @@ export const registerUser = async (userData: RegisterInput) => {
   // Déclencher le hook de notification pour nouvel utilisateur
   try {
     await onUserRegistered(String(newUser._id), username);
-  } catch (error) {
-    // Log l'erreur mais ne pas faire échouer l'inscription
-    console.error('Failed to create user registration notification:', error);
+  } catch {
+    // Notification non critique : ne pas faire échouer l'inscription
   }
 
   // Envoyer un email de vérification
@@ -80,16 +81,14 @@ export const loginUser = async (credentials: LoginInput) => {
   // Trouver l'utilisateur par email
   const user = await User.findOne({ email }) as IUser;
 
-  // Vérifier si l'utilisateur existe
   if (!user) {
-    throw new Error('Email ou mot de passe incorrect');
+    throw new UnauthorizedError('Email ou mot de passe incorrect');
   }
 
-  // Vérifier le mot de passe
   const isPasswordValid = await user.comparePassword(password);
 
   if (!isPasswordValid) {
-    throw new Error('Email ou mot de passe incorrect');
+    throw new UnauthorizedError('Email ou mot de passe incorrect');
   }
 
   // Convertir en objet simple pour éviter les problèmes de typage
@@ -117,9 +116,8 @@ export const verifyUserEmail = async (token: string) => {
   // Trouver l'utilisateur par token de vérification
   const user = await User.findOne({ verificationToken: token }) as IUser;
 
-  // Vérifier si l'utilisateur existe
   if (!user) {
-    throw new Error('Token de vérification invalide');
+    throw new ValidationError('Token de vérification invalide');
   }
 
   // Mettre à jour l'utilisateur
@@ -171,9 +169,8 @@ export const resetUserPassword = async (data: ResetPasswordInput) => {
     resetPasswordExpires: { $gt: Date.now() },
   });
 
-  // Vérifier si l'utilisateur existe
   if (!user) {
-    throw new Error('Token de réinitialisation invalide ou expiré');
+    throw new ValidationError('Token de réinitialisation invalide ou expiré');
   }
 
   // Mettre à jour l'utilisateur
@@ -191,19 +188,16 @@ export const resetUserPassword = async (data: ResetPasswordInput) => {
 export const changeUserPassword = async (userId: string, data: ChangePasswordInput) => {
   const { currentPassword, newPassword } = data;
 
-  // Trouver l'utilisateur par ID
   const user = await User.findById(userId) as IUser;
 
-  // Vérifier si l'utilisateur existe
   if (!user) {
-    throw new Error('Utilisateur non trouvé');
+    throw new NotFoundError('Utilisateur non trouvé');
   }
 
-  // Vérifier le mot de passe actuel
   const isPasswordValid = await user.comparePassword(currentPassword);
 
   if (!isPasswordValid) {
-    throw new Error('Mot de passe actuel incorrect');
+    throw new UnauthorizedError('Mot de passe actuel incorrect');
   }
 
   // Mettre à jour le mot de passe
@@ -217,12 +211,10 @@ export const changeUserPassword = async (userId: string, data: ChangePasswordInp
  * Service pour récupérer les informations de l'utilisateur connecté
  */
 export const getCurrentUser = async (userId: string) => {
-  // Trouver l'utilisateur par ID
   const user = await User.findById(userId);
 
-  // Vérifier si l'utilisateur existe
   if (!user) {
-    throw new Error('Utilisateur non trouvé');
+    throw new NotFoundError('Utilisateur non trouvé');
   }
 
   return user;
@@ -233,10 +225,8 @@ export const getCurrentUser = async (userId: string) => {
  * Note: Avec JWT, la déconnexion côté serveur est principalement symbolique
  * car les tokens JWT sont stateless. Le client doit supprimer le token.
  */
-export const logoutUser = async () => {
-  // Dans une implémentation plus avancée, on pourrait:
-  // 1. Ajouter le token à une liste noire (nécessite Redis ou une autre solution de cache)
-  // 2. Réduire la durée de vie des tokens et utiliser des refresh tokens
-
+export const logoutUser = async (token: string, expiresAt: number) => {
+  const ttl = Math.max(expiresAt - Math.floor(Date.now() / 1000), 1);
+  await cache.set(`blacklist:${token}`, 1, ttl);
   return true;
 };

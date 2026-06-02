@@ -12,6 +12,7 @@ import { errorLoggerMiddleware } from './middlewares/error-logger.middleware.js'
 import { cache } from './services/cache.service.js';
 import { onSystemError } from './services/notification-hooks.service.js';
 import { startNotificationCleanup } from './services/notification-cleanup.service.js';
+import { AppError } from './utils/errors.js';
 
 /**
  * Construit et configure le serveur Fastify
@@ -62,7 +63,10 @@ export async function buildServer(): Promise<FastifyInstance> {
 
         // Gérer les correspondances avec joker
         if (allowedOrigin.includes('*')) {
-          const pattern = new RegExp(allowedOrigin.replace('*', '.*'));
+          const escaped = allowedOrigin
+            .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+            .replace('\\*', '.*');
+          const pattern = new RegExp(`^${escaped}$`);
           return pattern.test(origin);
         }
 
@@ -85,8 +89,13 @@ export async function buildServer(): Promise<FastifyInstance> {
   await server.register(cookie);
 
   // Configurer JWT
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) {
+    throw new Error('JWT_SECRET environment variable is required');
+  }
+
   await server.register(jwt, {
-    secret: process.env.JWT_SECRET || 'default_secret_change_in_production',
+    secret: jwtSecret,
     sign: {
       expiresIn: process.env.JWT_EXPIRES_IN || '30d',
     },
@@ -146,31 +155,40 @@ export async function buildServer(): Promise<FastifyInstance> {
 
   // Gestionnaire d'erreur global
   server.setErrorHandler((error, request, reply) => {
+    // Erreurs métier typées → mapping direct vers le bon status HTTP
+    if (error instanceof AppError) {
+      return reply.status(error.statusCode).send({ message: error.message });
+    }
+
+    // Erreurs de validation Fastify (schema JSON)
+    if (error.validation) {
+      return reply.status(400).send({ message: error.message });
+    }
+
     logger.error(
       `Unhandled error: ${error.message}`,
       error instanceof Error ? error : undefined,
       {
         userId: (request as any).user?.id,
         endpoint: `${request.method} ${request.url}`,
-        ip: request.ip
+        ip: request.ip,
       }
     );
-    
-    // Créer une notification d'erreur système pour les erreurs 500
-    if (reply.statusCode >= 500 || !reply.statusCode) {
-      const errorCode = `HTTP_${reply.statusCode || 500}`;
+
+    const statusCode = error.statusCode ?? 500;
+
+    if (statusCode >= 500) {
+      const errorCode = `HTTP_${statusCode}`;
       const errorMessage = `Erreur serveur sur ${request.method} ${request.url}: ${error.message}`;
-      
-      // Créer la notification de manière asynchrone pour ne pas bloquer la réponse
       onSystemError(errorCode, errorMessage).catch(notifError => {
         logger.error('Failed to create error notification:', notifError instanceof Error ? notifError : undefined);
       });
     }
-    
+
     server.log.error(error);
-    reply.status(500).send({
+    return reply.status(statusCode).send({
       message: 'Une erreur est survenue sur le serveur',
-      error: process.env.NODE_ENV === 'production' ? undefined : error.message
+      error: process.env.NODE_ENV !== 'production' ? error.message : undefined,
     });
   });
 

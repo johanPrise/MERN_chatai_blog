@@ -161,7 +161,7 @@ const normalizePostForFrontend = (post: IPost, currentUserId?: string): PostDTO 
     excerpt: postObj.excerpt,
     slug: postObj.slug,
     author: postObj.author,
-    categories: postObj.categories,
+    categories: postObj.categories ?? [],
     category: postObj.category,
     tags: postObj.tags,
     featuredImage: postObj.featuredImage,
@@ -425,8 +425,8 @@ const createPostNotification = async (post: IPost, authorId: string): Promise<vo
         username: author.username
       },
     });
-  } catch (error) {
-    console.error('Failed to create post notification:', error);
+  } catch {
+    // Notification non critique : ne pas faire échouer la création du post
   }
 };
 
@@ -447,8 +447,7 @@ const checkPostViewPermission = (post: IPost & { author: { _id: string } }, curr
 
 const incrementViewCount = async (post: IPost & { author: { _id: string } }, currentUserId?: string): Promise<void> => {
   if (!currentUserId || currentUserId !== post.author._id.toString()) {
-    post.viewCount += 1;
-    await post.save();
+    await Post.findByIdAndUpdate(post._id, { $inc: { viewCount: 1 } });
   }
 };
 

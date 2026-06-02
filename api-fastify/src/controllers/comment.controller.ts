@@ -244,7 +244,7 @@ const handleReactionRequest = (
     }
 
     const { id, user } = context;
-    const result = await action({ id, user: { id: user._id } });
+    const result = await action(id, user._id);
     await invalidateCommentCache(id, request, cacheActionName);
 
     return reply.status(200).send({

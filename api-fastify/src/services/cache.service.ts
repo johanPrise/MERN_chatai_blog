@@ -2,55 +2,59 @@ import { createClient, RedisClientType } from 'redis';
 
 class CacheService {
   private client: RedisClientType | null = null;
-  private isConnected = false;
+  private connectPromise: Promise<void> | null = null;
 
-  async connect() {
-    if (this.isConnected) return;
+  async connect(): Promise<void> {
+    if (this.connectPromise) return this.connectPromise;
+    this.connectPromise = this._connect();
+    return this.connectPromise;
+  }
 
+  private async _connect(): Promise<void> {
     try {
       this.client = createClient({
-        url: process.env.REDIS_URL || 'redis://localhost:6379'
+        url: process.env.REDIS_URL || 'redis://localhost:6379',
       });
-
       await this.client.connect();
-      this.isConnected = true;
-      console.log('Redis connecté');
-    } catch (error) {
-      console.warn('Redis non disponible, cache désactivé');
+    } catch {
+      this.client = null;
+      this.connectPromise = null;
     }
   }
 
   async get<T>(key: string): Promise<T | null> {
-    if (!this.client || !this.isConnected) return null;
-    
+    if (!this.client) return null;
     try {
       const data = await this.client.get(key);
-      return data ? JSON.parse(data) : null;
+      return data ? (JSON.parse(data) as T) : null;
     } catch {
       return null;
     }
   }
 
-  async set(key: string, value: any, ttl = 300): Promise<void> {
-    if (!this.client || !this.isConnected) return;
-    
+  async set(key: string, value: unknown, ttl = 300): Promise<void> {
+    if (!this.client) return;
     try {
       await this.client.setEx(key, ttl, JSON.stringify(value));
     } catch {
-      // Ignore cache errors
+      // ignore cache errors
     }
   }
 
+  // Utilise SCAN au lieu de KEYS pour ne pas bloquer Redis en production
   async del(pattern: string): Promise<void> {
-    if (!this.client || !this.isConnected) return;
-    
+    if (!this.client) return;
     try {
-      const keys = await this.client.keys(pattern);
+      const keys: string[] = [];
+      for await (const key of this.client.scanIterator({ MATCH: pattern, COUNT: 100 })) {
+        keys.push(key.toString());
+      }
       if (keys.length > 0) {
-        await this.client.del(keys);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (this.client as any).del(keys);
       }
     } catch {
-      // Ignore cache errors
+      // ignore cache errors
     }
   }
 }

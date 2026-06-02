@@ -56,7 +56,6 @@ const ensureUploadDir = async (): Promise<void> => {
       await mkdir(UPLOAD_DIR, { recursive: true });
     }
   } catch (error) {
-    console.error('Erreur lors de la création du dossier d\'uploads:', error);
     throw new Error('Impossible de créer le dossier d\'uploads');
   }
 };
