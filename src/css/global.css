@@ -98,9 +98,14 @@
     @apply border-border;
   }
 
-  html, body {
-    overflow-x: hidden; /* Prevent horizontal scrolling */
-    overflow-y: auto; /* Allow vertical scrolling */
+  html {
+    overflow-x: clip; /* Prevent horizontal scrolling without creating scroll container */
+    width: 100%;
+    max-width: 100vw;
+  }
+
+  body {
+    overflow-x: clip;
     width: 100%;
     max-width: 100vw;
     position: relative;
@@ -149,8 +154,6 @@
 
   body {
     -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
-    touch-action: manipulation;
   }
 
   /* Prevent elements from overflowing on mobile */
@@ -200,8 +203,7 @@
 
   /* Prevent horizontal scroll only, allow vertical */
   html, body {
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow-x: clip;
   }
 
   /* Mobile container improvements */
