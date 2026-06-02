@@ -161,7 +161,7 @@ const normalizePostForFrontend = (post: IPost, currentUserId?: string): PostDTO 
     excerpt: postObj.excerpt,
     slug: postObj.slug,
     author: postObj.author,
-    categories: postObj.categories,
+    categories: postObj.categories ?? [],
     category: postObj.category,
     tags: postObj.tags,
     featuredImage: postObj.featuredImage,

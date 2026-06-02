@@ -186,7 +186,7 @@ export async function buildServer(): Promise<FastifyInstance> {
     }
 
     server.log.error(error);
-    reply.status(statusCode).send({
+    return reply.status(statusCode).send({
       message: 'Une erreur est survenue sur le serveur',
       error: process.env.NODE_ENV !== 'production' ? error.message : undefined,
     });

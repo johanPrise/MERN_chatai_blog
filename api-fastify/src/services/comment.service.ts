@@ -6,52 +6,64 @@ import { CreateCommentInput, UpdateCommentInput, IComment } from '../types/comme
 /**
  * Service pour récupérer les commentaires d'un article
  */
-export const getPostComments = async (
-  postId: string,
-  parentId?: string,
-  page: number = 1,
-  limit: number = 10,
-  currentUserId?: string
-) => {
-  const skip = (page - 1) * limit;
+interface GetPostCommentsOptions {
+  postId: string;
+  parentId?: string;
+  page?: number;
+  limit?: number;
+  viewer?: { id: string };
+  currentUserId?: string;
+}
 
-  // Vérifier si l'ID de l'article est valide
+export const getPostComments = async (options: GetPostCommentsOptions | string, parentId?: string, page = 1, limit = 10, currentUserId?: string) => {
+  let postId: string;
+  let resolvedParentId: string | undefined;
+  let resolvedPage: number;
+  let resolvedLimit: number;
+  let resolvedUserId: string | undefined;
+
+  if (typeof options === 'object') {
+    postId = options.postId;
+    resolvedParentId = options.parentId;
+    resolvedPage = options.page ?? 1;
+    resolvedLimit = options.limit ?? 10;
+    resolvedUserId = options.viewer?.id ?? options.currentUserId;
+  } else {
+    postId = options;
+    resolvedParentId = parentId;
+    resolvedPage = page;
+    resolvedLimit = limit;
+    resolvedUserId = currentUserId;
+  }
+
   if (!isValidObjectId(postId)) {
     throw new Error('ID article invalide');
   }
 
-  // Vérifier si l'article existe
   const postExists = await Post.exists({ _id: postId });
   if (!postExists) {
     throw new Error('Article non trouvé');
   }
 
-  // Construire la requête
   const query: any = { post: postId };
 
-  // Si parent est fourni, récupérer les réponses à ce commentaire
-  // Sinon, récupérer les commentaires de premier niveau (sans parent)
-  if (parentId) {
-    if (!isValidObjectId(parentId)) {
+  if (resolvedParentId) {
+    if (!isValidObjectId(resolvedParentId)) {
       throw new Error('ID commentaire parent invalide');
     }
-    query.parent = parentId;
+    query.parent = resolvedParentId;
   } else {
     query.parent = { $exists: false };
   }
 
-  // Récupérer les commentaires avec pagination
   const comments = (await Comment.find(query)
     .populate('author', '_id username profilePicture')
     .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit)) as IComment[];
+    .skip((resolvedPage - 1) * resolvedLimit)
+    .limit(resolvedLimit)) as IComment[];
 
-  // Compter le nombre total de commentaires
   const total = await Comment.countDocuments(query);
-
-  // Calculer le nombre total de pages
-  const totalPages = Math.ceil(total / limit);
+  const totalPages = Math.ceil(total / resolvedLimit);
 
   // Si on récupère les commentaires de premier niveau, récupérer également leurs réponses
   let commentsWithReplies = comments;
@@ -74,9 +86,9 @@ export const getPostComments = async (
           replyObj.likeCount = replyObj.likes.length;
           replyObj.dislikeCount = replyObj.dislikes.length;
           
-          if (currentUserId) {
-            replyObj.isLiked = replyObj.likes.includes(currentUserId);
-            replyObj.isDisliked = replyObj.dislikes.includes(currentUserId);
+          if (resolvedUserId) {
+            replyObj.isLiked = replyObj.likes.includes(resolvedUserId);
+            replyObj.isDisliked = replyObj.dislikes.includes(resolvedUserId);
           }
           return replyObj;
         });
@@ -92,9 +104,9 @@ export const getPostComments = async (
         commentObj.dislikeCount = commentObj.dislikes.length;
         
         // Ajouter les champs isLiked et isDisliked pour le commentaire si l'utilisateur est connecté
-        if (currentUserId) {
-          commentObj.isLiked = commentObj.likes.includes(currentUserId);
-          commentObj.isDisliked = commentObj.dislikes.includes(currentUserId);
+        if (resolvedUserId) {
+          commentObj.isLiked = commentObj.likes.includes(resolvedUserId);
+          commentObj.isDisliked = commentObj.dislikes.includes(resolvedUserId);
         }
         
         return commentObj;
@@ -122,8 +134,8 @@ export const getPostComments = async (
   return {
     comments: commentsWithReplies,
     total,
-    page,
-    limit,
+    page: resolvedPage,
+    limit: resolvedLimit,
     totalPages,
   };
 };
@@ -131,7 +143,9 @@ export const getPostComments = async (
 /**
  * Service pour récupérer un commentaire par ID
  */
-export const getCommentById = async (id: string, currentUserId?: string) => {
+export const getCommentById = async (options: { id: string; viewer?: { id: string } } | string, currentUserId?: string) => {
+  const id = typeof options === 'object' ? options.id : options;
+  const resolvedUserId = typeof options === 'object' ? options.viewer?.id : currentUserId;
   // Vérifier si l'ID est valide
   if (!isValidObjectId(id)) {
     throw new Error('ID commentaire invalide');
@@ -156,18 +170,20 @@ export const getCommentById = async (id: string, currentUserId?: string) => {
   commentObj.dislikes = (commentObj.dislikedBy || []).map((id: unknown) => String(id));
 
   // Ajouter les champs isLiked et isDisliked si l'utilisateur est connecté
-  if (currentUserId) {
-    commentObj.isLiked = commentObj.likes.includes(currentUserId);
-    commentObj.isDisliked = commentObj.dislikes.includes(currentUserId);
+  if (resolvedUserId) {
+    commentObj.isLiked = commentObj.likes.includes(resolvedUserId);
+    commentObj.isDisliked = commentObj.dislikes.includes(resolvedUserId);
   }
 
   return commentObj;
 };
 
-/**
- * Service pour créer un nouveau commentaire
- */
-export const createComment = async (commentData: CreateCommentInput, authorId: string) => {
+export const createComment = async (
+  options: { commentData: CreateCommentInput; author: { id: string } } | CreateCommentInput,
+  authorId?: string
+) => {
+  const commentData = 'commentData' in options ? options.commentData : options;
+  const resolvedAuthorId = 'author' in options ? options.author.id : (authorId as string);
   const { content, post, parent } = commentData;
 
   // Vérifier si l'ID de l'article est valide
@@ -207,7 +223,7 @@ export const createComment = async (commentData: CreateCommentInput, authorId: s
   const newComment = new Comment({
     content,
     post,
-    author: authorId,
+    author: resolvedAuthorId,
     parent,
   });
 
@@ -231,12 +247,18 @@ export const createComment = async (commentData: CreateCommentInput, authorId: s
 /**
  * Service pour mettre à jour un commentaire
  */
+interface CurrentUser { id: string; role: string }
+
 export const updateComment = async (
-  id: string,
-  updateData: UpdateCommentInput,
-  currentUserId: string,
-  currentUserRole: string
+  options: { id: string; updateData: UpdateCommentInput; currentUser: CurrentUser } | string,
+  updateDataArg?: UpdateCommentInput,
+  currentUserIdArg?: string,
+  currentUserRoleArg?: string
 ) => {
+  const id = typeof options === 'object' ? options.id : options;
+  const updateData = typeof options === 'object' ? options.updateData : updateDataArg!;
+  const currentUserId = typeof options === 'object' ? options.currentUser.id : currentUserIdArg!;
+  const currentUserRole = typeof options === 'object' ? options.currentUser.role : currentUserRoleArg!;
   // Vérifier si l'ID est valide
   if (!isValidObjectId(id)) {
     throw new Error('ID commentaire invalide');
@@ -271,7 +293,14 @@ export const updateComment = async (
 /**
  * Service pour supprimer un commentaire
  */
-export const deleteComment = async (id: string, currentUserId: string, currentUserRole: string) => {
+export const deleteComment = async (
+  options: { id: string; currentUser: CurrentUser } | string,
+  currentUserIdArg?: string,
+  currentUserRoleArg?: string
+) => {
+  const id = typeof options === 'object' ? options.id : options;
+  const currentUserId = typeof options === 'object' ? options.currentUser.id : currentUserIdArg!;
+  const currentUserRole = typeof options === 'object' ? options.currentUser.role : currentUserRoleArg!;
   // Vérifier si l'ID est valide
   if (!isValidObjectId(id)) {
     throw new Error('ID commentaire invalide');

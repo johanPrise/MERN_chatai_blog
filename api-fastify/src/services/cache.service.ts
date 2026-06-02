@@ -47,10 +47,11 @@ class CacheService {
     try {
       const keys: string[] = [];
       for await (const key of this.client.scanIterator({ MATCH: pattern, COUNT: 100 })) {
-        keys.push(key);
+        keys.push(key.toString());
       }
       if (keys.length > 0) {
-        await this.client.del(keys);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (this.client as any).del(keys);
       }
     } catch {
       // ignore cache errors

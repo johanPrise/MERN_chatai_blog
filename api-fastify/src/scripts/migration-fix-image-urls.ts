@@ -4,7 +4,7 @@
  */
 
 import mongoose from 'mongoose';
-import { Post } from './models/post.model.js';
+import { Post } from '../models/post.model.js';
 import * as dotenv from 'dotenv';
 
 // Load environment variables
@@ -86,7 +86,7 @@ async function fixImageUrls() {
         console.log(`   Before: ${oldUrl}`);
         console.log(`   After:  ${newUrl}\n`);
 
-        post.coverImage.url = newUrl;
+        post.coverImage!.url = newUrl;
         await post.save();
         fixedCount++;
       } else {
