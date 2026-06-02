@@ -1,46 +1,64 @@
 /* Styles pour le contenu Markdown */
 /* Variables CSS pour le contenu Markdown avec spécificité accrue */
 html:root {
-  --md-text-heading: #111827 !important; /* Noir pour les titres en mode clair */
-  --md-text-body: #374151 !important;   /* Gris foncé pour le texte en mode clair */
-  --md-border: #e5e7eb !important;      /* Gris clair pour les bordures en mode clair */
-  --md-link: #16a34a;         /* Couleur des liens en mode clair */
-  --md-link-hover: #15803d;   /* Couleur des liens au survol en mode clair */
-  --md-blockquote-bg: #f9f9f9; /* Fond des citations en mode clair */
-  --md-blockquote-border: #22c55e; /* Bordure des citations en mode clair */
-  --md-blockquote-text: #555;  /* Texte des citations en mode clair */
-  --md-code-bg: rgba(27, 31, 35, 0.05); /* Fond du code inline en mode clair */
-  --md-code-block-bg: var(--syntax-background, #f0f0f0); /* Fond des blocs de code en mode clair */
-  --md-code-block-border: var(--syntax-border, #ddd); /* Bordure des blocs de code en mode clair */
-  --md-table-border: #e2e8f0; /* Bordure des tableaux en mode clair */
-  --md-table-header-bg: #f8fafc; /* Fond de l'en-tête des tableaux en mode clair */
-  --md-table-row-hover: #f1f5f9; /* Fond des lignes au survol en mode clair */
-  --md-copy-button-bg: rgba(255, 255, 255, 0.1); /* Fond du bouton de copie en mode clair */
-  --md-copy-button-color: #555; /* Couleur du bouton de copie en mode clair */
-  --md-copy-button-hover: rgba(0, 0, 0, 0.1); /* Fond du bouton de copie au survol en mode clair */
+  --md-text-heading: #111827 !important;
+  --md-text-body: #374151 !important;
+  --md-border: #e5e7eb !important;
+  --md-link: #16a34a;
+  --md-link-hover: #15803d;
+  --md-blockquote-bg: #f9f9f9;
+  --md-blockquote-border: #22c55e;
+  --md-blockquote-text: #555;
+  --md-code-bg: rgba(27, 31, 35, 0.05);
+  --md-code-block-bg: #f0f0f0;
+  --md-code-block-border: #ddd;
+  --md-table-border: #e2e8f0;
+  --md-table-header-bg: #f8fafc;
+  --md-table-row-hover: #f1f5f9;
+  --md-copy-button-bg: rgba(255, 255, 255, 0.1);
+  --md-copy-button-color: #555;
+  --md-copy-button-hover: rgba(0, 0, 0, 0.1);
+  /* Syntax highlighting variables — mode clair */
+  --syntax-background: #f0f0f0;
+  --syntax-foreground: #24292e;
+  --syntax-border: #ddd;
+  --syntax-keyword: #d73a49;
+  --syntax-string: #032f62;
+  --syntax-comment: #6a737d;
+  --syntax-number: #005cc5;
+  --syntax-function: #6f42c1;
 }
 
 /* Mode sombre avec sélecteurs explicites et spécificité accrue */
-html.dark:root, 
-html[data-theme="dark"]:root, 
+html.dark:root,
+html[data-theme="dark"]:root,
 html[data-mode="dark"]:root {
-  --md-text-heading: #f5f5f5 !important; /* Blanc pour les titres en mode sombre */
-  --md-text-body: #d4d4d4 !important;    /* Gris clair pour le texte en mode sombre */
-  --md-border: #333 !important;          /* Gris foncé pour les bordures en mode sombre */
-  --md-link: #4ade80;         /* Couleur des liens en mode sombre */
-  --md-link-hover: #86efac;   /* Couleur des liens au survol en mode sombre */
-  --md-blockquote-bg: #222;   /* Fond des citations en mode sombre */
-  --md-blockquote-border: #22c55e; /* Bordure des citations en mode sombre */
-  --md-blockquote-text: #b0b0b0; /* Texte des citations en mode sombre */
-  --md-code-bg: rgba(240, 246, 252, 0.1); /* Fond du code inline en mode sombre */
-  --md-code-block-bg: var(--syntax-background, #1a1a1a); /* Fond des blocs de code en mode sombre */
-  --md-code-block-border: var(--syntax-border, #333); /* Bordure des blocs de code en mode sombre */
-  --md-table-border: #333; /* Bordure des tableaux en mode sombre */
-  --md-table-header-bg: #222; /* Fond de l'en-tête des tableaux en mode sombre */
-  --md-table-row-hover: #2a2a2a; /* Fond des lignes au survol en mode sombre */
-  --md-copy-button-bg: rgba(0, 0, 0, 0.3); /* Fond du bouton de copie en mode sombre */
-  --md-copy-button-color: #aaa; /* Couleur du bouton de copie en mode sombre */
-  --md-copy-button-hover: rgba(255, 255, 255, 0.1); /* Fond du bouton de copie au survol en mode sombre */
+  --md-text-heading: #f5f5f5 !important;
+  --md-text-body: #d4d4d4 !important;
+  --md-border: #333 !important;
+  --md-link: #4ade80;
+  --md-link-hover: #86efac;
+  --md-blockquote-bg: #222;
+  --md-blockquote-border: #22c55e;
+  --md-blockquote-text: #b0b0b0;
+  --md-code-bg: rgba(240, 246, 252, 0.1);
+  --md-code-block-bg: #1a1a1a;
+  --md-code-block-border: #333;
+  --md-table-border: #333;
+  --md-table-header-bg: #222;
+  --md-table-row-hover: #2a2a2a;
+  --md-copy-button-bg: rgba(0, 0, 0, 0.3);
+  --md-copy-button-color: #aaa;
+  --md-copy-button-hover: rgba(255, 255, 255, 0.1);
+  /* Syntax highlighting variables — mode sombre */
+  --syntax-background: #1a1a1a;
+  --syntax-foreground: #e0e0e0;
+  --syntax-border: #333;
+  --syntax-keyword: #f97583;
+  --syntax-string: #9ecbff;
+  --syntax-comment: #6a737d;
+  --syntax-number: #79b8ff;
+  --syntax-function: #b392f0;
 }
 
 /* Media query pour le mode sombre système */
@@ -693,3 +711,24 @@ html.dark .markdown-body ul li::marker,
     color: #777;
   }
 }
+
+/* Tiptap renderer code blocks — respect theme */
+.codeBlock,
+pre.codeBlock {
+  background-color: var(--syntax-background, #f0f0f0);
+  color: var(--syntax-foreground, #24292e);
+  border: 1px solid var(--syntax-border, #ddd);
+}
+
+.codeBlock code,
+pre.codeBlock code {
+  color: inherit;
+  background: transparent;
+}
+
+/* Syntax token colors for both renderers */
+.hljs-keyword, .token.keyword     { color: var(--syntax-keyword,  #d73a49); }
+.hljs-string,  .token.string      { color: var(--syntax-string,   #032f62); }
+.hljs-comment, .token.comment     { color: var(--syntax-comment,  #6a737d); font-style: italic; }
+.hljs-number,  .token.number      { color: var(--syntax-number,   #005cc5); }
+.hljs-title,   .token.function    { color: var(--syntax-function, #6f42c1); }

@@ -304,13 +304,13 @@ function PostMeta({ postInfo, commentsCount }: { postInfo: Post, commentsCount: 
 function TableOfContents({ headings }: { headings: { id: string; text: string; level: number }[] }) {
   const [activeId, setActiveId] = React.useState<string | null>(null)
 
-  // Smooth scroll with header offset handled by scroll-mt-* on headings
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
     e.preventDefault()
     const el = document.getElementById(id)
     if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      // Update URL hash without jumping
+      const HEADER_HEIGHT = 80 // header fixe ~64px + marge
+      const top = el.getBoundingClientRect().top + window.scrollY - HEADER_HEIGHT
+      window.scrollTo({ top, behavior: 'smooth' })
       window.history.replaceState(null, '', `#${id}`)
     }
   }
