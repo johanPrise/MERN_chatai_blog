@@ -10,6 +10,7 @@ import {
 import { IUser } from '../types/user.types.js';
 import * as EmailService from './email.service.js';
 import { onUserRegistered } from './notification-hooks.service.js';
+import { ConflictError, NotFoundError, UnauthorizedError, ValidationError } from '../utils/errors.js';
 
 /**
  * Service pour l'inscription d'un nouvel utilisateur
@@ -23,7 +24,7 @@ export const registerUser = async (userData: RegisterInput) => {
   });
 
   if (existingUser) {
-    throw new Error(
+    throw new ConflictError(
       existingUser.email === email
         ? 'Cet email est déjà utilisé'
         : 'Ce nom d\'utilisateur est déjà utilisé'
@@ -80,16 +81,14 @@ export const loginUser = async (credentials: LoginInput) => {
   // Trouver l'utilisateur par email
   const user = await User.findOne({ email }) as IUser;
 
-  // Vérifier si l'utilisateur existe
   if (!user) {
-    throw new Error('Email ou mot de passe incorrect');
+    throw new UnauthorizedError('Email ou mot de passe incorrect');
   }
 
-  // Vérifier le mot de passe
   const isPasswordValid = await user.comparePassword(password);
 
   if (!isPasswordValid) {
-    throw new Error('Email ou mot de passe incorrect');
+    throw new UnauthorizedError('Email ou mot de passe incorrect');
   }
 
   // Convertir en objet simple pour éviter les problèmes de typage
@@ -117,9 +116,8 @@ export const verifyUserEmail = async (token: string) => {
   // Trouver l'utilisateur par token de vérification
   const user = await User.findOne({ verificationToken: token }) as IUser;
 
-  // Vérifier si l'utilisateur existe
   if (!user) {
-    throw new Error('Token de vérification invalide');
+    throw new ValidationError('Token de vérification invalide');
   }
 
   // Mettre à jour l'utilisateur
@@ -171,9 +169,8 @@ export const resetUserPassword = async (data: ResetPasswordInput) => {
     resetPasswordExpires: { $gt: Date.now() },
   });
 
-  // Vérifier si l'utilisateur existe
   if (!user) {
-    throw new Error('Token de réinitialisation invalide ou expiré');
+    throw new ValidationError('Token de réinitialisation invalide ou expiré');
   }
 
   // Mettre à jour l'utilisateur
@@ -191,19 +188,16 @@ export const resetUserPassword = async (data: ResetPasswordInput) => {
 export const changeUserPassword = async (userId: string, data: ChangePasswordInput) => {
   const { currentPassword, newPassword } = data;
 
-  // Trouver l'utilisateur par ID
   const user = await User.findById(userId) as IUser;
 
-  // Vérifier si l'utilisateur existe
   if (!user) {
-    throw new Error('Utilisateur non trouvé');
+    throw new NotFoundError('Utilisateur non trouvé');
   }
 
-  // Vérifier le mot de passe actuel
   const isPasswordValid = await user.comparePassword(currentPassword);
 
   if (!isPasswordValid) {
-    throw new Error('Mot de passe actuel incorrect');
+    throw new UnauthorizedError('Mot de passe actuel incorrect');
   }
 
   // Mettre à jour le mot de passe
@@ -217,12 +211,10 @@ export const changeUserPassword = async (userId: string, data: ChangePasswordInp
  * Service pour récupérer les informations de l'utilisateur connecté
  */
 export const getCurrentUser = async (userId: string) => {
-  // Trouver l'utilisateur par ID
   const user = await User.findById(userId);
 
-  // Vérifier si l'utilisateur existe
   if (!user) {
-    throw new Error('Utilisateur non trouvé');
+    throw new NotFoundError('Utilisateur non trouvé');
   }
 
   return user;
