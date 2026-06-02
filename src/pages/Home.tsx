@@ -30,54 +30,22 @@ interface FetchState {
 }
 
 export default function Home() {
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState<number>(1)
   const postsPerPage = 6
 
-  // Data state
+  const [currentPage, setCurrentPage] = useState<number>(1)
+  const [totalPages, setTotalPages] = useState<number>(0)
   const [posts, setPosts] = useState<PostType[]>([])
   const [categories, setCategories] = useState<CategoryProps[]>([])
   const [featuredPosts, setFeaturedPosts] = useState<PostType[]>([])
-  const [recentPosts, setRecentPosts] = useState<PostType[]>([])
+  const [recentPost, setRecentPost] = useState<PostType | null>(null)
 
-  // UI state
   const [fetchState, setFetchState] = useState<FetchState>({
     posts: { status: "idle", error: null },
     categories: { status: "idle", error: null }
   })
 
-  // Derived state
-  const totalPages = Math.ceil(posts.length / postsPerPage)
+  const getRandomRecentPost = useCallback(() => recentPost, [recentPost])
 
-  /**
-   * Filter posts from the last 30 days
-   * @param posts - Array of posts to filter
-   * @returns Array of posts from the last 30 days
-   */
-  const filterRecentPosts = useCallback((posts: PostType[]) => {
-    const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-    
-    return posts.filter(post => {
-      const postDate = new Date(post.createdAt)
-      return postDate >= thirtyDaysAgo
-    }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-  }, [])
-
-  /**
-   * Get a random recent post for the latest article section
-   * @returns A random recent post or null if none available
-   */
-  const getRandomRecentPost = useCallback(() => {
-    if (recentPosts.length === 0) return null
-    const randomIndex = Math.floor(Math.random() * recentPosts.length)
-    return recentPosts[randomIndex]
-  }, [recentPosts])
-
-  /**
-   * Handle page change for pagination
-   * @param page - The page number to navigate to
-   */
   const handlePageChange = (page: number) => {
     if (page > 0 && page <= totalPages) {
       setCurrentPage(page)
@@ -85,18 +53,16 @@ export default function Home() {
     }
   }
 
-  /**
-   * Fetch posts from the API
-   */
-  const fetchPosts = useCallback(async () => {
-    // Update fetch state to loading
-    setFetchState(prev => ({
-      ...prev,
-      posts: { status: "loading", error: null }
-    }))
+  const fetchPosts = useCallback(async (page = 1) => {
+    setFetchState(prev => ({ ...prev, posts: { status: "loading", error: null } }))
 
     try {
-      const response = await fetch(API_ENDPOINTS.posts.list)
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: postsPerPage.toString(),
+        status: "published",
+      })
+      const response = await fetch(`${API_ENDPOINTS.posts.list}?${params}`)
 
       if (!response.ok) {
         throw new Error(`Failed to fetch posts: ${response.status}`)
@@ -104,48 +70,42 @@ export default function Home() {
 
       const data = await response.json()
 
-      // Check for possible array or object structure
-      let postsArray: PostType[];
+      let postsArray: PostType[]
+      let serverTotal = 0
+      let serverTotalPages = 0
+
       if (Array.isArray(data)) {
-        postsArray = data;
+        postsArray = data
+        serverTotal = data.length
+        serverTotalPages = 1
       } else if (Array.isArray(data.posts)) {
-        postsArray = data.posts;
+        postsArray = data.posts
+        serverTotal = data.total ?? data.totalCount ?? data.posts.length
+        serverTotalPages = data.totalPages ?? Math.ceil(serverTotal / postsPerPage)
       } else {
         throw new Error("Malformed posts response")
       }
 
-      // Debug: Log the posts data to see category structure
-
-      // Debug: Log specifically the category data for each post
-      // Update posts state
       setPosts(postsArray)
+      setTotalPages(serverTotalPages)
 
-      // Filter featured posts
-      const featured = postsArray.filter((post: any) => post.featured === true)
-      setFeaturedPosts(featured)
+      // Featured posts only on first page
+      if (page === 1) {
+        setFeaturedPosts(postsArray.filter((p: any) => p.featured === true))
 
-      // Filter recent posts (last 30 days) for Latest Articles section
-      const recent = filterRecentPosts(postsArray)
-      setRecentPosts(recent)
+        const thirtyDaysAgo = new Date()
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+        const recent = postsArray
+          .filter(p => new Date(p.createdAt) >= thirtyDaysAgo)
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        setRecentPost(recent[Math.floor(Math.random() * Math.max(recent.length, 1))] ?? null)
+      }
 
-      // Update fetch state to success
-      setFetchState(prev => ({
-        ...prev,
-        posts: { status: "success", error: null }
-      }))
+      setFetchState(prev => ({ ...prev, posts: { status: "success", error: null } }))
     } catch (error) {
-
       const errorMessage = error instanceof Error ? error.message : "Failed to fetch posts"
       showError(errorMessage, "Erreur de chargement")
-
-      // Update fetch state to error
-      setFetchState(prev => ({
-        ...prev,
-        posts: {
-          status: "error",
-          error: errorMessage
-        }
-      }))
+      setFetchState(prev => ({ ...prev, posts: { status: "error", error: errorMessage } }))
     }
   }, [])
 
@@ -192,102 +152,49 @@ export default function Home() {
     }
   }, [])
 
-  // Fetch data on component mount
   useEffect(() => {
-    fetchPosts()
-    fetchCategories()
-  }, [fetchPosts, fetchCategories])
+    fetchPosts(currentPage)
+  }, [currentPage])
 
-  // Subscribe to global state changes for real-time updates
+  useEffect(() => {
+    fetchCategories()
+  }, [fetchCategories])
+
   useGlobalStateEvents([
     {
       type: 'POST_UPDATED',
-      handler: useCallback(({ postId, postData }) => {
-
+      handler: useCallback(() => {
         showSuccess('Article mis à jour avec succès')
-        
-        // Update post in main list
-        setPosts(prevPosts => 
-          prevPosts.map(post => 
-            post._id === postId ? { ...post, ...postData } : post
-          )
-        )
-        
-        // Update in featured posts if present
-        setFeaturedPosts(prevFeatured => 
-          prevFeatured.map(post => 
-            post._id === postId ? { ...post, ...postData } : post
-          )
-        )
-        
-        // Update in recent posts if present
-        setRecentPosts(prevRecent => 
-          prevRecent.map(post => 
-            post._id === postId ? { ...post, ...postData } : post
-          )
-        )
-      }, [])
+        fetchPosts(currentPage)
+      }, [currentPage, fetchPosts])
     },
     {
       type: 'POST_DELETED',
-      handler: useCallback(({ postId }) => {
-
+      handler: useCallback(() => {
         showSuccess('Article supprimé avec succès')
-        
-        // Remove from main posts list
-        setPosts(prevPosts => prevPosts.filter(post => post._id !== postId))
-        
-        // Remove from featured posts
-        setFeaturedPosts(prevFeatured => prevFeatured.filter(post => post._id !== postId))
-        
-        // Remove from recent posts
-        setRecentPosts(prevRecent => prevRecent.filter(post => post._id !== postId))
-      }, [])
+        fetchPosts(currentPage)
+      }, [currentPage, fetchPosts])
     },
     {
       type: 'POST_CREATED',
-      handler: useCallback(({ postData }) => {
-
+      handler: useCallback(() => {
         showSuccess('Nouvel article créé avec succès')
-        
-        // Add to main posts list at the beginning
-        setPosts(prevPosts => [postData, ...prevPosts])
-        
-        // If it's featured, add to featured posts
-        if (postData.featured) {
-          setFeaturedPosts(prevFeatured => [postData, ...prevFeatured])
-        }
-        
-        // Check if it qualifies for recent posts
-        const postDate = new Date(postData.createdAt)
-        const thirtyDaysAgo = new Date()
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-        
-        if (postDate >= thirtyDaysAgo) {
-          setRecentPosts(prevRecent => [postData, ...prevRecent]
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-          )
-        }
-      }, [])
+        fetchPosts(1)
+        setCurrentPage(1)
+      }, [fetchPosts])
     },
     {
       type: 'CACHE_INVALIDATE',
       handler: useCallback(({ scope, reason }) => {
-
         if (scope === 'home-posts' || scope === 'all') {
-          // Force refresh of all posts data immediately
-
-          // Force immediate refresh
-          fetchPosts()
-          
-          // Also refresh categories if needed
+          fetchPosts(currentPage)
           if (reason === 'post-created' || reason === 'post-updated') {
             fetchCategories()
           }
         }
-      }, [fetchPosts, fetchCategories])
+      }, [currentPage, fetchPosts, fetchCategories])
     }
-  ], [fetchPosts, fetchCategories])
+  ], [currentPage, fetchPosts, fetchCategories])
 
   /**
    * Get a random featured post for the hero section
@@ -361,9 +268,7 @@ export default function Home() {
     if (fetchState.posts.status === "success" && posts.length > 0) {
       return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {posts
-            .slice((currentPage - 1) * postsPerPage, currentPage * postsPerPage)
-            .map((post, index) => (
+          {posts.map((post, index) => (
               <AnimateOnView key={post._id} animation="slide-up" delay={index * 100}>
                 <div className="group relative">
                   <div className="absolute -inset-1 bg-gradient-to-r from-primary/10 to-emerald-500/10 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -625,7 +530,7 @@ export default function Home() {
           {renderPostsContent()}
 
           {/* Pagination */}
-          {posts.length > postsPerPage && (
+          {totalPages > 1 && (
             <AnimateOnView animation="fade" delay={300}>
               <div className="mt-16 flex justify-center">
                 <div className="bg-background/30 backdrop-blur-sm border border-border/30 rounded-2xl p-2">

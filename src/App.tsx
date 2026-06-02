@@ -8,11 +8,8 @@ import "./css/dark-mode.css"
 import Home from "./pages/Home"
 import CategoryPage from "./pages/Category"
 import PostPage from "./pages/Post"
-import CreatePost from "./pages/createPost"
-
-// New enhanced post management
-import { CreatePost as NewCreatePost } from "./features/posts/pages/CreatePost"
-import { EditPost as NewEditPost } from "./features/posts/pages/EditPost"
+import { CreatePost } from "./features/posts/pages/CreatePost"
+import { EditPost } from "./features/posts/pages/EditPost"
 import { Drafts } from "./features/posts/pages/Drafts"
 import Register from "./pages/Register"
 import Login from "./pages/Login"
@@ -62,6 +59,8 @@ function App(): React.ReactElement {
               <Routes>
                 <Route index element={<Home />} />
                 <Route path="/category/:categoryId" element={<CategoryPage />} />
+                <Route path="/posts/:id" element={<PostPage />} />
+                {/* Legacy redirect for old /Post/:id links */}
                 <Route path="/Post/:id" element={<PostPage />} />
                 <Route path="/register_page" element={<Register />} />
                 <Route path="/login_page" element={<Login />} />
@@ -71,9 +70,10 @@ function App(): React.ReactElement {
 
                 {/* Routes nécessitant une authentification */}
                 <Route path="/edit-username" element={<ProtectedRoute><EditUsername /></ProtectedRoute>} />
+                <Route path="/posts/create" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
+                {/* Legacy redirect for old /create_post links */}
                 <Route path="/create_post" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
-                <Route path="/posts/create" element={<ProtectedRoute><NewCreatePost /></ProtectedRoute>} />
-                <Route path="/posts/edit/:id" element={<ProtectedRoute><NewEditPost /></ProtectedRoute>} />
+                <Route path="/posts/edit/:id" element={<ProtectedRoute><EditPost /></ProtectedRoute>} />
                 <Route path="/posts/drafts" element={<ProtectedRoute><Drafts /></ProtectedRoute>} />
 
                 {/* Routes réservées aux admins */}
