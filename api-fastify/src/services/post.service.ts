@@ -425,8 +425,8 @@ const createPostNotification = async (post: IPost, authorId: string): Promise<vo
         username: author.username
       },
     });
-  } catch (error) {
-    console.error('Failed to create post notification:', error);
+  } catch {
+    // Notification non critique : ne pas faire échouer la création du post
   }
 };
 

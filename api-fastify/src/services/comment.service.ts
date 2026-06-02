@@ -56,8 +56,6 @@ export const getPostComments = async (
   // Si on récupère les commentaires de premier niveau, récupérer également leurs réponses
   let commentsWithReplies = comments;
   
-  console.log('getPostComments - currentUserId:', currentUserId);
-  console.log('getPostComments - comments count:', comments.length);
 
   if (!parentId) {
     commentsWithReplies = await Promise.all(
@@ -99,8 +97,6 @@ export const getPostComments = async (
           commentObj.isDisliked = commentObj.dislikes.includes(currentUserId);
         }
         
-        console.log(`Comment ${comment._id} - likedBy:`, comment.likedBy, 'dislikedBy:', comment.dislikedBy, 'normalized likes:', commentObj.likes, 'normalized dislikes:', commentObj.dislikes);
-
         return commentObj;
       })
     );

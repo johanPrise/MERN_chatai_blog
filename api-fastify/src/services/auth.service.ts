@@ -50,9 +50,8 @@ export const registerUser = async (userData: RegisterInput) => {
   // Déclencher le hook de notification pour nouvel utilisateur
   try {
     await onUserRegistered(String(newUser._id), username);
-  } catch (error) {
-    // Log l'erreur mais ne pas faire échouer l'inscription
-    console.error('Failed to create user registration notification:', error);
+  } catch {
+    // Notification non critique : ne pas faire échouer l'inscription
   }
 
   // Envoyer un email de vérification

@@ -65,8 +65,6 @@ const generateResponse = async (messages: IMessage[]): Promise<string> => {
 
       // Qwen3-Demo utilise un endpoint différent
       if (model === 'Qwen/Qwen3-Demo') {
-        console.log(`🔄 Utilisation du modèle Qwen3 avec endpoint /add_message`);
-
         result = await client.predict('/add_message', {
           input_value: lastUserMessage,
           settings_form_value: {
@@ -89,8 +87,6 @@ const generateResponse = async (messages: IMessage[]): Promise<string> => {
             "Tu es un assistant utile et amical pour un blog sur la technologie et l'IA.",
         });
       }
-
-      console.log(`Résultat brut de l'API (${model}):`, result.data);
 
       if (!result || !result.data) {
         throw new Error("Format de réponse invalide de l'API");
@@ -152,10 +148,6 @@ const generateResponse = async (messages: IMessage[]): Promise<string> => {
             throw new Error('Format de réponse Qwen3 invalide: lastExchange invalide');
           }
         } else {
-          console.error(
-            'Structure complète de la réponse Qwen3:',
-            JSON.stringify(resultData, null, 2)
-          );
           throw new Error('Format de réponse Qwen3 invalide: chatbotData introuvable');
         }
       } else {
@@ -165,15 +157,9 @@ const generateResponse = async (messages: IMessage[]): Promise<string> => {
 
       return aiResponse;
     } catch (error) {
-      console.error(`Erreur lors de la génération de la réponse avec ${model}:`, error);
-
-      // Si c'est le dernier modèle de la liste, relancer l'erreur
       if (model === models[models.length - 1]) {
         throw error;
       }
-
-      // Sinon, continuer avec le modèle suivant
-      console.log(`Essai avec le modèle suivant...`);
     }
   }
 
@@ -204,10 +190,7 @@ export const sendMessage = async (input: string, sessionId: string): Promise<str
     session.messages.push({ content: aiResponse, sender: 'assistant' });
 
     return aiResponse;
-  } catch (error) {
-    console.error("Erreur lors de l'envoi du message à l'IA:", error);
-
-    // En cas d'erreur, utiliser une réponse de secours
+  } catch {
     return 'Désolé, je rencontre des difficultés à traiter votre demande pour le moment. Veuillez réessayer plus tard.';
   }
 };

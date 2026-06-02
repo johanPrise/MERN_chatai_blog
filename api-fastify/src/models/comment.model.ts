@@ -52,7 +52,7 @@ commentSchema.post('save', async function () {
       $inc: { commentCount: 1 },
     });
   } catch (error) {
-    console.error('Erreur lors de la mise à jour du compteur de commentaires:', error);
+    // Erreur non critique sur le compteur, le commentaire est déjà sauvegardé
   }
 });
 
@@ -69,7 +69,7 @@ commentSchema.pre('findOneAndDelete', async function () {
       });
     }
   } catch (error) {
-    console.error('Erreur lors de la mise à jour du compteur de commentaires:', error);
+    // Erreur non critique sur le compteur, le commentaire est déjà sauvegardé
   }
 });
 

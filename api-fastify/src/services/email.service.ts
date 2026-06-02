@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { logger } from './logger.service.js';
 
 // Configuration du transporteur d'emails
 let transporter: nodemailer.Transporter;
@@ -14,7 +15,7 @@ export const initEmailTransporter = (): void => {
   const secure = process.env.EMAIL_SECURE === 'true';
 
   if (!host || !user || !pass) {
-    console.warn('Configuration email incomplète, les emails ne seront pas envoyés');
+    logger.warn('Configuration email incomplète, les emails ne seront pas envoyés');
     return;
   }
 
@@ -39,7 +40,7 @@ export const sendEmail = async (
 ): Promise<boolean> => {
   try {
     if (!transporter) {
-      console.warn('Transporteur email non initialisé, email non envoyé');
+      logger.warn('Transporteur email non initialisé, email non envoyé');
       return false;
     }
 
@@ -54,7 +55,7 @@ export const sendEmail = async (
 
     return true;
   } catch (error) {
-    console.error('Erreur lors de l\'envoi de l\'email:', error);
+    logger.error("Erreur lors de l'envoi de l'email", error instanceof Error ? error : undefined);
     return false;
   }
 };
