@@ -68,7 +68,6 @@ export const loadComponentLazily = async <T>(importFn: () => Promise<{ default: 
     const module = await importFn();
     return module.default;
   } catch (error) {
-    console.error('Failed to load component lazily:', error);
     throw error;
   }
 };

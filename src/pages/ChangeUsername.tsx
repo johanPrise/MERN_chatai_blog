@@ -1,4 +1,3 @@
-"use client"
 
 import React, { useState, useCallback, useEffect } from "react"
 import { Navigate, Link, useNavigate } from "react-router-dom"
@@ -118,7 +117,7 @@ const EditUsername: React.FC = () => {
         setErrorMessage(data.message || "Failed to update username. Please try again.")
       }
     } catch (error) {
-      console.error("Error updating username:", error)
+
       setStatus("error")
       setErrorMessage("An error occurred while connecting to the server. Please try again.")
     }

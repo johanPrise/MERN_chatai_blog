@@ -1,4 +1,3 @@
-"use client"
 
 import React, { useState, useEffect, useCallback } from "react"
 import { useParams, Link, useSearchParams } from "react-router-dom"
@@ -35,16 +34,16 @@ import { enhancedNavigationService } from '../services/enhancedNavigationService
 
 // Helper function to extract Tiptap doc from contentBlocks
 const getTiptapDoc = (blocks: any[]) => {
-  console.log('[getTiptapDoc] Input blocks:', blocks)
+
   if (!Array.isArray(blocks) || blocks.length === 0) {
-    console.log('[getTiptapDoc] No blocks found')
+
     return null
   }
   
   const tiptapBlock = blocks.find(b => b?.type === 'tiptap')
-  console.log('[getTiptapDoc] Found tiptap block:', tiptapBlock)
+
   const doc = tiptapBlock?.data?.doc || null
-  console.log('[getTiptapDoc] Extracted doc:', doc)
+
   return doc
 }
 
@@ -214,7 +213,7 @@ async function executePostDeletionApi(
       enhancedNavigationService.handlePostDeletionNavigation(postId)
     }, 1500)
   } catch (error: any) {
-    console.error("Error deleting post:", error)
+
     setErrorMessage(error instanceof Error ? error.message : "Failed to delete post")
   }
 }
@@ -735,9 +734,9 @@ const PostPage = () => {
   // Extract Tiptap document from contentBlocks
   const tiptapDoc = React.useMemo(() => {
     const blocks: any[] = (postInfo as any)?.contentBlocks || []
-    console.log('[PostPage] ContentBlocks:', blocks)
+
     const doc = getTiptapDoc(blocks)
-    console.log('[PostPage] TiptapDoc:', doc)
+
     return doc
   }, [postInfo])
 
@@ -833,7 +832,6 @@ const PostPage = () => {
 
   // Function to manually refresh post data
   const refreshPostData = useCallback(() => {
-    console.log('[PostPage] Manual refresh triggered');
     setIsLoading(true);
     fetchPostAndSetup({
       id,
@@ -899,7 +897,7 @@ const PostPage = () => {
   // Subscribe to global post updates for real-time synchronization
   useGlobalStateEvent('POST_UPDATED', useCallback(({ postId, postData }) => {
     if (postId === id && postInfo) {
-      console.log('[PostPage] Received global post update:', { postId, hasData: !!postData })
+
       // Update local post info with fresh data from global state
       setPostInfo(prevInfo => prevInfo ? { ...prevInfo, ...postData } : null)
     }
@@ -907,13 +905,7 @@ const PostPage = () => {
 
   // Main effect to load post data with enhanced cache invalidation
   useEffect(() => {
-    console.log('[PostPage] Loading post data:', {
-      id,
-      userInfo: userInfo?.username,
-      updatedParam,
-      refreshedParam: searchParams.get('refreshed'),
-      timestamp: new Date().toISOString()
-    });
+
     
     // Force fresh data by adding cache-busting parameter
     const fetchUrl = `${API_ENDPOINTS.posts.detail(id || '')}?_t=${Date.now()}`;

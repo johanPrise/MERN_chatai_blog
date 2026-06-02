@@ -45,21 +45,17 @@ export function CategorySelector({
       event.stopPropagation();
     }
 
-    console.log('Category select clicked:', categoryId, 'Current value:', value);
 
     if (value.includes(categoryId)) {
       // Remove category
       const newValue = value.filter(id => id !== categoryId);
-      console.log('Removing category, new value:', newValue);
       onChange(newValue);
     } else {
       // Add category (if under limit)
       if (value.length < maxSelections) {
         const newValue = [...value, categoryId];
-        console.log('Adding category, new value:', newValue);
         onChange(newValue);
       } else {
-        console.log('Max selections reached, not adding');
       }
     }
   }, [value, onChange, maxSelections]);

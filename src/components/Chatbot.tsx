@@ -1,4 +1,3 @@
-"use client"
 
 import React, { useState, useEffect, useRef } from "react"
 import { nanoid } from "nanoid"
@@ -187,7 +186,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
       const botMessage = createBotMessage(responseText)
       setMessages(prev => [...prev, botMessage])
     } catch (error) {
-      console.error("Error:", error)
+
       setError(error instanceof Error ? error.message : "Une erreur est survenue")
     } finally {
       setIsThinking(false)

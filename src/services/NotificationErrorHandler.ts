@@ -50,7 +50,7 @@ export class NotificationErrorHandler {
     const normalizedError = this.normalizeError(error, context)
     
     if (this.config.logErrors) {
-      console.error(`[NotificationError] ${context}:`, normalizedError)
+
     }
 
     return normalizedError

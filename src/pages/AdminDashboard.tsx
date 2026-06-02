@@ -1,4 +1,3 @@
-"use client"
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { UserContext } from "../UserContext"
@@ -38,11 +37,10 @@ function AdminDashboard() {
   const checkAdminStatus = useCallback(async () => {
     try {
       setIsLoading(true)
-      console.log("Checking admin status...")
 
       // Check if userInfo already contains the role
       if (userInfo && userInfo.role === 'admin') {
-        console.log("User already identified as admin via userInfo")
+
         setIsAdmin(true)
         return
       }
@@ -51,7 +49,6 @@ function AdminDashboard() {
         credentials: "include",
       })
 
-      console.log("Admin check response:", response.status)
 
       if (!response.ok) {
         // Try to get error details from response
@@ -59,20 +56,19 @@ function AdminDashboard() {
         try {
           const errorData = await response.json();
           errorMessage = errorData.message || errorMessage;
-          console.error("Error details:", errorData);
+
         } catch (e) {
-          console.error("Could not parse error response:", e);
+
         }
         throw new Error(`${errorMessage} (${response.status})`);
       }
 
       const data = await response.json()
-      console.log("Admin check data:", data)
 
       // The /auth/check-admin route returns { isAdmin: boolean }
       setIsAdmin(data.isAdmin)
     } catch (error) {
-      console.error("Error checking admin status:", error)
+
       setIsAdmin(false)
       setError(`Unable to verify admin privileges: ${error instanceof Error ? error.message : "Unknown error"}`)
     } finally {
@@ -105,8 +101,6 @@ function AdminDashboard() {
       url.searchParams.append("sort", sort)
       url.searchParams.append("order", order)
 
-      console.log("Fetching users from URL:", url.toString())
-
       const response = await fetch(url.toString(), {
         credentials: "include",
       })
@@ -117,15 +111,14 @@ function AdminDashboard() {
         try {
           const errorData = await response.json();
           errorMessage = errorData.message || errorMessage;
-          console.error("Error details:", errorData);
+
         } catch (e) {
-          console.error("Could not parse error response:", e);
+
         }
         throw new Error(`${errorMessage} (${response.status})`);
       }
 
       const data = await response.json();
-      console.log("Received user data:", data);
 
       // Check if data contains a users array
       if (data && Array.isArray(data.users)) {
@@ -136,11 +129,11 @@ function AdminDashboard() {
         setUsers(data);
         setTotalPages(1);
       } else {
-        console.error("Unexpected data format:", data);
+
         throw new Error("Unexpected data format");
       }
     } catch (error) {
-      console.error("Error fetching users:", error);
+
       setError(`Unable to retrieve user list: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setIsLoading(false);
@@ -153,7 +146,6 @@ function AdminDashboard() {
     setError(null)
 
     try {
-      console.log(`Changing role for user ${userId} to ${newRole}`)
 
       const response = await fetch(API_ENDPOINTS.users.changeRole(userId), {
         method: "PATCH",
@@ -164,7 +156,6 @@ function AdminDashboard() {
         credentials: "include",
       })
 
-      console.log("Role change response:", response.status)
 
       if (!response.ok) {
         // Try to get error details from response
@@ -172,15 +163,14 @@ function AdminDashboard() {
         try {
           const errorData = await response.json();
           errorMessage = errorData.message || errorMessage;
-          console.error("Error details:", errorData);
+
         } catch (e) {
-          console.error("Could not parse error response:", e);
+
         }
         throw new Error(`${errorMessage} (${response.status})`);
       }
 
       const data = await response.json()
-      console.log("Role change data:", data)
 
       // Update UI with server data
       setUsers((prevUsers) =>
@@ -189,9 +179,9 @@ function AdminDashboard() {
         )
       )
 
-      console.log(data.message || "Role changed successfully")
+
     } catch (error) {
-      console.error("Error changing role:", error)
+
       setError(error instanceof Error ? error.message : "An unknown error occurred")
     } finally {
       setIsLoading(false)
@@ -208,14 +198,12 @@ function AdminDashboard() {
     setError(null)
 
     try {
-      console.log(`Deleting user ${userId}`)
 
       const response = await fetch(API_ENDPOINTS.users.detail(userId), {
         method: "DELETE",
         credentials: "include",
       })
 
-      console.log("User deletion response:", response.status)
 
       if (!response.ok) {
         // Try to get error details from response
@@ -223,15 +211,14 @@ function AdminDashboard() {
         try {
           const errorData = await response.json();
           errorMessage = errorData.message || errorMessage;
-          console.error("Error details:", errorData);
+
         } catch (e) {
-          console.error("Could not parse error response:", e);
+
         }
         throw new Error(`${errorMessage} (${response.status})`);
       }
 
       const data = await response.json()
-      console.log("User deletion data:", data)
 
       // Update UI by removing deleted user
       setUsers((prevUsers) => prevUsers.filter((user) => user._id !== userId))
@@ -239,7 +226,7 @@ function AdminDashboard() {
       // Show success message
       alert(data.message || "User deleted successfully")
     } catch (error) {
-      console.error("Error deleting user:", error)
+
       setError(error instanceof Error ? error.message : "An unknown error occurred")
     } finally {
       setIsLoading(false)
@@ -256,7 +243,6 @@ function AdminDashboard() {
     setError(null)
 
     try {
-      console.log(`Sending password reset to ${email}`)
 
       const response = await fetch(API_ENDPOINTS.auth.forgotPassword, {
         method: "POST",
@@ -267,7 +253,6 @@ function AdminDashboard() {
         credentials: "include",
       })
 
-      console.log("Password reset response:", response.status)
 
       if (!response.ok) {
         // Try to get error details from response
@@ -275,20 +260,19 @@ function AdminDashboard() {
         try {
           const errorData = await response.json();
           errorMessage = errorData.message || errorMessage;
-          console.error("Error details:", errorData);
+
         } catch (e) {
-          console.error("Could not parse error response:", e);
+
         }
         throw new Error(`${errorMessage} (${response.status})`);
       }
 
       const data = await response.json()
-      console.log("Password reset data:", data)
 
       // Show success message
       alert(data.message || "Password reset email sent successfully")
     } catch (error) {
-      console.error("Error sending password reset email:", error)
+
       setError(error instanceof Error ? error.message : "An unknown error occurred")
     } finally {
       setIsLoading(false)

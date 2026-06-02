@@ -28,7 +28,6 @@ class EnhancedNavigationService {
   initialize(navigate: NavigateFunction): void {
     this.navigate = navigate;
     if (this.debug) {
-      console.log('[EnhancedNavigationService] Initialized');
     }
   }
 
@@ -51,12 +50,10 @@ class EnhancedNavigationService {
    */
   navigateToPost(postId: string | undefined | null, options: NavigationOptions = {}): boolean {
     if (!this.navigate) {
-      console.error('[EnhancedNavigationService] Navigate function not initialized');
       return false;
     }
 
     if (!this.validatePostId(postId)) {
-      console.error('[EnhancedNavigationService] Invalid post ID:', postId);
       if (options.fallbackRoute) {
         this.navigate(options.fallbackRoute, { replace: options.replaceState || false });
       }
@@ -79,11 +76,7 @@ class EnhancedNavigationService {
     const url = `/Post/${postId}${queryString ? '?' + queryString : ''}`;
     
     if (this.debug) {
-      console.log('[EnhancedNavigationService] Navigating to post:', {
-        postId,
-        url,
-        options
-      });
+
     }
     
     try {
@@ -92,7 +85,6 @@ class EnhancedNavigationService {
       });
       return true;
     } catch (error) {
-      console.error('[EnhancedNavigationService] Navigation error:', error);
       
       // Fallback to direct URL change if React Router fails
       window.location.href = url;
@@ -105,7 +97,6 @@ class EnhancedNavigationService {
    */
   navigateToHome(options: HomeNavigationOptions = {}): void {
     if (!this.navigate) {
-      console.error('[EnhancedNavigationService] Navigate function not initialized');
       window.location.href = '/';
       return;
     }
@@ -116,7 +107,6 @@ class EnhancedNavigationService {
     }
     
     if (this.debug) {
-      console.log('[EnhancedNavigationService] Navigating to home:', options);
     }
     
     try {
@@ -124,7 +114,6 @@ class EnhancedNavigationService {
         replace: options.replaceState || false 
       });
     } catch (error) {
-      console.error('[EnhancedNavigationService] Home navigation error:', error);
       window.location.href = '/';
     }
   }
@@ -134,19 +123,16 @@ class EnhancedNavigationService {
    */
   navigateToEditPost(postId: string | undefined | null, options: NavigationOptions = {}): boolean {
     if (!this.navigate) {
-      console.error('[EnhancedNavigationService] Navigate function not initialized');
       return false;
     }
 
     if (!this.validatePostId(postId)) {
-      console.error('[EnhancedNavigationService] Invalid post ID for editing:', postId);
       return false;
     }
 
     const url = `/posts/edit/${postId}`;
     
     if (this.debug) {
-      console.log('[EnhancedNavigationService] Navigating to edit post:', { postId, url });
     }
     
     try {
@@ -155,7 +141,6 @@ class EnhancedNavigationService {
       });
       return true;
     } catch (error) {
-      console.error('[EnhancedNavigationService] Edit navigation error:', error);
       return false;
     }
   }
@@ -165,7 +150,6 @@ class EnhancedNavigationService {
    */
   navigateToCreatePost(options: NavigationOptions = {}): void {
     if (!this.navigate) {
-      console.error('[EnhancedNavigationService] Navigate function not initialized');
       window.location.href = '/posts/create';
       return;
     }
@@ -175,7 +159,6 @@ class EnhancedNavigationService {
         replace: options.replaceState || false 
       });
     } catch (error) {
-      console.error('[EnhancedNavigationService] Create navigation error:', error);
       window.location.href = '/posts/create';
     }
   }
@@ -185,7 +168,6 @@ class EnhancedNavigationService {
    */
   navigateToDrafts(options: NavigationOptions = {}): void {
     if (!this.navigate) {
-      console.error('[EnhancedNavigationService] Navigate function not initialized');
       window.location.href = '/posts/drafts';
       return;
     }
@@ -195,7 +177,6 @@ class EnhancedNavigationService {
         replace: options.replaceState || false 
       });
     } catch (error) {
-      console.error('[EnhancedNavigationService] Drafts navigation error:', error);
       window.location.href = '/posts/drafts';
     }
   }
@@ -205,7 +186,6 @@ class EnhancedNavigationService {
    */
   navigateWithFallback(primaryRoute: string, fallbackRoute: string = '/', options: NavigationOptions = {}): void {
     if (!this.navigate) {
-      console.error('[EnhancedNavigationService] Navigate function not initialized');
       window.location.href = fallbackRoute;
       return;
     }
@@ -215,13 +195,11 @@ class EnhancedNavigationService {
         replace: options.replaceState || false 
       });
     } catch (error) {
-      console.error('[EnhancedNavigationService] Primary navigation failed, using fallback:', { primaryRoute, fallbackRoute, error });
       try {
         this.navigate(fallbackRoute, { 
           replace: options.replaceState || false 
         });
       } catch (fallbackError) {
-        console.error('[EnhancedNavigationService] Fallback navigation failed:', fallbackError);
         window.location.href = fallbackRoute;
       }
     }

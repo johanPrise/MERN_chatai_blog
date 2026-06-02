@@ -1,4 +1,3 @@
-"use client"
 import React, { useState, useRef, useEffect } from "react"
 import { useTheme } from "../contexts/ThemeContext"
 import { Button } from "./button"
@@ -32,7 +31,7 @@ export function ColorThemeToggle() {
   }, [isOpen])
 
   const handleColorThemeChange = (theme: "green" | "blue" | "purple" | "amber") => {
-    console.log("Changing color theme to:", theme)
+
     setColorTheme(theme)
     setIsOpen(false)
 
@@ -43,7 +42,6 @@ export function ColorThemeToggle() {
     // Vérifier que le thème a bien été appliqué
     setTimeout(() => {
       const currentTheme = document.documentElement.getAttribute("data-color-theme")
-      console.log("Current color theme attribute:", currentTheme)
 
       // Retirer la classe après l'animation
       setTimeout(() => {

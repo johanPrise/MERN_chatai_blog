@@ -78,10 +78,8 @@ export function SingleCategorySelector({
 
   // Handle category selection
   const selectCategory = useCallback((categoryId: string) => {
-    console.log('Selecting category:', categoryId, 'Current value:', value);
     
     if (!categoryId || typeof categoryId !== 'string') {
-      console.error('Invalid category ID:', categoryId);
       return;
     }
 
@@ -92,7 +90,6 @@ export function SingleCategorySelector({
 
   // Handle clear selection
   const clearSelection = useCallback(() => {
-    console.log('Clearing selection');
     onChange('');
     setIsOpen(false);
     setSearchTerm('');
@@ -109,11 +106,9 @@ export function SingleCategorySelector({
       event.preventDefault();
       event.stopPropagation();
       
-      console.log('Category click handler called with ID:', categoryId);
       
       // Double check the categoryId is valid
       if (!categoryId || typeof categoryId !== 'string') {
-        console.error('Invalid category ID in click handler:', categoryId);
         return;
       }
       
@@ -122,13 +117,6 @@ export function SingleCategorySelector({
   }, [selectCategory]);
 
   // Debug: Log categories to see their structure
-  useEffect(() => {
-    console.log('Categories received:', categories);
-    if (categories.length > 0) {
-      console.log('First category structure:', categories[0]);
-      console.log('First category ID extracted:', getCategoryId(categories[0]));
-    }
-  }, [categories, getCategoryId]);
 
   return (
     <div className={cn('relative', className)} ref={dropdownRef}>
@@ -196,7 +184,6 @@ export function SingleCategorySelector({
                   
                   // Validate category structure
                   if (!category || !categoryId) {
-                    console.warn('Invalid category found:', category);
                     return null;
                   }
 

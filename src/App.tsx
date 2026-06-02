@@ -8,11 +8,8 @@ import "./css/dark-mode.css"
 import Home from "./pages/Home"
 import CategoryPage from "./pages/Category"
 import PostPage from "./pages/Post"
-import CreatePost from "./pages/createPost"
-
-// New enhanced post management
-import { CreatePost as NewCreatePost } from "./features/posts/pages/CreatePost"
-import { EditPost as NewEditPost } from "./features/posts/pages/EditPost"
+import { CreatePost } from "./features/posts/pages/CreatePost"
+import { EditPost } from "./features/posts/pages/EditPost"
 import { Drafts } from "./features/posts/pages/Drafts"
 import Register from "./pages/Register"
 import Login from "./pages/Login"
@@ -31,6 +28,7 @@ import Header from "./components/header"
 import Chatbot from "./components/Chatbot"
 import { ContentFilterAdmin } from "./components/admin/ContentFilterAdmin"
 import ErrorBoundary from "./components/ErrorBoundary"
+import { ProtectedRoute } from "./components/ProtectedRoute"
 import { ErrorProvider } from "./contexts/ErrorContext"
 import { Toaster } from "./components/ui/toaster"
 
@@ -61,23 +59,28 @@ function App(): React.ReactElement {
               <Routes>
                 <Route index element={<Home />} />
                 <Route path="/category/:categoryId" element={<CategoryPage />} />
-                <Route path="/deleteCategory" element={<DeleteCategories />} />
-                <Route path="/create_category" element={<CreateCategory />} />
+                <Route path="/posts/:id" element={<PostPage />} />
+                {/* Legacy redirect for old /Post/:id links */}
                 <Route path="/Post/:id" element={<PostPage />} />
-                <Route path="/create_post" element={<CreatePost />} />
                 <Route path="/register_page" element={<Register />} />
                 <Route path="/login_page" element={<Login />} />
                 <Route path="/forgot_password" element={<ForgotPassword />} />
                 <Route path="/reset-password/:resetToken" element={<ResetPassword />} />
-                <Route path="/edit-username" element={<EditUsername />} />
-                <Route path="/admin" element={<AdminDashboard />} />
-                <Route path="/admin/content-filter" element={<ContentFilterAdmin />} />
-
                 <Route path="/search" element={<Search />} />
-                {/* New enhanced post management routes */}
-                <Route path="/posts/create" element={<NewCreatePost />} />
-                <Route path="/posts/edit/:id" element={<NewEditPost />} />
-                <Route path="/posts/drafts" element={<Drafts />} />
+
+                {/* Routes nécessitant une authentification */}
+                <Route path="/edit-username" element={<ProtectedRoute><EditUsername /></ProtectedRoute>} />
+                <Route path="/posts/create" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
+                {/* Legacy redirect for old /create_post links */}
+                <Route path="/create_post" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
+                <Route path="/posts/edit/:id" element={<ProtectedRoute><EditPost /></ProtectedRoute>} />
+                <Route path="/posts/drafts" element={<ProtectedRoute><Drafts /></ProtectedRoute>} />
+
+                {/* Routes réservées aux admins */}
+                <Route path="/deleteCategory" element={<ProtectedRoute requiredRole="admin"><DeleteCategories /></ProtectedRoute>} />
+                <Route path="/create_category" element={<ProtectedRoute requiredRole="admin"><CreateCategory /></ProtectedRoute>} />
+                <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />
+                <Route path="/admin/content-filter" element={<ProtectedRoute requiredRole="admin"><ContentFilterAdmin /></ProtectedRoute>} />
                 <Route path="/coming-soon" element={<ComingSoon />} />
 
               </Routes>

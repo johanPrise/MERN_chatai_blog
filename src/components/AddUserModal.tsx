@@ -61,13 +61,12 @@ export const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onU
           const errorData = await response.json()
           errorMessage = errorData.message || errorMessage
         } catch (e) {
-          console.error("Impossible de parser la réponse d'erreur:", e)
+
         }
         throw new Error(errorMessage)
       }
 
       const data = await response.json()
-      console.log("Utilisateur créé avec succès:", data)
 
       // Réinitialiser le formulaire
       setUsername("")
@@ -81,7 +80,7 @@ export const AddUserModal: React.FC<AddUserModalProps> = ({ isOpen, onClose, onU
       onUserAdded()
       onClose()
     } catch (error) {
-      console.error("Erreur lors de la création de l'utilisateur:", error)
+
       setError(error instanceof Error ? error.message : "Une erreur inconnue est survenue")
     } finally {
       setIsLoading(false)

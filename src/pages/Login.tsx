@@ -1,4 +1,3 @@
-"use client"
 
 import React from "react"
 import { useState, type FormEvent, useEffect } from "react"
@@ -84,7 +83,6 @@ function Login(): JSX.Element {
         }),
       });
 
-      console.log("Test login response status:", response.status);
 
       const contentType = response.headers.get('content-type');
       let data: any = null;
@@ -92,9 +90,9 @@ function Login(): JSX.Element {
       if (contentType && contentType.includes('application/json')) {
         try {
           data = await response.json();
-          console.log("Test login response data:", data);
+
         } catch (jsonError) {
-          console.error("Erreur lors de la lecture de la réponse JSON:", jsonError);
+
         }
       }
 
@@ -109,7 +107,7 @@ function Login(): JSX.Element {
         setErrors({ general: errorMessage });
       }
     } catch (error) {
-      console.error("Test login error:", error);
+
       setErrors({
         general: error instanceof Error
           ? error.message
@@ -153,7 +151,7 @@ function Login(): JSX.Element {
         setErrors({ general: "Email ou mot de passe incorrect" })
       }
     } catch (error) {
-      console.error("Login error:", error)
+
       setErrors({
         general: error instanceof Error
           ? error.message

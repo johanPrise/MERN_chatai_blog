@@ -1,4 +1,3 @@
-"use client"
 
 import React, { useState, useEffect, useCallback } from "react"
 import { Link, useNavigate } from "react-router-dom"
@@ -43,10 +42,10 @@ const CreateCategory: React.FC = () => {
       }
 
       const data = await response.json()
-      console.log("Author check response:", data)
+
       setIsAuthorOrAdmin(data.isAuthorOrAdmin)
     } catch (error) {
-      console.error("Error checking author/admin status:", error)
+
       setIsAuthorOrAdmin(false)
     } finally {
       setIsChecking(false)
@@ -123,7 +122,7 @@ const CreateCategory: React.FC = () => {
         navigate("/")
       }, 2000)
     } catch (error) {
-      console.error("Error creating category:", error)
+
       const errorMsg = error instanceof Error ? error.message : "An error occurred while creating the category"
       setStatus("error")
       setErrorMessage(errorMsg)

@@ -254,7 +254,6 @@ export default function Post({
           setStats(prev => ({ ...prev, comments: commentCount }));
         }
       } catch (error) {
-        console.error('Erreur lors de la récupération des commentaires:', error);
       }
     };
     fetchCommentCount();

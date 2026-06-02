@@ -198,7 +198,6 @@ export class PostApiService {
         },
       };
     } catch (error) {
-      console.error('Error fetching posts:', error);
       throw this.handleError(error);
     }
   }
@@ -222,7 +221,6 @@ export class PostApiService {
       const result = await response.json();
       return this.normalizePost(this.getPostFromResponse(result));
     } catch (error) {
-      console.error('Error fetching post:', error);
       throw this.handleError(error);
     }
   }
@@ -248,7 +246,6 @@ export class PostApiService {
 
       return this.buildOperationSuccess(this.getPostFromResponse(result));
     } catch (error) {
-      console.error('Error creating post:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to create post'
@@ -278,7 +275,6 @@ export class PostApiService {
 
       return this.buildOperationSuccess(postData);
     } catch (error) {
-      console.error('[PostApiService] Update error:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to update post'
@@ -328,7 +324,6 @@ export class PostApiService {
         data: result.data
       };
     } catch (error) {
-      console.error('Error deleting post:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to delete post'
@@ -349,7 +344,6 @@ export class PostApiService {
         xhr.send(this.createUploadFormData(file));
       });
     } catch (error) {
-      console.error('Error uploading file:', error);
       throw this.handleError(error);
     }
   }
@@ -429,7 +423,6 @@ export class PostApiService {
       this.assertAutoSaveSuccess(result);
       return this.buildAutoSaveResponse(result);
     } catch (error) {
-      console.error('Error auto-saving:', error);
       throw this.handleError(error);
     }
   }
@@ -472,7 +465,6 @@ export class PostApiService {
         },
       });
     } catch (error) {
-      console.error('Error searching posts:', error);
       throw this.handleError(error);
     }
   }
@@ -491,7 +483,6 @@ export class PostApiService {
       const result = await response.json();
       return result.categories || result.data || [];
     } catch (error) {
-      console.error('Error fetching categories:', error);
       return [];
     }
   }
@@ -516,7 +507,6 @@ export class PostApiService {
         .filter((tag) => tag.toLowerCase().includes(normalizedQuery))
         .slice(0, 10);
     } catch (error) {
-      console.error('Error fetching tag suggestions:', error);
       return [];
     }
   }
@@ -531,7 +521,6 @@ export class PostApiService {
         status: PostStatus.PUBLISHED,
       });
     } catch (error) {
-      console.error('Error publishing post:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to publish post'

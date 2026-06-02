@@ -49,7 +49,7 @@ export function loadMessagesFromStorage(): ChatMessage[] {
         timestamp: new Date(msg.timestamp)
       }))
     } catch (err) {
-      console.error("Error loading saved messages:", err)
+
     }
   }
   return []

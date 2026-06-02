@@ -35,7 +35,6 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
         }
       })
       .catch(err => {
-        console.error('Erreur lors de la copie du code:', err);
       });
   }, []);
 

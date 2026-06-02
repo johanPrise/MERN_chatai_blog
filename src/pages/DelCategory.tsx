@@ -1,4 +1,3 @@
-"use client"
 
 import React from "react"
 import { useState, useEffect } from "react"
@@ -50,7 +49,7 @@ const DeleteCategories: React.FC = () => {
         setCategories(Array.isArray(data.categories) ? data.categories : Array.isArray(data) ? data : [])
         setFetchStatus("success")
       } catch (error) {
-        console.error("Error fetching categories:", error)
+
         setErrorMessage("Failed to load categories")
         setFetchStatus("error")
       }
@@ -118,13 +117,13 @@ const DeleteCategories: React.FC = () => {
             const data = await response.json()
 
             if (!response.ok) {
-              console.error("Error deleting category:", data.message)
+
               return { id: categoryId, success: false, message: data.message }
             }
 
             return { id: categoryId, success: true }
           } catch (error) {
-            console.error("Error deleting category:", error)
+
             return { id: categoryId, success: false, message: "Network error" }
           }
         })
@@ -164,7 +163,7 @@ const DeleteCategories: React.FC = () => {
         setShowConfirmation(false)
       }
     } catch (error) {
-      console.error("Error during category deletion:", error)
+
       const errorMsg = "Failed to delete categories"
       setErrorMessage(errorMsg)
       showError(errorMsg, "Erreur de suppression")

@@ -1,4 +1,3 @@
-"use client"
 
 import React, { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
@@ -107,7 +106,7 @@ function Register() {
         navigate("/login_page")
       }, 2000)
     } catch (error) {
-      console.error("Registration error:", error)
+
       setErrors({
         general: error instanceof Error
           ? error.message

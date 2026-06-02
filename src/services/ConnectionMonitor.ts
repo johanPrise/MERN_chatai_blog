@@ -79,7 +79,7 @@ export class ConnectionMonitor {
       try {
         listener(this.status)
       } catch (error) {
-        console.error('Error in connection status listener:', error)
+
       }
     })
   }

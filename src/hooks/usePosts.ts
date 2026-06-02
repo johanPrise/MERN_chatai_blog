@@ -3,8 +3,9 @@
  * Provides unified interface for fetching, filtering, and managing posts
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Post as PostType } from '../types/PostType'
+import { API_ENDPOINTS } from '../config/api.config'
 
 export interface PostFilters {
   search?: string
@@ -34,8 +35,6 @@ export interface UsePostsOptions {
   enableCache?: boolean
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
-
 export function usePosts(options: UsePostsOptions = {}) {
   const {
     initialFilters = {},
@@ -56,7 +55,7 @@ export function usePosts(options: UsePostsOptions = {}) {
   })
 
   const [filters, setFilters] = useState<PostFilters>(initialFilters)
-  const [cache, setCache] = useState<Map<string, { data: PostType[], timestamp: number }>>(new Map())
+  const cache = useRef<Map<string, { data: PostType[], timestamp: number }>>(new Map())
 
   // Cache duration: 30 seconds (reduced for better UX)
   const CACHE_DURATION = 30 * 1000
@@ -80,8 +79,8 @@ export function usePosts(options: UsePostsOptions = {}) {
     const cacheKey = getCacheKey(currentFilters, page)
     
     // Check cache first (only if explicitly enabled)
-    if (useCache && enableCache && cache.has(cacheKey)) {
-      const cached = cache.get(cacheKey)!
+    if (useCache && enableCache && cache.current.has(cacheKey)) {
+      const cached = cache.current.get(cacheKey)!
       if (isCacheValid(cached.timestamp)) {
         setState(prev => ({
           ...prev,
@@ -109,7 +108,7 @@ export function usePosts(options: UsePostsOptions = {}) {
         ...(currentFilters.sortOrder && { sortOrder: currentFilters.sortOrder })
       })
 
-      const response = await fetch(`${API_BASE_URL}/posts?${queryParams}`)
+      const response = await fetch(`${API_ENDPOINTS.posts.list}?${queryParams}`)
       
       if (!response.ok) {
         throw new Error(`Failed to fetch posts: ${response.status} ${response.statusText}`)
@@ -135,10 +134,7 @@ export function usePosts(options: UsePostsOptions = {}) {
 
       // Update cache
       if (useCache) {
-        setCache(prev => new Map(prev).set(cacheKey, {
-          data: posts,
-          timestamp: Date.now()
-        }))
+        cache.current.set(cacheKey, { data: posts, timestamp: Date.now() })
       }
 
       setState(prev => ({
@@ -207,21 +203,18 @@ export function usePosts(options: UsePostsOptions = {}) {
 
   // Force refresh - clears cache and refetches
   const forceRefresh = useCallback(() => {
-    console.log('[usePosts] Force refresh triggered - clearing cache and refetching')
-    setCache(new Map()) // Clear cache first
-    return fetchPosts(filters, state.currentPage, false) // Then fetch without cache
+    cache.current.clear()
+    return fetchPosts(filters, state.currentPage, false)
   }, [filters, state.currentPage, fetchPosts])
 
   // Clear cache
   const clearCache = useCallback(() => {
-    setCache(new Map())
+    cache.current.clear()
   }, [])
 
   // Invalidate cache for specific operations
   const invalidateCache = useCallback(() => {
-    console.log('[usePosts] Cache invalidated - clearing all cached data')
-    setCache(new Map())
-    // Force immediate refresh after cache invalidation
+    cache.current.clear()
     return fetchPosts(filters, state.currentPage, false)
   }, [filters, state.currentPage, fetchPosts])
 

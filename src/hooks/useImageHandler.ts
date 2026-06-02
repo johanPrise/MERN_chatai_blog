@@ -150,12 +150,8 @@ export const useImageHandler = (): UseImageHandlerReturn => {
           // Only use compressed if it's actually smaller
           if (compressed.compressedSize < file.size) {
             fileToUpload = new File([compressed.blob], file.name, { type: 'image/jpeg' });
-            console.log(
-              `✅ Compressed ${file.name}: ${(file.size / 1024).toFixed(0)}KB → ${(compressed.compressedSize / 1024).toFixed(0)}KB`
-            );
           }
         } catch (compressionError) {
-          console.warn('⚠️ Compression failed, uploading original:', compressionError);
         }
 
         // Create form data (backend expects 'file')

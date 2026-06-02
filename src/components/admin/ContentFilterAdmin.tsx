@@ -95,7 +95,6 @@ export function ContentFilterAdmin({ className = '' }: ContentFilterAdminProps) 
       });
       setShowAddForm(false);
     } catch (err) {
-      console.error('Failed to add filter word:', err);
     }
   }, [wordForm, addFilterWord]);
 

@@ -1,4 +1,3 @@
-"use client"
 
 import React, { useState, useEffect } from "react"
 import { useParams, useNavigate, Link } from "react-router-dom"
@@ -122,7 +121,7 @@ const ResetPassword: React.FC = () => {
         })
       }
     } catch (error) {
-      console.error("Error resetting password:", error)
+
       setErrors({
         general: error instanceof Error
           ? error.message

@@ -1,4 +1,3 @@
-"use client"
 
 import React from "react"
 import { useState, type FormEvent } from "react"
@@ -61,7 +60,7 @@ const ForgotPassword: React.FC = () => {
         setErrorMessage(data.message || "Une erreur s'est produite. Veuillez réessayer.")
       }
     } catch (error) {
-      console.error("Error during password reset request:", error)
+
       setErrorMessage("Impossible de se connecter au serveur. Veuillez vérifier votre connexion et réessayer.")
     } finally {
       setIsSubmitting(false)

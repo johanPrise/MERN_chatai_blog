@@ -1,4 +1,3 @@
-"use client"
 
 // Fichier ES6 TSX
 import React from "react"

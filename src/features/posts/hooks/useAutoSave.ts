@@ -80,7 +80,6 @@ export function useAutoSave(
 
       options.onSave?.(true);
     } catch (error) {
-      console.error('Auto-save failed:', error);
 
       if (retryCount < options.maxRetries) {
         setRetryCount(prev => prev + 1);

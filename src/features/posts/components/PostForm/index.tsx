@@ -276,11 +276,7 @@ function hasFilteredSubmissionContent(filteredContent: FilteredSubmissionContent
 function logFilteredSubmissionContent(filteredContent: FilteredSubmissionContent) {
   if (!hasFilteredSubmissionContent(filteredContent)) return;
 
-  console.log('Content was filtered before submission:', {
-    title: filteredContent.title.replacements,
-    summary: filteredContent.summary.replacements,
-    content: filteredContent.content.replacements,
-  });
+
 }
 
 function prepareSubmitPayload(
@@ -796,13 +792,6 @@ function usePostFormInitialization(
   useEffect(() => {
     if (!initialData?.id || initializedPostId === initialData.id) return;
 
-    console.log('Initializing form with data:', {
-      id: initialData.id,
-      title: initialData.title,
-      categories: initialData.categories,
-      extractedCategoryId: extractCategoryId(initialData.categories),
-    });
-
     setFormData(createInitialFormData(initialData));
 
     if (initialData.contentBlocks) {
@@ -938,7 +927,6 @@ function usePostSubmitHandler({
       const submitData = prepareSubmitPayload(formData, contentBlocks, filterContent, status);
       await submitPostData(submitData);
     } catch (error) {
-      console.error('Form submission failed:', error);
     } finally {
       setIsSubmitting(false);
     }

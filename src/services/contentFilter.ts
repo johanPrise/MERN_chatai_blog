@@ -101,7 +101,6 @@ class ContentFilterService {
         this.filterWords = [...this.filterWords, ...customWords];
       }
     } catch (error) {
-      console.error('Failed to load content filter config:', error);
     }
   }
 
@@ -116,7 +115,6 @@ class ContentFilterService {
       const customWords = this.filterWords.filter(word => !word.id.startsWith('default-'));
       localStorage.setItem('contentFilterWords', JSON.stringify(customWords));
     } catch (error) {
-      console.error('Failed to save content filter config:', error);
     }
   }
 

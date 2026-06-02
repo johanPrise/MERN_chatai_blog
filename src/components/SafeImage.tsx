@@ -113,19 +113,13 @@ export function SafeImage({
   // Simple initialization with direct fallback on error
   useEffect(() => {
     const initializeImage = () => {
-      console.log('🖼️ SafeImage - Simple initialization:', {
-        originalSrc: src,
-        fallbackSrc,
-        component: 'SafeImage'
-      });
-      
+
       setIsLoading(true);
       setHasError(false);
       setRetryAttempts(0);
 
       if (!src) {
         const fallbackUrl = fallbackSrc || getFallbackImageUrl('primary');
-        console.log('🖼️ No src provided, using fallback:', fallbackUrl);
         setCurrentSrc(fallbackUrl);
         setIsLoading(false);
         return;
@@ -133,7 +127,6 @@ export function SafeImage({
 
       // Use optimized source directly without complex validation
       const optimizedSrc = getOptimizedSrc(src);
-      console.log('🖼️ Using optimized source directly:', optimizedSrc);
       setCurrentSrc(optimizedSrc);
     };
 
@@ -153,7 +146,6 @@ export function SafeImage({
 
   // Handle image load error with simple fallback
   const handleError = () => {
-    console.log('❌ Image failed to load, using fallback for:', currentSrc);
     
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -170,13 +162,11 @@ export function SafeImage({
     const nextFallback = fallbacks.find(fallback => fallback !== currentSrc);
     
     if (nextFallback) {
-      console.log('🔄 Trying fallback:', nextFallback);
       setCurrentSrc(nextFallback);
       return;
     }
 
     // All fallbacks exhausted
-    console.log('⚠️ All fallbacks exhausted');
     setIsLoading(false);
     setHasError(true);
     
