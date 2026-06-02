@@ -43,7 +43,7 @@ const CommentReactions: React.FC<CommentReactionsProps> = ({
         setDislikes(data.dislikes || [])
       }
     } catch (error) {
-      console.error('Erreur like:', error)
+
     } finally {
       setIsLoading(false)
     }
@@ -65,7 +65,7 @@ const CommentReactions: React.FC<CommentReactionsProps> = ({
         setDislikes(data.dislikes || [])
       }
     } catch (error) {
-      console.error('Erreur dislike:', error)
+
     } finally {
       setIsLoading(false)
     }

@@ -16,7 +16,7 @@ export const validateComments = (commentsInput: Comment[] = []) => {
   const commentIds = comments.map(c => c._id)
   const duplicateIds = commentIds.filter((id, index) => commentIds.indexOf(id) !== index)
   if (duplicateIds.length > 0) {
-    console.warn('Duplicate comment IDs found:', duplicateIds)
+
   }
   return comments
 }

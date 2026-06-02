@@ -1,4 +1,3 @@
-"use client"
 
 import React from "react"
 import { createContext, useState, useEffect, useContext, type ReactNode } from "react"
@@ -20,13 +19,13 @@ const ThemeContext = createContext<ThemeContextType>({
   theme: "light",
   colorTheme: "green",
   toggleTheme: () => {
-    console.warn("ThemeProvider not found")
+
   },
   setColorTheme: () => {
-    console.warn("ThemeProvider not found")
+
   },
   applyTheme: () => {
-    console.warn("ThemeProvider not found")
+
   }
 })
 
@@ -111,7 +110,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         localStorage.setItem("theme", theme)
         localStorage.setItem("colorTheme", colorTheme)
       } catch (storageError) {
-        console.warn("Failed to save theme to localStorage:", storageError)
+
         // Use global error handler for theme persistence errors
         errorHandler.handleThemeError(`save_theme_${theme}_${colorTheme}`, {
           context: { component: 'ThemeProvider', action: 'save_theme_preferences' },
@@ -125,14 +124,13 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         detail: { theme, colorTheme } 
       }))
 
-      console.log("Theme applied successfully:", { theme, colorTheme })
 
       // Cleanup function for the timeout
       return () => {
         clearTimeout(transitionTimeout)
       }
     } catch (error) {
-      console.error("Error applying theme:", error)
+
       // Use global error handler for theme application errors
       errorHandler.handleThemeError(`apply_theme_${theme}_${colorTheme}`, {
         context: { component: 'ThemeProvider', action: 'apply_theme' },
@@ -154,13 +152,12 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         const initialTheme = savedTheme || (prefersDark ? "dark" : "light")
         const initialColorTheme = savedColorTheme || "green"
 
-        console.log("Initializing theme:", { initialTheme, initialColorTheme, savedTheme, savedColorTheme })
 
         setTheme(initialTheme)
         setColorTheme(initialColorTheme)
       } catch (error) {
         // Fallback in case of localStorage errors
-        console.error("Error accessing localStorage:", error)
+
         // Use global error handler for theme initialization errors
         errorHandler.handleThemeError('initialize_theme', {
           context: { component: 'ThemeProvider', action: 'initialize_theme' },

@@ -1,4 +1,3 @@
-"use client"
 
 import React, { useState, useEffect, useCallback, useMemo } from "react"
 import { useParams, Link } from "react-router-dom"
@@ -101,7 +100,7 @@ const CategoryPage: React.FC = () => {
       setCategory(categoryData)
       setStatus((prev) => ({ ...prev, category: "success" }))
     } catch (error) {
-      console.error("Error fetching category:", error)
+
       setStatus((prev) => ({ ...prev, category: "error" }))
       setError(error instanceof Error ? error.message : "Failed to load category")
     }
@@ -119,7 +118,7 @@ const CategoryPage: React.FC = () => {
         url = `${url}?category=${categoryId}`
       }
 
-      console.log("Fetching posts from:", url)
+
       const response = await fetch(url)
 
       if (!response.ok) {
@@ -127,14 +126,13 @@ const CategoryPage: React.FC = () => {
       }
 
       const data = await response.json()
-      console.log("Posts data:", data)
 
       // Adapter la réponse si nécessaire
       const postsData = data.posts || data
       setPosts(postsData)
       setStatus((prev) => ({ ...prev, posts: "success" }))
     } catch (error) {
-      console.error("Error fetching posts:", error)
+
       setStatus((prev) => ({ ...prev, posts: "error" }))
       setError(error instanceof Error ? error.message : "Failed to load posts")
     }
@@ -157,7 +155,7 @@ const CategoryPage: React.FC = () => {
       setCategories(categoriesData)
       setStatus((prev) => ({ ...prev, categories: "success" }))
     } catch (error) {
-      console.error("Error fetching categories:", error)
+
       setStatus((prev) => ({ ...prev, categories: "error" }))
     }
   }, [])

@@ -33,7 +33,7 @@ export const useCommentManagement = (
       const commentsWithDefaults = processCommentsResponse(responseData)
       setComments(commentsWithDefaults)
     } catch (error) {
-      console.error("Error fetching comments:", error)
+
       setErrorMessage(error instanceof Error ? error.message : "Failed to fetch comments")
     }
   }, [id, setErrorMessage])
@@ -84,7 +84,7 @@ export const useCommentManagement = (
       setSuccessMessage("Comment posted successfully")
       setTimeout(() => setSuccessMessage(null), 3000)
     } catch (error) {
-      console.error("Error posting comment:", error)
+
       setErrorMessage(error instanceof Error ? error.message : "An error occurred while posting your comment")
     } finally {
       setIsSubmittingComment(false)
@@ -117,7 +117,7 @@ export const useCommentManagement = (
       setSuccessMessage("Comment updated successfully")
       setTimeout(() => setSuccessMessage(null), 3000)
     } catch (error) {
-      console.error("Error updating comment:", error)
+
       setErrorMessage(error instanceof Error ? error.message : "Failed to update comment")
     }
   }
@@ -137,7 +137,7 @@ export const useCommentManagement = (
       setSuccessMessage("Comment deleted successfully")
       setTimeout(() => setSuccessMessage(null), 3000)
     } catch (error) {
-      console.error("Error deleting comment:", error)
+
       setErrorMessage(error instanceof Error ? error.message : "Failed to delete comment")
     }
   }
@@ -176,7 +176,7 @@ export const useCommentManagement = (
       setSuccessMessage("Reply posted successfully")
       setTimeout(() => setSuccessMessage(null), 3000)
     } catch (error) {
-      console.error("Error posting reply:", error)
+
       const errorMsg = error instanceof Error ? error.message : "Failed to post reply"
       showError(errorMsg)
       setErrorMessage(errorMsg)

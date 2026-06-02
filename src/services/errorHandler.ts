@@ -325,12 +325,7 @@ class ErrorHandler {
 
     // Log to console if enabled (default: true)
     if (options.logToConsole !== false) {
-      console.error('Error Report:', {
-        message: report.userFriendlyError.message,
-        error: report.error,
-        context: report.context,
-        timestamp: report.context.timestamp
-      })
+
     }
 
     // Could be extended to send to external error reporting service
@@ -359,7 +354,7 @@ class ErrorHandler {
   private sendToErrorService(report: ErrorReport): void {
     // Placeholder for external error reporting service
     // Could integrate with services like Sentry, LogRocket, etc.
-    console.log('Would send to error service:', report)
+
   }
 }
 

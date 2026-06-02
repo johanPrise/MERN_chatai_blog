@@ -1,4 +1,3 @@
-"use client"
 
 import React, { useEffect, useState, useCallback } from "react"
 import { Link } from "react-router-dom"
@@ -116,13 +115,8 @@ export default function Home() {
       }
 
       // Debug: Log the posts data to see category structure
-      console.log("Posts data from API:", postsArray)
 
       // Debug: Log specifically the category data for each post
-      postsArray.forEach(post => {
-        console.log(`Post ${post._id} - Category:`, post.category, "Categories:", (post as any).categories)
-      })
-
       // Update posts state
       setPosts(postsArray)
 
@@ -140,7 +134,7 @@ export default function Home() {
         posts: { status: "success", error: null }
       }))
     } catch (error) {
-      console.error("Error fetching posts:", error)
+
       const errorMessage = error instanceof Error ? error.message : "Failed to fetch posts"
       showError(errorMessage, "Erreur de chargement")
 
@@ -183,7 +177,7 @@ export default function Home() {
         categories: { status: "success", error: null }
       }))
     } catch (error) {
-      console.error("Error fetching categories:", error)
+
       const errorMessage = error instanceof Error ? error.message : "Failed to fetch categories"
       showError(errorMessage, "Erreur de chargement")
 
@@ -209,7 +203,7 @@ export default function Home() {
     {
       type: 'POST_UPDATED',
       handler: useCallback(({ postId, postData }) => {
-        console.log('[Home] Received post update:', { postId, hasData: !!postData })
+
         showSuccess('Article mis à jour avec succès')
         
         // Update post in main list
@@ -237,7 +231,7 @@ export default function Home() {
     {
       type: 'POST_DELETED',
       handler: useCallback(({ postId }) => {
-        console.log('[Home] Received post deletion:', { postId })
+
         showSuccess('Article supprimé avec succès')
         
         // Remove from main posts list
@@ -253,7 +247,7 @@ export default function Home() {
     {
       type: 'POST_CREATED',
       handler: useCallback(({ postData }) => {
-        console.log('[Home] Received post creation:', { postData })
+
         showSuccess('Nouvel article créé avec succès')
         
         // Add to main posts list at the beginning
@@ -279,12 +273,10 @@ export default function Home() {
     {
       type: 'CACHE_INVALIDATE',
       handler: useCallback(({ scope, reason }) => {
-        console.log('[Home] Received cache invalidation:', { scope, reason })
-        
+
         if (scope === 'home-posts' || scope === 'all') {
           // Force refresh of all posts data immediately
-          console.log('[Home] Force refreshing posts due to cache invalidation')
-          
+
           // Force immediate refresh
           fetchPosts()
           

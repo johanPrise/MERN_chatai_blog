@@ -38,7 +38,7 @@ export const createPreloadableLazyComponent = <T extends ComponentType<any>>(
 
   // Preload component if condition is met
   if (preloadCondition && preloadCondition()) {
-    importFn().catch(console.error);
+    importFn()
   }
 
   return LazyComponent;
@@ -102,30 +102,30 @@ export const Components = {
 export const preloadCriticalComponents = () => {
   if (isMobileDevice()) {
     // Preload essential components for mobile users
-    import('../components/SafeImage').catch(console.error);
-    import('../features/posts/components/PostList/PostCard').catch(console.error);
-    import('../components/ui/container').catch(console.error);
+    import('../components/SafeImage')
+    import('../features/posts/components/PostList/PostCard')
+    import('../components/ui/container')
   }
 };
 
 // Preload components based on user interaction
 export const preloadOnInteraction = {
   createPost: () => {
-    import('../features/posts/pages/CreatePost').catch(console.error);
-    import('../features/posts/components/PostForm').catch(console.error);
+    import('../features/posts/pages/CreatePost')
+    import('../features/posts/components/PostForm')
   },
 
   editPost: () => {
-    import('../features/posts/pages/EditPost').catch(console.error);
+    import('../features/posts/pages/EditPost')
   },
 
   viewDrafts: () => {
-    import('../features/posts/pages/Drafts').catch(console.error);
+    import('../features/posts/pages/Drafts')
   },
 
   adminPanel: () => {
-    import('../components/admin/ContentFilterAdmin').catch(console.error);
-    import('../components/UsersTable').catch(console.error);
+    import('../components/admin/ContentFilterAdmin')
+    import('../components/UsersTable')
   },
 };
 
@@ -156,9 +156,7 @@ export const initPerformanceOptimizations = () => {
 
   // Check for IntersectionObserver support (graceful degradation)
   if (!('IntersectionObserver' in window)) {
-    console.warn(
-      'IntersectionObserver not supported - lazy loading will fall back to immediate loading'
-    );
+
     // The lazy loading hooks will handle this gracefully by loading content immediately
   }
 
@@ -169,20 +167,17 @@ export const initPerformanceOptimizations = () => {
         const entries = list.getEntries();
         entries.forEach(entry => {
           if (entry.entryType === 'largest-contentful-paint') {
-            console.log('LCP:', entry.startTime);
           }
           if (entry.entryType === 'first-input') {
             // Type assertion for first-input entries
             const fidEntry = entry as any;
             if (fidEntry.processingStart) {
-              console.log('FID:', fidEntry.processingStart - entry.startTime);
             }
           }
           if (entry.entryType === 'layout-shift') {
             // Type assertion for layout-shift entries
             const clsEntry = entry as any;
             if (clsEntry.value !== undefined) {
-              console.log('CLS:', clsEntry.value);
             }
           }
         });
@@ -190,7 +185,6 @@ export const initPerformanceOptimizations = () => {
 
       observer.observe({ entryTypes: ['largest-contentful-paint', 'first-input', 'layout-shift'] });
     } catch (error) {
-      console.warn('Performance monitoring not available:', error);
     }
   }
 };

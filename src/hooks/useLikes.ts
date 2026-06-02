@@ -68,10 +68,10 @@ export const useLikes = ({ postId, initialLikes, initialDislikes }: UseLikesProp
         setLikeCount(data.likeCount)
         setDislikeCount(data.dislikeCount)
       } else {
-        console.error('Erreur lors du like:', response.status)
+
       }
     } catch (error) {
-      console.error('Erreur réseau lors du like:', error)
+
     } finally {
       setIsLoading(false)
     }
@@ -100,10 +100,10 @@ export const useLikes = ({ postId, initialLikes, initialDislikes }: UseLikesProp
         setLikeCount(data.likeCount)
         setDislikeCount(data.dislikeCount)
       } else {
-        console.error('Erreur lors du dislike:', response.status)
+
       }
     } catch (error) {
-      console.error('Erreur réseau lors du dislike:', error)
+
     } finally {
       setIsLoading(false)
     }

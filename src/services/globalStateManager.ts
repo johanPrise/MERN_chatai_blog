@@ -33,7 +33,7 @@ export interface CacheInvalidatePayload {
  */
 class GlobalStateManager {
   private eventBus = new EventTarget();
-  private debug = import.meta.env.NODE_ENV === 'development';
+  private debug = import.meta.env.DEV;
 
   /**
    * Emit events across the application
@@ -42,10 +42,6 @@ class GlobalStateManager {
     const event = new CustomEvent(type, { 
       detail: { payload, timestamp: new Date() }
     });
-    
-    if (this.debug) {
-      console.log(`[GlobalStateManager] Emitting ${type}:`, payload);
-    }
     
     this.eventBus.dispatchEvent(event);
   }
@@ -59,7 +55,7 @@ class GlobalStateManager {
       try {
         handler(event.detail.payload);
       } catch (error) {
-        console.error(`[GlobalStateManager] Error in ${type} handler:`, error);
+        // handler errors are intentionally swallowed to avoid breaking the event bus
       }
     };
 

@@ -47,7 +47,6 @@ export function TagInput({
       );
       setSuggestions(filteredSuggestions.slice(0, 5)); // Limit to 5 suggestions
     } catch (error) {
-      console.error('Failed to fetch tag suggestions:', error);
       setSuggestions([]);
     }
   }, [value, apiService]);

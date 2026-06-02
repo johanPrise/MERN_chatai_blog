@@ -35,16 +35,13 @@ function CreatePostContent() {
           showSuccess('Article créé avec succès!');
           navigateToPost(result.id, { fallbackRoute: '/' });
         } else {
-          console.error('Invalid post ID returned from API:', result.id);
           showSuccess('Article créé avec succès!');
           navigateToHome({ replace: true });
         }
       } else {
         showError('Échec de la création de l\'article. Veuillez réessayer.');
-        console.error('Post creation failed - no result or ID:', result);
       }
     } catch (error) {
-      console.error('Create post error:', error);
       showError('Une erreur inattendue s\'est produite.');
     }
   };

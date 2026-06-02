@@ -46,7 +46,6 @@ export class NavigationService {
     options: NavigationOptions = {}
   ): boolean {
     if (!this.navigate) {
-      console.error('NavigationService not initialized');
       return false;
     }
 
@@ -54,7 +53,6 @@ export class NavigationService {
 
     // Validate post ID if required
     if (validateId && !this.validatePostId(postId)) {
-      console.warn(`Invalid post ID: ${postId}, navigating to fallback route`);
       this.navigate(fallbackRoute, { replace });
       return false;
     }
@@ -65,7 +63,6 @@ export class NavigationService {
       this.navigate(route, { replace });
       return true;
     } catch (error) {
-      console.error('Navigation error:', error);
       this.navigate(fallbackRoute, { replace });
       return false;
     }
@@ -76,7 +73,6 @@ export class NavigationService {
    */
   public navigateToCreatePost(options: NavigationOptions = {}): void {
     if (!this.navigate) {
-      console.error('NavigationService not initialized');
       return;
     }
 
@@ -92,7 +88,6 @@ export class NavigationService {
     options: NavigationOptions = {}
   ): boolean {
     if (!this.navigate) {
-      console.error('NavigationService not initialized');
       return false;
     }
 
@@ -100,7 +95,6 @@ export class NavigationService {
 
     // Validate post ID if required
     if (validateId && !this.validatePostId(postId)) {
-      console.warn(`Invalid post ID: ${postId}, navigating to fallback route`);
       this.navigate(fallbackRoute, { replace });
       return false;
     }
@@ -110,7 +104,6 @@ export class NavigationService {
       this.navigate(route, { replace });
       return true;
     } catch (error) {
-      console.error('Navigation error:', error);
       this.navigate(fallbackRoute, { replace });
       return false;
     }
@@ -121,7 +114,6 @@ export class NavigationService {
    */
   public navigateToDrafts(options: NavigationOptions = {}): void {
     if (!this.navigate) {
-      console.error('NavigationService not initialized');
       return;
     }
 
@@ -138,7 +130,6 @@ export class NavigationService {
     options: NavigationOptions = {}
   ): void {
     if (!this.navigate) {
-      console.error('NavigationService not initialized');
       return;
     }
 
@@ -147,14 +138,12 @@ export class NavigationService {
     try {
       // Validate the primary route
       if (!primaryRoute || primaryRoute.trim() === '' || primaryRoute.includes('undefined')) {
-        console.warn(`Invalid primary route: ${primaryRoute}, using fallback`);
         this.navigate(fallbackRoute, { replace });
         return;
       }
 
       this.navigate(primaryRoute, { replace });
     } catch (error) {
-      console.error('Navigation error:', error);
       this.navigate(fallbackRoute, { replace });
     }
   }
@@ -164,7 +153,6 @@ export class NavigationService {
    */
   public navigateToHome(options: NavigationOptions = {}): void {
     if (!this.navigate) {
-      console.error('NavigationService not initialized');
       return;
     }
 

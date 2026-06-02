@@ -61,7 +61,7 @@ const Search: React.FC = () => {
         const data = await response.json()
         setPosts(extractPostsFromResponse(data))
       } catch (err) {
-        console.error("Search error:", err)
+
         setError("Failed to fetch search results. Please try again.")
       } finally {
         setLoading(false)

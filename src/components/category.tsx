@@ -1,4 +1,3 @@
-"use client"
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { Badge } from "./ui/badge"
@@ -25,7 +24,7 @@ const CategoryCard = ({ categoryId }: { categoryId: string }) => {
         const categoryData = data.category || data
         setCategoryData(categoryData)
       } catch (error) {
-        console.error("Error fetching category:", error)
+
       }
     }
 

@@ -128,7 +128,6 @@ export class ImageCompressor {
           result
         });
       } catch (error) {
-        console.error(`Failed to create variant ${variant.suffix}:`, error);
       }
     }
 
@@ -151,7 +150,6 @@ export class ImageCompressor {
       try {
         results.webp = await this.compressImage(file, { ...options, format: 'webp' });
       } catch (error) {
-        console.warn('WebP compression failed, using JPEG only:', error);
       }
     }
 

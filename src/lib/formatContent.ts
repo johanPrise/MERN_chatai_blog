@@ -225,7 +225,6 @@ export const formatContent = (content: string): string => {
               throw new Error("highlight.js n'est pas disponible");
             }
           } catch (e) {
-            console.error("Erreur lors de la coloration syntaxique:", e);
             // Échapper le HTML pour l'afficher tel quel
             highlightedCode = code
               .replace(/&/g, "&amp;")
@@ -237,11 +236,9 @@ export const formatContent = (content: string): string => {
 
           return `<pre><code class="language-${language || 'plaintext'}">${highlightedCode}</code></pre>`;
         } else {
-          console.error(`Bloc de code avec ID ${id} non trouvé`);
           return match; // Retourner le texte original si l'ID n'est pas valide
         }
       } catch (error) {
-        console.error("Erreur lors du traitement du bloc de code:", error);
         return `<pre><code>Erreur lors du traitement du bloc de code</code></pre>`;
       }
     });
@@ -253,7 +250,6 @@ export const formatContent = (content: string): string => {
 
     // Méthode alternative pour les blocs de code si la première méthode échoue
     if (htmlContent.includes("CODEBLOCK")) {
-      console.warn("Détection de blocs de code non traités, application de la méthode alternative");
 
       // Traiter directement les blocs de code sans extraction préalable
       htmlContent = content.replace(/```(\w*)\n([\s\S]*?)```/g, (match, language, code) => {
@@ -268,7 +264,6 @@ export const formatContent = (content: string): string => {
 
           return `<pre><code class="language-${language || 'plaintext'}">${escapedCode}</code></pre>`;
         } catch (error) {
-          console.error("Erreur lors du traitement direct du bloc de code:", error);
           return `<pre><code>${code}</code></pre>`;
         }
       });

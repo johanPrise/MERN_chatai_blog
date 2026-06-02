@@ -38,7 +38,6 @@ function EditPostContent() {
         // Force fresh data with cache busting
         await fetchPost(`${id}?_t=${Date.now()}`);
       } catch (error) {
-        console.error('Failed to load post:', error);
         showError('Échec du chargement des données de l\'article');
       } finally {
         setIsInitialLoading(false);
@@ -82,7 +81,6 @@ function EditPostContent() {
             });
           }
         } else {
-          console.error('Invalid post ID returned from API:', result.id);
           showSuccess('Article mis à jour avec succès!');
           enhancedNavigationService.navigateToHome({ 
             replaceState: true,
@@ -91,10 +89,8 @@ function EditPostContent() {
         }
       } else {
         showError('Échec de la mise à jour de l\'article. Veuillez réessayer.');
-        console.error('Post update failed - no result or ID:', result);
       }
     } catch (error) {
-      console.error('Update post error:', error);
       showError('Une erreur inattendue s\'est produite.');
     }
   };

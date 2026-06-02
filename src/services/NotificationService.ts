@@ -314,7 +314,7 @@ export class NotificationService implements INotificationService, NotificationGe
       try {
         listener(this.notifications)
       } catch (error) {
-        console.error('Error in notification listener:', error)
+
       }
     })
   }
@@ -382,7 +382,7 @@ export class NotificationService implements INotificationService, NotificationGe
       details: originalError
     }
     
-    console.error(`NotificationService Error [${code}]:`, message, originalError)
+
   }
   //Méthodes de génération de notifications
   // Requirement 2.1, 4.1, 4.2, 4.3: Génération basée sur des événements réels
@@ -592,7 +592,7 @@ export class NotificationService implements INotificationService, NotificationGe
     if (this.config.pollingInterval && this.config.pollingInterval > 0) {
       this.pollingInterval = setInterval(() => {
         this.fetchNotifications().catch(error => {
-          console.error('Error during polling:', error)
+
         })
       }, this.config.pollingInterval)
     }

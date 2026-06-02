@@ -42,7 +42,6 @@ export function usePostListSync(options: PostListSyncOptions = {}) {
     {
       type: 'POST_UPDATED',
       handler: useCallback(({ postId, postData, source }) => {
-        console.log('[usePostListSync] Post updated:', { postId, source });
         
         if (onPostUpdate) {
           if (autoRefresh) {
@@ -56,7 +55,6 @@ export function usePostListSync(options: PostListSyncOptions = {}) {
     {
       type: 'POST_DELETED',
       handler: useCallback(({ postId, source }) => {
-        console.log('[usePostListSync] Post deleted:', { postId, source });
         
         if (onPostDelete) {
           if (autoRefresh) {
@@ -70,7 +68,6 @@ export function usePostListSync(options: PostListSyncOptions = {}) {
     {
       type: 'POST_CREATED',
       handler: useCallback(({ postData }) => {
-        console.log('[usePostListSync] Post created:', { postId: postData?.id });
         
         if (onPostCreate) {
           if (autoRefresh) {
@@ -84,7 +81,6 @@ export function usePostListSync(options: PostListSyncOptions = {}) {
     {
       type: 'CACHE_INVALIDATE',
       handler: useCallback(({ scope, reason }) => {
-        console.log('[usePostListSync] Cache invalidated:', { scope, reason });
         
         if (onCacheInvalidate) {
           if (autoRefresh) {

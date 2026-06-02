@@ -255,16 +255,6 @@ export function PostProvider({ children }: PostProviderProps) {
       clearErrors();
 
       const result = await apiService.createPost(data);
-      try {
-        const cb = (result as any)?.data?.contentBlocks;
-        console.debug('[PostContext] createPost result summary', {
-          success: result?.success,
-          id: (result as any)?.data?.id || (result as any)?.data?._id,
-          contentBlocks: Array.isArray(cb)
-            ? { length: cb.length, types: cb.map((b: any) => b?.type) }
-            : cb,
-        });
-      } catch {}
       
       if (result.success && result.data) {
         dispatch({ type: 'ADD_POST', payload: result.data });
@@ -295,12 +285,6 @@ export function PostProvider({ children }: PostProviderProps) {
   }, [apiService, setLoading, clearErrors, setError]);
 
   const updatePost = useCallback(async (id: string, data: UpdatePostInput): Promise<PostData | null> => {
-    console.log('[PostContext] updatePost called', { 
-      id, 
-      dataKeys: Object.keys(data),
-      title: data.title?.substring(0, 50) + '...',
-      status: data.status
-    });
 
     try {
       setLoading({ isUpdating: true });
@@ -317,13 +301,7 @@ export function PostProvider({ children }: PostProviderProps) {
 
       const result = await apiService.updatePost(id, data);
       
-      console.log('[PostContext] updatePost result', {
-        success: result?.success,
-        hasData: !!result?.data,
-        error: result?.error,
-        postId: result?.data?.id
-      });
-      
+
       if (result.success && result.data) {
         // Mettre à jour le state avec le post modifié
         dispatch({ type: 'UPDATE_POST', payload: result.data });
@@ -339,16 +317,10 @@ export function PostProvider({ children }: PostProviderProps) {
         // Force immediate cache invalidation
         globalStateManager.notifyCacheInvalidation('all', 'post-updated');
         
-        console.log('[PostContext] Post updated successfully in context', {
-          id: result.data.id,
-          title: result.data.title,
-          status: result.data.status
-        });
-        
+
         return result.data;
       } else {
         const errorMessage = result.error || 'Failed to update post';
-        console.error('[PostContext] Update failed', { error: errorMessage, validationErrors: result.validationErrors });
         
         setError({
           code: 'UPDATE_ERROR',
@@ -359,7 +331,6 @@ export function PostProvider({ children }: PostProviderProps) {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update post';
-      console.error('[PostContext] Update error', { error: errorMessage });
       
       setError({
         code: 'UPDATE_ERROR',
@@ -423,7 +394,6 @@ export function PostProvider({ children }: PostProviderProps) {
       
       // Si les catégories sont déjà chargées et la dernière requête date de moins de 5 minutes, ne pas refaire la requête
       if (timeDiff < fiveMinutesInMs) {
-        console.log('Categories already loaded, skipping fetch');
         return;
       }
     }
@@ -432,7 +402,6 @@ export function PostProvider({ children }: PostProviderProps) {
       const categories = await apiService.getCategories();
       dispatch({ type: 'SET_CATEGORIES', payload: categories });
     } catch (error) {
-      console.error('Failed to fetch categories:', error);
     }
   }, [apiService, state.categories, state.lastFetch]);
 

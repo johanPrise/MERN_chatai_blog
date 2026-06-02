@@ -39,7 +39,7 @@ export const useCommentReactions = (commentId: string, userId?: string) => {
 
       if (response.ok) {
         const data = await response.json()
-        console.log('Like response data:', data)
+
         setState({
           likes: data.likes || [],
           dislikes: data.dislikes || [],
@@ -48,7 +48,7 @@ export const useCommentReactions = (commentId: string, userId?: string) => {
         })
       }
     } catch (error) {
-      console.error('Erreur like:', error)
+
     } finally {
       setIsLoading(false)
     }
@@ -67,7 +67,7 @@ export const useCommentReactions = (commentId: string, userId?: string) => {
 
       if (response.ok) {
         const data = await response.json()
-        console.log('Dislike response data:', data)
+
         setState({
           likes: data.likes || [],
           dislikes: data.dislikes || [],
@@ -76,7 +76,7 @@ export const useCommentReactions = (commentId: string, userId?: string) => {
         })
       }
     } catch (error) {
-      console.error('Erreur dislike:', error)
+
     } finally {
       setIsLoading(false)
     }

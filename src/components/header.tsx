@@ -1,4 +1,3 @@
-"use client"
 
 import { useState, useEffect, useCallback } from "react"
 import { Link, useNavigate, useLocation } from "react-router-dom"
@@ -51,7 +50,7 @@ const Header = () => {
 
   const fetchUserInfo = useCallback(async () => {
     try {
-      console.log("Fetching user info...")
+
       const response = await fetch(API_ENDPOINTS.users.profile, {
         credentials: "include",
         headers: {
@@ -60,12 +59,11 @@ const Header = () => {
       })
 
       if (!response.ok) {
-        console.log("Failed to fetch user info, status:", response.status)
+
         throw new Error("Failed to fetch user info")
       }
 
       const userData = await response.json()
-      console.log("User info fetched:", userData)
 
       if (userData && userData.user) {
         // Si la réponse contient un objet 'user'
@@ -82,10 +80,10 @@ const Header = () => {
           role: userData.role,
         })
       } else {
-        console.error("Invalid user data format:", userData)
+
       }
     } catch (error) {
-      console.error("Error fetching user info:", error)
+
     }
   }, [setUserInfo])
 
@@ -122,7 +120,7 @@ const Header = () => {
       await fetch(API_ENDPOINTS.auth.logout, { credentials: "include", method: "POST" })
       setUserInfo(null)
     } catch (error) {
-      console.error("Error logging out:", error)
+
     }
   }
 
@@ -140,7 +138,7 @@ const Header = () => {
           alert("Failed to delete account. Please try again.")
         }
       } catch (error) {
-        console.error("Error deleting account:", error)
+
         alert("An error occurred. Please try again.")
       }
     }

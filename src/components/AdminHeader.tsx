@@ -109,7 +109,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({ activeTab, onTabChange }) => 
           service.dispose()
         }
       } catch (error) {
-        console.error('Error initializing notification service:', error)
+
         setNotificationsError('Erreur lors du chargement des notifications')
       } finally {
         setIsNotificationsLoading(false)
@@ -129,7 +129,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({ activeTab, onTabChange }) => 
       setUserInfo(null)
       navigate("/")
     } catch (error) {
-      console.error("Error logging out:", error)
+
     }
   }
 
@@ -141,7 +141,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({ activeTab, onTabChange }) => 
     try {
       await notificationServiceRef.current.markAllAsRead()
     } catch (error) {
-      console.error('Error marking all notifications as read:', error)
+
       setNotificationsError('Erreur lors du marquage des notifications')
     }
   }
@@ -152,7 +152,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({ activeTab, onTabChange }) => 
     try {
       await notificationServiceRef.current.markAsRead(id)
     } catch (error) {
-      console.error('Error marking notification as read:', error)
+
       setNotificationsError('Erreur lors du marquage de la notification')
     }
   }
@@ -160,7 +160,7 @@ const AdminHeader: React.FC<AdminHeaderProps> = ({ activeTab, onTabChange }) => 
   const handleNotificationClick = (notification: AdminNotification) => {
     // This will be handled by the NotificationPanel component
     // The panel will automatically mark as read and handle navigation
-    console.log('Notification clicked:', notification)
+
   }
 
   const unreadCount = notifications.filter(n => !n.read).length

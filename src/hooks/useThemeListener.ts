@@ -13,7 +13,7 @@ export const useThemeListener = () => {
     const handleThemeChange = (event: CustomEvent) => {
       try {
         const { theme, colorTheme } = event.detail
-        console.log('Theme changed successfully:', { theme, colorTheme })
+
       } catch (error) {
         handleThemeError('theme_change_listener', {
           context: { component: 'useThemeListener', action: 'handle_theme_change' },

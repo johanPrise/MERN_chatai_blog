@@ -207,7 +207,7 @@ export function usePosts(options: UsePostsOptions = {}) {
 
   // Force refresh - clears cache and refetches
   const forceRefresh = useCallback(() => {
-    console.log('[usePosts] Force refresh triggered - clearing cache and refetching')
+
     setCache(new Map()) // Clear cache first
     return fetchPosts(filters, state.currentPage, false) // Then fetch without cache
   }, [filters, state.currentPage, fetchPosts])
@@ -219,7 +219,7 @@ export function usePosts(options: UsePostsOptions = {}) {
 
   // Invalidate cache for specific operations
   const invalidateCache = useCallback(() => {
-    console.log('[usePosts] Cache invalidated - clearing all cached data')
+
     setCache(new Map())
     // Force immediate refresh after cache invalidation
     return fetchPosts(filters, state.currentPage, false)

@@ -138,7 +138,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({
         }
       }
     } catch (error) {
-      console.error('Erreur lors du clic sur la notification:', error)
+
       // Toujours appeler le callback même en cas d'erreur
       onNotificationClick(notification)
     } finally {
@@ -166,7 +166,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({
       setIsMarkingAllAsRead(true)
       await onMarkAllAsRead()
     } catch (error) {
-      console.error('Erreur lors du marquage de toutes les notifications:', error)
+
       // Optionnel: afficher un message d'erreur à l'utilisateur
     } finally {
       setIsMarkingAllAsRead(false)

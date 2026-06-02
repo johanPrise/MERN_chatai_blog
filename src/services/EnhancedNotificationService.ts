@@ -128,7 +128,7 @@ export class EnhancedNotificationService extends NotificationService {
         
         notificationCache.removePendingAction(action.id)
       } catch (error) {
-        console.error('Failed to sync action:', action, error)
+
         // Garder l'action pour un prochain essai
       }
     }
