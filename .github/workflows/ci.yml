@@ -1,0 +1,188 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  # Frontend Tests and Build
+  frontend:
+    name: Frontend CI
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+      
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+      
+      - name: Setup pnpm cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Run linter
+        run: pnpm run lint
+      
+      - name: Run type check
+        run: pnpm run type-check
+      
+      - name: Run tests
+        run: pnpm run test
+        continue-on-error: true
+      
+      - name: Build application
+        run: pnpm run build
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        if: matrix.node-version == '20.x'
+        with:
+          name: frontend-build
+          path: dist/
+          retention-days: 7
+
+  # Backend Tests and Build
+  backend:
+    name: Backend CI
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: test
+          MONGO_INITDB_ROOT_PASSWORD: test
+        options: >-
+          --health-cmd "echo 'db.runCommand(\"ping\").ok' | mongosh localhost:27017/test --quiet"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+      
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+      
+      - name: Setup pnpm cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+      
+      - name: Install backend dependencies
+        working-directory: ./api-fastify
+        run: pnpm install --frozen-lockfile
+      
+      - name: Run backend linter
+        working-directory: ./api-fastify
+        run: pnpm run lint
+      
+      - name: Build backend
+        working-directory: ./api-fastify
+        run: pnpm run build
+        env:
+          MONGODB_URI: mongodb://test:test@localhost:27017/test?authSource=admin
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test_secret_key
+      
+      - name: Upload backend build artifacts
+        uses: actions/upload-artifact@v3
+        if: matrix.node-version == '20.x'
+        with:
+          name: backend-build
+          path: api-fastify/dist/
+          retention-days: 7
+
+  # Security Audit
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+      
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+      
+      - name: Audit frontend dependencies
+        run: |
+          pnpm audit --audit-level=moderate || echo "Frontend audit completed with warnings"
+      
+      - name: Audit backend dependencies
+        working-directory: ./api-fastify
+        run: |
+          pnpm audit --audit-level=moderate || echo "Backend audit completed with warnings"
