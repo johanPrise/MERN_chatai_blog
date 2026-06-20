@@ -1,4 +1,5 @@
 import hljs from 'highlight.js';
+import { sanitizeHtml } from './sanitizeHtml';
 
 // Injecter les variables CSS pour les couleurs de syntaxe
 const injectSyntaxThemeVariables = () => {
@@ -280,6 +281,11 @@ export const formatContent = (content: string): string => {
       htmlContent = lines.map(line => `<p>${line.trim()}</p>`).join('\n');
     }
   }
+
+  // Nettoyer le HTML issu du contenu utilisateur AVANT d'ajouter les
+  // décorations de confiance (boutons de copie, liens d'ancre, etc.).
+  // Cela neutralise les scripts/handlers injectés tout en préservant le markup légitime.
+  htmlContent = sanitizeHtml(htmlContent)
 
   // Maintenant, on traite le HTML pour améliorer le style
   const parser = new DOMParser()
