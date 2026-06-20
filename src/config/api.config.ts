@@ -89,6 +89,11 @@ export const API_ENDPOINTS = {
 
   // Santé de l'API
   health: `${API_BASE_URL}/health`,
+
+  // Liste d'attente (fonctionnalités à venir)
+  waitlist: {
+    join: `${API_BASE_URL}/waitlist`,
+  },
 };
 
 /**

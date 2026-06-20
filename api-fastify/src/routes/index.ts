@@ -9,6 +9,7 @@ import { uploadRoutes } from './upload.routes.js';
 import { aiRoutes } from './ai.routes.js';
 import { healthRoutes } from './health.routes.js';
 import { notificationRoutes } from './notification.routes.js';
+import { waitlistRoutes } from './waitlist.routes.js';
 
 
 /**
@@ -48,5 +49,8 @@ export function registerRoutes(server: FastifyInstance): void {
 
   // Enregistrer les routes des notifications admin
   server.register(notificationRoutes, { prefix: `${API_PREFIX}/admin/notifications` });
+
+  // Enregistrer les routes de la liste d'attente
+  server.register(waitlistRoutes, { prefix: `${API_PREFIX}/waitlist` });
 
 }
