@@ -448,6 +448,9 @@ const checkPostViewPermission = (post: IPost & { author: { _id: string } }, curr
 const incrementViewCount = async (post: IPost & { author: { _id: string } }, currentUserId?: string): Promise<void> => {
   if (!currentUserId || currentUserId !== post.author._id.toString()) {
     await Post.findByIdAndUpdate(post._id, { $inc: { viewCount: 1 } });
+    // Refléter l'incrément sur l'objet en mémoire pour que la réponse renvoyée
+    // inclue la vue courante (findByIdAndUpdate ne modifie pas `post`).
+    post.viewCount = (post.viewCount ?? 0) + 1;
   }
 };
 

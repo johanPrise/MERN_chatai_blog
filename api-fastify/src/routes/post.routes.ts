@@ -45,7 +45,9 @@ export async function postRoutes(fastify: FastifyInstance): Promise<void> {
     '/:idOrSlug',
     {
       schema: getPostSchema,
-      preHandler: [optionalAuthMiddleware, cacheMiddleware(300)], // Auth optionnelle + Cache 5 minutes
+      // Pas de cache ici : cette route incrémente le compteur de vues à chaque
+      // accès. La mettre en cache empêcherait le comptage des visites anonymes.
+      preHandler: [optionalAuthMiddleware],
     },
     PostController.getPost
   );
