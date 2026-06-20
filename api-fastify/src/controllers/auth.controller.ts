@@ -45,7 +45,9 @@ export const login = async (
     maxAge: 30 * 24 * 60 * 60, // 30 jours en secondes
   });
 
-  return reply.status(200).send({ token, user });
+  // Le token n'est volontairement PAS renvoyé dans le corps : il vit uniquement
+  // dans le cookie httpOnly, hors de portée d'un éventuel XSS côté client.
+  return reply.status(200).send({ user });
 };
 
 export const verifyEmail = async (

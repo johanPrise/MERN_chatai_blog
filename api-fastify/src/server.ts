@@ -137,6 +137,22 @@ export async function buildServer(): Promise<FastifyInstance> {
   // Démarrer le nettoyage automatique des notifications (toutes les 24h)
   startNotificationCleanup(24);
 
+  // En-têtes de sécurité (équivalent minimal de helmet, sans dépendance supplémentaire)
+  server.addHook('onSend', async (request, reply, payload) => {
+    reply.header('X-Content-Type-Options', 'nosniff');
+    reply.header('X-Frame-Options', 'DENY');
+    reply.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+    reply.header('X-DNS-Prefetch-Control', 'off');
+    reply.header('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+    // Autoriser le chargement cross-origin des fichiers uploadés par le frontend
+    reply.header('Cross-Origin-Resource-Policy', 'cross-origin');
+    // HSTS uniquement en production (HTTPS)
+    if (process.env.NODE_ENV === 'production') {
+      reply.header('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
+    }
+    return payload;
+  });
+
   // Middleware de logging des erreurs
   server.addHook('onRequest', errorLoggerMiddleware);
 

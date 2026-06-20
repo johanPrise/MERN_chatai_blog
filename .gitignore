@@ -56,9 +56,14 @@ env.js
 .vercel
 .netlify
 
+# AI tooling scratch dirs
+.qoder
+.kiro
+.zencoder
+
 # Uploads directory (except the .gitkeep file)
-/api/uploads/*
-!/api/uploads/.gitkeep
+/api-fastify/uploads/*
+!/api-fastify/uploads/.gitkeep
 
 # Million Lint
 .million

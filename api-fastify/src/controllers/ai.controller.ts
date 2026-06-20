@@ -19,7 +19,9 @@ export const sendMessage = async (
 ) => {
   try {
     const { input, sessionId } = request.body;
-    const userId = (request as any).user?.id;
+    // Le payload JWT expose `_id` (et non `id`). On retombe sur l'IP pour
+    // garantir une limite même si l'utilisateur n'est pas identifiable.
+    const rateLimitKey = request.user?._id ? String(request.user._id) : `ip:${request.ip}`;
 
     if (!input || !sessionId) {
       return reply.status(400).send({
@@ -27,8 +29,8 @@ export const sendMessage = async (
       });
     }
 
-    // Vérifier le rate limiting
-    if (userId && !(await chatCache.checkRateLimit(userId))) {
+    // Vérifier le rate limiting (toujours appliqué)
+    if (!(await chatCache.checkRateLimit(rateLimitKey))) {
       return reply.status(429).send({
         message: 'Trop de requêtes. Attendez une minute.',
         success: false

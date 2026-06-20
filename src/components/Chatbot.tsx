@@ -17,6 +17,7 @@ import {
   generateWelcomeMessage
 } from "../lib/chatUtils"
 import { API_ENDPOINTS } from "../config/api.config"
+import { sanitizeHtml } from "../lib/sanitizeHtml"
 import { UserContext } from "../UserContext"
 
 
@@ -108,7 +109,9 @@ const Chatbot: React.FC<ChatbotProps> = ({
    * @returns {string} Formatted HTML
    */
   const formatMessage = (text: string): string => {
-    return formatChatMessage(text)
+    // La réponse de l'IA est influençable par l'utilisateur (prompt injection) :
+    // on nettoie le HTML produit avant de l'injecter via dangerouslySetInnerHTML.
+    return sanitizeHtml(formatChatMessage(text))
   }
 
   /**
