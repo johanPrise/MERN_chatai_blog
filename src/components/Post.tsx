@@ -12,7 +12,36 @@ import { UserContext } from "../UserContext"
 import { AspectRatio } from "@radix-ui/react-aspect-ratio"
 import { useImageUrl } from '../hooks/useImageUrl'
 import { useLikes } from '../hooks/useLikes'
+import { toast } from '../hooks/use-toast'
 import SafeImage from './SafeImage'
+
+// Articles sauvegardés (persistés localement, faute d'endpoint backend dédié)
+const SAVED_POSTS_KEY = 'savedPosts'
+
+const getSavedPostIds = (): string[] => {
+  try {
+    const raw = localStorage.getItem(SAVED_POSTS_KEY)
+    const parsed = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+const isPostSaved = (id: string): boolean => getSavedPostIds().includes(id)
+
+/** Bascule l'état sauvegardé d'un article. Retourne le nouvel état. */
+const toggleSavedPost = (id: string): boolean => {
+  const ids = getSavedPostIds()
+  const exists = ids.includes(id)
+  const next = exists ? ids.filter(existingId => existingId !== id) : [...ids, id]
+  try {
+    localStorage.setItem(SAVED_POSTS_KEY, JSON.stringify(next))
+  } catch {
+    // localStorage indisponible : on ignore silencieusement
+  }
+  return !exists
+}
 
 // Helper functions
 const extractSummaryFromTiptap = (post: any): string => {
@@ -212,7 +241,7 @@ export default function Post({
 
   const { userInfo } = UserContext()
   const userId = userInfo?.id
-  const [isBookmarked, setIsBookmarked] = useState(false)
+  const [isBookmarked, setIsBookmarked] = useState(() => isPostSaved(_id))
   
   // Utiliser le hook pour l'image de couverture avec fallback et support du champ legacy
   const { getImageUrl } = useImageUrl()
@@ -277,16 +306,55 @@ export default function Post({
   const handleBookmark = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    if (!isFavorite) {
-      setIsBookmarked(!isBookmarked)
+
+    // Si le parent fournit un gestionnaire, on le laisse décider
+    if (onBookmark) {
+      onBookmark(_id)
+      return
     }
-    onBookmark?.(_id)
+
+    // Comportement par défaut : persistance locale des articles sauvegardés
+    const nowSaved = toggleSavedPost(_id)
+    setIsBookmarked(nowSaved)
+    toast({
+      title: nowSaved ? 'Article enregistré' : 'Article retiré',
+      description: nowSaved
+        ? 'Ajouté à vos articles sauvegardés.'
+        : 'Retiré de vos articles sauvegardés.',
+    })
   }
 
-  const handleShare = (e: React.MouseEvent) => {
+  const handleShare = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    onShare?.(post)
+
+    if (onShare) {
+      onShare(post)
+      return
+    }
+
+    // Comportement par défaut : Web Share API, avec repli sur le presse-papiers
+    const url = `${window.location.origin}/posts/${_id}`
+
+    try {
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        await navigator.share({ title, text: displaySummary, url })
+        return
+      }
+      await navigator.clipboard.writeText(url)
+      toast({
+        title: 'Lien copié',
+        description: "Le lien de l'article a été copié dans le presse-papiers.",
+      })
+    } catch (err) {
+      // L'utilisateur a annulé le partage natif : ne rien afficher
+      if (err instanceof DOMException && err.name === 'AbortError') return
+      toast({
+        title: 'Partage indisponible',
+        description: url,
+        variant: 'destructive',
+      })
+    }
   }
 
   // Enhanced text-only variant - now the default for all cards
