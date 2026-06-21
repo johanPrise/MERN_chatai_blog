@@ -45,6 +45,19 @@ export const useMarkdownTheme = (): MarkdownTheme => {
     '--md-code-block-bg': isDarkMode ? '#1a1a1a' : '#f0f0f0',
     '--md-code-block-border': isDarkMode ? '#333' : '#ddd',
 
+    // Coloration syntaxique — émise ici (inline) pour que la couleur du texte
+    // et le fond du bloc de code dérivent du MÊME isDarkMode. Sinon le fond
+    // (posé en inline) et le texte (issu du cascade CSS global) peuvent se
+    // désynchroniser et produire un rendu illisible (gris sur gris).
+    '--syntax-background': isDarkMode ? '#1a1a1a' : '#f0f0f0',
+    '--syntax-foreground': isDarkMode ? '#e0e0e0' : '#24292e',
+    '--syntax-border': isDarkMode ? '#333' : '#ddd',
+    '--syntax-keyword': isDarkMode ? '#f97583' : '#d73a49',
+    '--syntax-string': isDarkMode ? '#9ecbff' : '#032f62',
+    '--syntax-comment': isDarkMode ? '#8b949e' : '#6a737d',
+    '--syntax-number': isDarkMode ? '#79b8ff' : '#005cc5',
+    '--syntax-function': isDarkMode ? '#b392f0' : '#6f42c1',
+
     // Tableaux
     '--md-table-border': isDarkMode ? '#333' : '#e2e8f0',
     '--md-table-header-bg': isDarkMode ? '#222' : '#f8fafc',
